@@ -174,8 +174,7 @@ export async function createPrintfulOrder(order: StoreOrder) {
       items: order.items.map((item) => ({
         sync_variant_id: item.syncVariantId,
         quantity: item.quantity,
-        retail_price: toPrintfulAmount(item.unitAmount, item.currency),
-        external_id: `${order.id}:${item.syncVariantId}`
+        retail_price: toPrintfulAmount(item.unitAmount, item.currency)
       }))
     })
   });

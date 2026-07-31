@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addressesMateriallyMatch, buildOrderItems, calculateTotals } from "./checkout-calculator";
+import { addressesMateriallyMatch, buildOrderItems, calculateTotals, createDraftOrder } from "./checkout-calculator";
 import { CatalogProduct, CartItemInput, ShippingRate } from "./types";
 
 const product: CatalogProduct = {
@@ -64,6 +64,25 @@ describe("checkout calculator", () => {
       total: 5595,
       currency: "eur"
     });
+  });
+
+  it("creates order IDs accepted by Printful external ID limits", () => {
+    const items = buildOrderItems([{ productId: "101", syncVariantId: 201, quantity: 1 }], [product]);
+    const order = createDraftOrder({
+      recipient: {
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+        address1: "Calle Mayor 1",
+        city: "Madrid",
+        countryCode: "ES",
+        zip: "28013"
+      },
+      items,
+      shippingRate,
+      totals: calculateTotals(items, shippingRate)
+    });
+
+    expect(order.id).toMatch(/^[0-9a-f]{32}$/);
   });
 
   it("detects material address changes from Stripe Checkout", () => {

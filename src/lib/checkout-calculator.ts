@@ -52,7 +52,7 @@ export function createDraftOrder(input: {
   const now = new Date().toISOString();
 
   return {
-    id: randomUUID(),
+    id: randomUUID().replaceAll("-", ""),
     status: "draft",
     recipient: input.recipient,
     items: input.items,
