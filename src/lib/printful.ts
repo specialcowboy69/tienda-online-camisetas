@@ -14,6 +14,12 @@ type PrintfulResponse<T> = {
   };
 };
 
+type PrintfulOrder = {
+  id: number;
+  status: string;
+  external_id?: string;
+};
+
 type PrintfulSyncProductSummary = {
   id: number;
   external_id?: string;
@@ -157,9 +163,9 @@ export async function getShippingRates(recipient: Recipient, items: OrderItem[])
   return data.result;
 }
 
-export async function createPrintfulOrder(order: StoreOrder) {
+export async function createPrintfulOrder(order: StoreOrder): Promise<PrintfulOrder> {
   const confirm = shouldConfirmPrintfulOrders();
-  const data = await printfulFetch<PrintfulResponse<{ id: number; status: string; external_id?: string }>>(`/orders?confirm=${confirm ? "1" : "0"}`, {
+  const data = await printfulFetch<PrintfulResponse<PrintfulOrder>>(`/orders?confirm=${confirm ? "1" : "0"}`, {
     method: "POST",
     body: JSON.stringify({
       external_id: order.id,
@@ -180,6 +186,18 @@ export async function createPrintfulOrder(order: StoreOrder) {
   });
 
   return data.result;
+}
+
+export async function findPrintfulOrderByExternalId(externalId: string): Promise<PrintfulOrder | null> {
+  try {
+    const data = await printfulFetch<PrintfulResponse<PrintfulOrder>>(`/orders/@${encodeURIComponent(externalId)}`);
+    return data.result;
+  } catch (error) {
+    if (error instanceof PrintfulApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function configurePrintfulWebhook(publicUrl: string, productIds: number[] = []) {

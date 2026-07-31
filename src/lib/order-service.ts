@@ -13,7 +13,7 @@ import {
 } from "./firestore";
 import { jsonError, summarizeError } from "./http";
 import { assertSameCurrency } from "./money";
-import { createPrintfulOrder, getShippingRates, PrintfulApiError } from "./printful";
+import { createPrintfulOrder, findPrintfulOrderByExternalId, getShippingRates, PrintfulApiError } from "./printful";
 import { createStripeCheckoutSession, getStripe } from "./stripe";
 import { assertAllowedCountry } from "./validation";
 import { sendOrderConfirmationEmail } from "./email";
@@ -142,20 +142,15 @@ export async function submitOrderToPrintful(orderId: string): Promise<StoreOrder
 
   try {
     const printfulOrder = await createPrintfulOrder(order);
-    await updateOrderStatus(order.id, "printful_confirmed", {
-      printfulOrderId: printfulOrder.id,
-      printfulExternalId: printfulOrder.external_id || order.id,
-      printfulStatus: printfulOrder.status
-    });
-
-    const updated = await getOrder(order.id);
-    if (updated) {
-      await sendOrderConfirmationEmail(updated);
-      return updated;
+    return finishPrintfulOrder(order, printfulOrder);
+  } catch (error) {
+    if (error instanceof PrintfulApiError && error.status === 400) {
+      const existingOrder = await findPrintfulOrderByExternalId(order.id);
+      if (existingOrder) {
+        return finishPrintfulOrder(order, existingOrder);
+      }
     }
 
-    return order;
-  } catch (error) {
     const summary = summarizeError(error);
 
     if (error instanceof PrintfulApiError && error.isTemporary) {
@@ -166,6 +161,25 @@ export async function submitOrderToPrintful(orderId: string): Promise<StoreOrder
     await updateOrderStatus(order.id, "manual_review", { error: summary });
     return { ...order, status: "manual_review", error: summary };
   }
+}
+
+async function finishPrintfulOrder(
+  order: StoreOrder,
+  printfulOrder: { id: number; status: string; external_id?: string }
+): Promise<StoreOrder> {
+  await updateOrderStatus(order.id, "printful_confirmed", {
+    printfulOrderId: printfulOrder.id,
+    printfulExternalId: printfulOrder.external_id || order.id,
+    printfulStatus: printfulOrder.status
+  });
+
+  const updated = await getOrder(order.id);
+  if (updated) {
+    await sendOrderConfirmationEmail(updated);
+    return updated;
+  }
+
+  return order;
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {

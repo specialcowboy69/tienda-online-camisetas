@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run --environment node src/lib/checkout-calculator.test.ts src/lib/money.test.ts",
+    "test": "vitest run --environment node src/lib/checkout-calculator.test.ts src/lib/money.test.ts src/lib/printful.test.ts",
     "test:watch": "vitest --environment node src/lib/checkout-calculator.test.ts src/lib/money.test.ts"
   },
   "dependencies": {
