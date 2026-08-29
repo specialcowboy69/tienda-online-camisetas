@@ -16,7 +16,7 @@ const envSchema = z.object({
   ADMIN_SECRET: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM_EMAIL: z.string().email().optional()
+  RESEND_FROM_EMAIL: z.string().optional()
 });
 
 export const env = envSchema.parse(process.env);
