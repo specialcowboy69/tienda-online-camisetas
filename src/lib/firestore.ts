@@ -7,6 +7,10 @@ const ordersCollection = "orders";
 const webhookEventsCollection = "webhookEvents";
 const syncRunsCollection = "syncRuns";
 
+type StoreOrderUpdate = Partial<Omit<StoreOrder, "error">> & {
+  error?: StoreOrder["error"] | FieldValue;
+};
+
 export async function listCatalogProducts(): Promise<CatalogProduct[]> {
   const snapshot = await getDb().collection(productsCollection).orderBy("name", "asc").get();
   return snapshot.docs.map((doc) => doc.data() as CatalogProduct);
@@ -69,14 +73,14 @@ export async function findOrderByPrintfulExternalId(printfulExternalId: string):
   return snapshot.empty ? null : (snapshot.docs[0].data() as StoreOrder);
 }
 
-export async function updateOrder(orderId: string, update: Partial<StoreOrder>): Promise<void> {
+export async function updateOrder(orderId: string, update: StoreOrderUpdate): Promise<void> {
   await getDb()
     .collection(ordersCollection)
     .doc(orderId)
     .set({ ...update, updatedAt: new Date().toISOString() }, { merge: true });
 }
 
-export async function updateOrderStatus(orderId: string, status: OrderStatus, update: Partial<StoreOrder> = {}): Promise<void> {
+export async function updateOrderStatus(orderId: string, status: OrderStatus, update: StoreOrderUpdate = {}): Promise<void> {
   await updateOrder(orderId, { ...update, status });
 }
 
