@@ -110,6 +110,7 @@ export type StoreOrder = {
   error?: {
     type: string;
     message: string;
+    status?: number;
     details?: unknown;
   };
   createdAt: string;
