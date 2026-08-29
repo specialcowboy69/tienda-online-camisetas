@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { FieldValue } from "firebase-admin/firestore";
 import { addressesMateriallyMatch, buildOrderItems, calculateTotals, createDraftOrder } from "./checkout-calculator";
 import {
   beginWebhookEventProcessing,
@@ -168,6 +169,7 @@ async function finishPrintfulOrder(
   printfulOrder: { id: number; status: string; external_id?: string }
 ): Promise<StoreOrder> {
   await updateOrderStatus(order.id, "printful_confirmed", {
+    error: FieldValue.delete(),
     printfulOrderId: printfulOrder.id,
     printfulExternalId: printfulOrder.external_id || getPrintfulExternalId(order),
     printfulStatus: printfulOrder.status
