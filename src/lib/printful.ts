@@ -165,10 +165,11 @@ export async function getShippingRates(recipient: Recipient, items: OrderItem[])
 
 export async function createPrintfulOrder(order: StoreOrder): Promise<PrintfulOrder> {
   const confirm = shouldConfirmPrintfulOrders();
+  const externalId = getPrintfulExternalId(order);
   const data = await printfulFetch<PrintfulResponse<PrintfulOrder>>(`/orders?confirm=${confirm ? "1" : "0"}`, {
     method: "POST",
     body: JSON.stringify({
-      external_id: order.id,
+      external_id: externalId,
       shipping: order.shippingRate.id,
       recipient: toPrintfulRecipient(order.recipient),
       retail_costs: {
@@ -186,6 +187,10 @@ export async function createPrintfulOrder(order: StoreOrder): Promise<PrintfulOr
   });
 
   return data.result;
+}
+
+export function getPrintfulExternalId(order: Pick<StoreOrder, "id" | "printfulExternalId">): string {
+  return order.printfulExternalId || order.id.replaceAll("-", "");
 }
 
 export async function findPrintfulOrderByExternalId(externalId: string): Promise<PrintfulOrder | null> {

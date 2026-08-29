@@ -3,13 +3,14 @@ import {
   beginWebhookEventProcessing,
   failWebhookEventProcessing,
   finishWebhookEventProcessing,
+  findOrderByPrintfulExternalId,
+  getOrder,
   markCatalogProductDeleted,
   saveCatalogProducts,
   updateOrderStatus
 } from "@/lib/firestore";
 import { env } from "@/lib/env";
 import { sendShipmentEmail } from "@/lib/email";
-import { getOrder } from "@/lib/firestore";
 import { fetchPrintfulCatalog } from "@/lib/printful";
 import { jsonError, summarizeError } from "@/lib/http";
 
@@ -72,9 +73,10 @@ export async function POST(request: NextRequest) {
 
 async function applyPrintfulEvent(payload: PrintfulWebhookPayload): Promise<void> {
   const orderExternalId = payload.data?.order?.external_id;
+  const orderId = orderExternalId ? await resolveOrderId(orderExternalId) : null;
 
-  if (payload.type === "package_shipped" && orderExternalId) {
-    await updateOrderStatus(orderExternalId, "shipped", {
+  if (payload.type === "package_shipped" && orderId) {
+    await updateOrderStatus(orderId, "shipped", {
       printfulOrderId: payload.data?.order?.id,
       printfulStatus: payload.data?.order?.status,
       tracking: {
@@ -85,14 +87,14 @@ async function applyPrintfulEvent(payload: PrintfulWebhookPayload): Promise<void
       }
     });
 
-    const order = await getOrder(orderExternalId);
+    const order = await getOrder(orderId);
     if (order) {
       await sendShipmentEmail(order);
     }
   }
 
-  if (payload.type === "package_returned" && orderExternalId) {
-    await updateOrderStatus(orderExternalId, "returned", {
+  if (payload.type === "package_returned" && orderId) {
+    await updateOrderStatus(orderId, "returned", {
       printfulStatus: payload.data?.order?.status,
       error: {
         type: "PackageReturned",
@@ -101,8 +103,8 @@ async function applyPrintfulEvent(payload: PrintfulWebhookPayload): Promise<void
     });
   }
 
-  if (payload.type === "order_canceled" && orderExternalId) {
-    await updateOrderStatus(orderExternalId, "canceled", {
+  if (payload.type === "order_canceled" && orderId) {
+    await updateOrderStatus(orderId, "canceled", {
       printfulStatus: payload.data?.order?.status,
       error: {
         type: "PrintfulOrderCanceled",
@@ -111,8 +113,8 @@ async function applyPrintfulEvent(payload: PrintfulWebhookPayload): Promise<void
     });
   }
 
-  if ((payload.type === "order_put_hold" || payload.type === "order_put_hold_approval") && orderExternalId) {
-    await updateOrderStatus(orderExternalId, "manual_review", {
+  if ((payload.type === "order_put_hold" || payload.type === "order_put_hold_approval") && orderId) {
+    await updateOrderStatus(orderId, "manual_review", {
       printfulStatus: payload.data?.order?.status,
       error: {
         type: "PrintfulOrderHold",
@@ -121,8 +123,8 @@ async function applyPrintfulEvent(payload: PrintfulWebhookPayload): Promise<void
     });
   }
 
-  if (payload.type === "order_remove_hold" && orderExternalId) {
-    await updateOrderStatus(orderExternalId, "printful_confirmed", {
+  if (payload.type === "order_remove_hold" && orderId) {
+    await updateOrderStatus(orderId, "printful_confirmed", {
       printfulStatus: payload.data?.order?.status
     });
   }
@@ -135,6 +137,11 @@ async function applyPrintfulEvent(payload: PrintfulWebhookPayload): Promise<void
     const products = await fetchPrintfulCatalog();
     await saveCatalogProducts(products);
   }
+}
+
+async function resolveOrderId(printfulExternalId: string): Promise<string | null> {
+  const order = (await getOrder(printfulExternalId)) || (await findOrderByPrintfulExternalId(printfulExternalId));
+  return order?.id || null;
 }
 
 function buildPrintfulEventId(payload: PrintfulWebhookPayload): string {

@@ -13,7 +13,7 @@ import {
 } from "./firestore";
 import { jsonError, summarizeError } from "./http";
 import { assertSameCurrency } from "./money";
-import { createPrintfulOrder, findPrintfulOrderByExternalId, getShippingRates, PrintfulApiError } from "./printful";
+import { createPrintfulOrder, findPrintfulOrderByExternalId, getPrintfulExternalId, getShippingRates, PrintfulApiError } from "./printful";
 import { createStripeCheckoutSession, getStripe } from "./stripe";
 import { assertAllowedCountry } from "./validation";
 import { sendOrderConfirmationEmail } from "./email";
@@ -145,7 +145,7 @@ export async function submitOrderToPrintful(orderId: string): Promise<StoreOrder
     return finishPrintfulOrder(order, printfulOrder);
   } catch (error) {
     if (error instanceof PrintfulApiError && error.status === 400) {
-      const existingOrder = await findPrintfulOrderByExternalId(order.id);
+      const existingOrder = await findPrintfulOrderByExternalId(getPrintfulExternalId(order));
       if (existingOrder) {
         return finishPrintfulOrder(order, existingOrder);
       }
@@ -169,7 +169,7 @@ async function finishPrintfulOrder(
 ): Promise<StoreOrder> {
   await updateOrderStatus(order.id, "printful_confirmed", {
     printfulOrderId: printfulOrder.id,
-    printfulExternalId: printfulOrder.external_id || order.id,
+    printfulExternalId: printfulOrder.external_id || getPrintfulExternalId(order),
     printfulStatus: printfulOrder.status
   });
 

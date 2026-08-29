@@ -59,6 +59,16 @@ export async function findOrderByStripePaymentIntentId(paymentIntentId: string):
   return snapshot.empty ? null : (snapshot.docs[0].data() as StoreOrder);
 }
 
+export async function findOrderByPrintfulExternalId(printfulExternalId: string): Promise<StoreOrder | null> {
+  const snapshot = await getDb()
+    .collection(ordersCollection)
+    .where("printfulExternalId", "==", printfulExternalId)
+    .limit(1)
+    .get();
+
+  return snapshot.empty ? null : (snapshot.docs[0].data() as StoreOrder);
+}
+
 export async function updateOrder(orderId: string, update: Partial<StoreOrder>): Promise<void> {
   await getDb()
     .collection(ordersCollection)
