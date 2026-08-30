@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { StoreOrder } from "./types";
 
-const order = {
+const order: StoreOrder = {
   id: "737c2156ef584a17a5736185195dd42b",
   status: "printful_confirmed",
   recipient: {
@@ -27,7 +28,7 @@ const order = {
   totals: { subtotal: 2499, shipping: 429, total: 2928, currency: "eur" },
   createdAt: "2026-08-29T10:00:00.000Z",
   updatedAt: "2026-08-29T10:00:00.000Z"
-} as const;
+};
 
 describe("transactional emails", () => {
   beforeEach(() => {
