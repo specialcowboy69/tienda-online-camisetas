@@ -12,41 +12,19 @@ import {
 import { env } from "@/lib/env";
 import { sendShipmentEmail } from "@/lib/email";
 import { fetchPrintfulCatalog } from "@/lib/printful";
+import { isPrintfulWebhookSecretValid, parsePrintfulWebhookPayload, type PrintfulWebhookPayload } from "@/lib/printful-webhook";
 import { jsonError, summarizeError } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
-type PrintfulWebhookPayload = {
-  type: string;
-  created: number;
-  retries: number;
-  store: number;
-  data?: {
-    order?: {
-      id?: number;
-      external_id?: string;
-      status?: string;
-    };
-    shipment?: {
-      id?: number;
-      carrier?: string;
-      service?: string;
-      tracking_number?: string;
-      tracking_url?: string;
-    };
-    sync_product?: {
-      id?: number;
-      external_id?: string;
-      name?: string;
-    };
-    product_id?: number;
-    reason?: string;
-  };
-};
-
 export async function POST(request: NextRequest) {
+  const suppliedSecret = request.headers.get("x-printful-webhook-secret") || request.nextUrl.searchParams.get("secret");
+  if (!isPrintfulWebhookSecretValid(suppliedSecret)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const payload = (await request.json()) as PrintfulWebhookPayload;
+    const payload = parsePrintfulWebhookPayload(await request.json());
 
     if (env.PRINTFUL_STORE_ID && String(payload.store) !== env.PRINTFUL_STORE_ID) {
       return NextResponse.json({ error: "Unexpected Printful store." }, { status: 403 });

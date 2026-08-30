@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/auth";
-import { getBaseUrl } from "@/lib/env";
+import { env, getBaseUrl } from "@/lib/env";
 import { listCatalogProducts } from "@/lib/firestore";
 import { jsonError } from "@/lib/http";
-import { configurePrintfulWebhook } from "@/lib/printful";
+import { appendWebhookSecret, configurePrintfulWebhook } from "@/lib/printful";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +14,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const url = `${getBaseUrl()}/api/webhooks/printful`;
+    const registeredUrl = appendWebhookSecret(url, env.PRINTFUL_WEBHOOK_SECRET);
     const products = await listCatalogProducts();
-    const result = await configurePrintfulWebhook(
-      url,
+    await configurePrintfulWebhook(
+      registeredUrl,
       products.map((product) => product.syncProductId)
     );
-    return NextResponse.json({ success: true, url, result });
+    return NextResponse.json({ success: true, url });
   } catch (error) {
     return jsonError(error);
   }

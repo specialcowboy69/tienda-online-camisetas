@@ -7,6 +7,7 @@ const envSchema = z.object({
   STRIPE_TAX_ENABLED: z.string().optional(),
   PRINTFUL_API_TOKEN: z.string().optional(),
   PRINTFUL_STORE_ID: z.string().optional(),
+  PRINTFUL_WEBHOOK_SECRET: z.string().optional(),
   ORDER_CONFIRM_PRINTFUL: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
