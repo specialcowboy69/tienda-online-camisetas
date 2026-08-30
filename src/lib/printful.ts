@@ -205,6 +205,16 @@ export async function findPrintfulOrderByExternalId(externalId: string): Promise
   }
 }
 
+export function appendWebhookSecret(url: string, secret?: string): string {
+  if (!secret) {
+    return url;
+  }
+
+  const parsed = new URL(url);
+  parsed.searchParams.set("secret", secret);
+  return parsed.toString();
+}
+
 export async function configurePrintfulWebhook(publicUrl: string, productIds: number[] = []) {
   const types = getPrintfulWebhookTypes().filter((type) => productIds.length > 0 || type !== "stock_updated");
 

@@ -7,6 +7,7 @@ const envSchema = z.object({
   STRIPE_TAX_ENABLED: z.string().optional(),
   PRINTFUL_API_TOKEN: z.string().optional(),
   PRINTFUL_STORE_ID: z.string().optional(),
+  PRINTFUL_WEBHOOK_SECRET: z.string().optional(),
   ORDER_CONFIRM_PRINTFUL: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
@@ -16,7 +17,9 @@ const envSchema = z.object({
   ADMIN_SECRET: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM_EMAIL: z.string().email().optional()
+  RESEND_FROM_EMAIL: z.string().optional(),
+  TRUST_PROXY_HEADERS: z.enum(["true", "false"]).default("false"),
+  RATE_LIMIT_FALLBACK_MULTIPLIER: z.coerce.number().int().min(1).max(100).default(10)
 });
 
 export const env = envSchema.parse(process.env);
@@ -41,6 +44,14 @@ export function isStripeTaxEnabled(): boolean {
 
 export function shouldConfirmPrintfulOrders(): boolean {
   return env.ORDER_CONFIRM_PRINTFUL === "true";
+}
+
+export function shouldTrustProxyHeaders(): boolean {
+  return env.TRUST_PROXY_HEADERS === "true";
+}
+
+export function getRateLimitFallbackLimit(limit: number): number {
+  return limit * env.RATE_LIMIT_FALLBACK_MULTIPLIER;
 }
 
 export function getBaseUrl(): string {

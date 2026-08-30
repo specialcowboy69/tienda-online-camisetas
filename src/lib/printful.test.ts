@@ -90,4 +90,12 @@ describe("Printful order recovery", () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.external_id).toBe("737c2156ef584a17a5736185195dd42b");
   });
+
+  it("adds the webhook secret without replacing existing query parameters", async () => {
+    const { appendWebhookSecret } = await import("./printful");
+
+    expect(appendWebhookSecret("https://store.example/api/webhooks/printful?source=admin", "strong-test-secret")).toBe(
+      "https://store.example/api/webhooks/printful?source=admin&secret=strong-test-secret"
+    );
+  });
 });

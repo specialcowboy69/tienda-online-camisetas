@@ -60,6 +60,17 @@ This creates Printful draft orders. Set it to `true` only when you are ready for
 
 `STRIPE_TAX_ENABLED=false` by default. Enable it only after Stripe Tax is configured correctly and your fiscal obligations are clear.
 
+## Transactional Emails
+
+The app sends transactional emails through Resend when these variables are configured:
+
+```text
+RESEND_API_KEY=re_xxx
+RESEND_FROM_EMAIL=Tienda Online Camisetas <orders@your-domain.com>
+```
+
+Configure and verify the sending domain in Resend before using a production sender address. If either variable is missing, email sending is skipped and the order flow continues.
+
 ## Tests
 
 ```bash

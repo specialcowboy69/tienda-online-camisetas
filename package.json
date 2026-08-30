@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run --environment node src/lib/checkout-calculator.test.ts src/lib/http.test.ts src/lib/money.test.ts src/lib/printful.test.ts",
+    "test": "vitest run --environment node src/lib/checkout-calculator.test.ts src/lib/email.test.ts src/lib/http.test.ts src/lib/money.test.ts src/lib/printful.test.ts src/lib/printful-webhook.test.ts src/lib/printful-webhook-route.test.ts src/lib/public-api-body-size.test.ts src/lib/public-api-rate-limit.test.ts src/lib/rate-limit.test.ts src/lib/validation.test.ts",
     "test:watch": "vitest --environment node src/lib/checkout-calculator.test.ts src/lib/money.test.ts"
   },
   "dependencies": {
