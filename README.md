@@ -77,4 +77,14 @@ Configure and verify the sending domain in Resend before using a production send
 npm test
 ```
 
-The current tests cover money conversion, cart-to-order mapping, availability rejection, totals and address mismatch detection.
+The current tests cover money conversion, cart-to-order mapping, availability rejection, totals, address mismatch detection, Printful webhook handling, public API rate limits, body-size limits, validation, and transactional email behavior.
+
+## Project Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Development workflow](docs/DEVELOPMENT.md)
+- [Security notes](docs/SECURITY.md)
+- [Deployment guide](docs/DEPLOYMENT.md)
+- [Roadmap](docs/ROADMAP.md)
+
+For AI agents and Codex sessions, read [AGENTS.md](AGENTS.md) before changing the project.
