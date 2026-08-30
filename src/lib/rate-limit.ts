@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { shouldTrustProxyHeaders } from "./env";
+import { getRateLimitFallbackLimit, shouldTrustProxyHeaders } from "./env";
 
 type RateLimitEntry = {
   count: number;
@@ -8,6 +8,8 @@ type RateLimitEntry = {
 
 // Per-runtime-instance guard; it is not a distributed limit.
 const buckets = new Map<string, RateLimitEntry>();
+const CLEANUP_INTERVAL_MS = 60_000;
+let nextCleanupAt = 0;
 
 export function cleanupExpiredBuckets(now: number): number {
   let removed = 0;
@@ -20,6 +22,15 @@ export function cleanupExpiredBuckets(now: number): number {
   }
 
   return removed;
+}
+
+function cleanupExpiredBucketsIfDue(now: number): void {
+  if (now < nextCleanupAt) {
+    return;
+  }
+
+  cleanupExpiredBuckets(now);
+  nextCleanupAt = now + CLEANUP_INTERVAL_MS;
 }
 
 export function rateLimit(
@@ -35,7 +46,7 @@ export function rateLimit(
   }
 
   const now = options.now ?? Date.now();
-  cleanupExpiredBuckets(now);
+  cleanupExpiredBucketsIfDue(now);
   const existing = buckets.get(key);
 
   if (!existing || existing.resetAt <= now) {
@@ -62,6 +73,20 @@ export function getClientIp(request: NextRequest): string {
     request.headers.get("x-real-ip") ||
     "unknown"
   );
+}
+
+export function rateLimitRequest(
+  scope: string,
+  request: NextRequest,
+  options: { limit: number; windowMs: number; now?: number }
+): { allowed: boolean; remaining: number; resetAt: number } {
+  const clientIp = getClientIp(request);
+  const isFallback = clientIp === "unknown";
+
+  return rateLimit(`${scope}:${isFallback ? "global-fallback" : clientIp}`, {
+    ...options,
+    limit: isFallback ? getRateLimitFallbackLimit(options.limit) : options.limit
+  });
 }
 
 export function rateLimitResponse(resetAt: number): NextResponse {

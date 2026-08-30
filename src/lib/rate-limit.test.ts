@@ -18,6 +18,13 @@ afterEach(() => {
 });
 
 describe("rateLimit", () => {
+  it("defers full cleanup sweeps while still removing expired buckets", () => {
+    rateLimit("cleanup-expired", { limit: 1, windowMs: 1, now: 9_000_000 });
+    rateLimit("cleanup-trigger", { limit: 1, windowMs: 1000, now: 9_000_001 });
+
+    expect(cleanupExpiredBuckets(9_000_001)).toBe(1);
+  });
+
   it("allows requests up to the limit inside a window", () => {
     expect(rateLimit("checkout:1.2.3.4", { limit: 2, windowMs: 1000, now: 100 }).allowed).toBe(true);
     expect(rateLimit("checkout:1.2.3.4", { limit: 2, windowMs: 1000, now: 200 }).allowed).toBe(true);
@@ -27,14 +34,6 @@ describe("rateLimit", () => {
   it("resets after the window", () => {
     expect(rateLimit("shipping:5.6.7.8", { limit: 1, windowMs: 1000, now: 100 }).allowed).toBe(true);
     expect(rateLimit("shipping:5.6.7.8", { limit: 1, windowMs: 1000, now: 1200 }).allowed).toBe(true);
-  });
-
-  it("evicts expired buckets during later requests", () => {
-    rateLimit("expired", { limit: 1, windowMs: 100, now: 0 });
-    rateLimit("active", { limit: 1, windowMs: 1000, now: 500 });
-    rateLimit("trigger", { limit: 1, windowMs: 1000, now: 500 });
-
-    expect(cleanupExpiredBuckets(500)).toBe(0);
   });
 
   it("rejects invalid limit options", () => {

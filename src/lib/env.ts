@@ -18,7 +18,8 @@ const envSchema = z.object({
   CRON_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
-  TRUST_PROXY_HEADERS: z.enum(["true", "false"]).default("false")
+  TRUST_PROXY_HEADERS: z.enum(["true", "false"]).default("false"),
+  RATE_LIMIT_FALLBACK_MULTIPLIER: z.coerce.number().int().min(1).max(100).default(10)
 });
 
 export const env = envSchema.parse(process.env);
@@ -47,6 +48,10 @@ export function shouldConfirmPrintfulOrders(): boolean {
 
 export function shouldTrustProxyHeaders(): boolean {
   return env.TRUST_PROXY_HEADERS === "true";
+}
+
+export function getRateLimitFallbackLimit(limit: number): number {
+  return limit * env.RATE_LIMIT_FALLBACK_MULTIPLIER;
 }
 
 export function getBaseUrl(): string {

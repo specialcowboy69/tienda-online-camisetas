@@ -12,6 +12,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (!env.PRINTFUL_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: "PRINTFUL_WEBHOOK_SECRET is not configured" }, { status: 503 });
+  }
+
   try {
     const url = `${getBaseUrl()}/api/webhooks/printful`;
     const registeredUrl = appendWebhookSecret(url, env.PRINTFUL_WEBHOOK_SECRET);

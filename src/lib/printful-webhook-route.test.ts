@@ -5,7 +5,8 @@ const mocks = vi.hoisted(() => ({
   beginWebhookEventProcessing: vi.fn(),
   configurePrintfulWebhook: vi.fn(),
   isAdminRequest: vi.fn(),
-  listCatalogProducts: vi.fn()
+  listCatalogProducts: vi.fn(),
+  webhookSecret: "strong-test-secret" as string | undefined
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -13,7 +14,11 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/env", () => ({
-  env: { PRINTFUL_WEBHOOK_SECRET: "strong-test-secret" },
+  env: {
+    get PRINTFUL_WEBHOOK_SECRET() {
+      return mocks.webhookSecret;
+    }
+  },
   getBaseUrl: () => "https://store.example"
 }));
 
@@ -62,6 +67,7 @@ describe("Printful webhook routes", () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.stubEnv("PRINTFUL_WEBHOOK_SECRET", "strong-test-secret");
+    mocks.webhookSecret = "strong-test-secret";
   });
 
   afterEach(() => {
@@ -127,5 +133,18 @@ describe("Printful webhook routes", () => {
       "https://store.example/api/webhooks/printful?secret=strong-test-secret",
       [123]
     );
+  });
+
+  it("refuses webhook registration when the signing secret is missing", async () => {
+    mocks.webhookSecret = undefined;
+    mocks.isAdminRequest.mockReturnValue(true);
+    mocks.listCatalogProducts.mockResolvedValue([]);
+    mocks.configurePrintfulWebhook.mockResolvedValue({});
+    const { POST } = await import("../app/api/admin/printful/webhook/route");
+
+    const response = await POST(new NextRequest("https://store.example/api/admin/printful/webhook", { method: "POST" }));
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "PRINTFUL_WEBHOOK_SECRET is not configured" });
   });
 });

@@ -11,22 +11,22 @@ export const recipientSchema = z.object({
   stateCode: z.string().max(80).optional(),
   countryCode: z.string().length(2).transform((value) => value.toUpperCase()),
   zip: z.string().min(2).max(40)
-});
+}).strict();
 
 export const cartItemSchema = z.object({
   productId: z.string().min(1).max(128),
   syncVariantId: z.number().int().positive(),
   quantity: z.number().int().positive().max(100)
-});
+}).strict();
 
 export const shippingRatesRequestSchema = z.object({
   recipient: recipientSchema,
   items: z.array(cartItemSchema).min(1).max(100)
-});
+}).strict();
 
 export const checkoutRequestSchema = shippingRatesRequestSchema.extend({
   shippingRateId: z.string().min(1).max(120)
-});
+}).strict();
 
 export function assertAllowedCountry(countryCode: string): void {
   const allowed = getAllowedShippingCountries();

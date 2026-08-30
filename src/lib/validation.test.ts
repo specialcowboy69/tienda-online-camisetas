@@ -25,4 +25,20 @@ describe("checkoutRequestSchema", () => {
 
     expect(() => checkoutRequestSchema.parse({ ...validRequest, shippingRateId: "a".repeat(121) })).toThrow();
   });
+
+  it("rejects unknown public request properties", () => {
+    expect(() => checkoutRequestSchema.parse({ ...validRequest, ignored: true })).toThrow();
+    expect(() =>
+      checkoutRequestSchema.parse({
+        ...validRequest,
+        recipient: { ...validRequest.recipient, ignored: true }
+      })
+    ).toThrow();
+    expect(() =>
+      checkoutRequestSchema.parse({
+        ...validRequest,
+        items: [{ ...validRequest.items[0], ignored: true }]
+      })
+    ).toThrow();
+  });
 });
