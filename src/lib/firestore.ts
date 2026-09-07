@@ -13,7 +13,7 @@ type StoreOrderUpdate = Partial<Omit<StoreOrder, "error">> & {
 
 export async function listCatalogProducts(): Promise<CatalogProduct[]> {
   const snapshot = await getDb().collection(productsCollection).orderBy("name", "asc").get();
-  return snapshot.docs.map((doc) => doc.data() as CatalogProduct);
+  return snapshot.docs.map((doc) => doc.data() as CatalogProduct).filter((product) => !product.isIgnored);
 }
 
 export async function getCatalogProduct(productId: string): Promise<CatalogProduct | null> {
