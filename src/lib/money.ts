@@ -1,5 +1,14 @@
 const zeroDecimalCurrencies = new Set(["bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf"]);
 
+export function normalizeCurrencyCode(currency: string): string {
+  const normalized = currency.trim().toLowerCase();
+  if (!/^[a-z]{3}$/.test(normalized)) {
+    throw new Error("Currency must be a three-letter ISO currency code.");
+  }
+
+  return normalized;
+}
+
 export function toMinorUnits(amount: string | number, currency: string): number {
   const parsed = typeof amount === "number" ? amount : Number(amount);
   if (!Number.isFinite(parsed)) {

@@ -46,6 +46,10 @@ npm run dev
 - `/api/webhooks/printful` receives fulfillment updates and tracking.
 - `/admin` provides a small private operations panel using `ADMIN_SECRET`.
 
+## Store Currency
+
+Set `STORE_CURRENCY=usd` to show and charge customers in USD. This changes the storefront and Stripe checkout currency, but it keeps the numeric retail prices from Printful, so `24.99 EUR` becomes `24.99 USD`; review margins before going live.
+
 ## Printful Safety
 
 Keep this in staging until you have tested the complete flow:

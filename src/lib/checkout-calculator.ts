@@ -1,10 +1,13 @@
 import { randomUUID } from "crypto";
+import { applyStoreCurrencyToProducts } from "./catalog-pricing";
 import { assertSameCurrency, toMinorUnits } from "./money";
 import { CatalogProduct, CartItemInput, OrderItem, OrderTotals, Recipient, ShippingRate, StoreOrder } from "./types";
 
-export function buildOrderItems(cartItems: CartItemInput[], products: CatalogProduct[]): OrderItem[] {
+export function buildOrderItems(cartItems: CartItemInput[], products: CatalogProduct[], storeCurrency?: string): OrderItem[] {
+  const pricedProducts = applyStoreCurrencyToProducts(products, storeCurrency);
+
   return cartItems.map((cartItem) => {
-    const product = products.find((candidate) => candidate.id === cartItem.productId);
+    const product = pricedProducts.find((candidate) => candidate.id === cartItem.productId);
     if (!product || product.isIgnored) {
       throw new Error(`Product ${cartItem.productId} is not available.`);
     }

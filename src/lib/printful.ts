@@ -1,4 +1,5 @@
-import { env, getPrintfulWebhookTypes, requiredEnv, shouldConfirmPrintfulOrders } from "./env";
+import { applyStoreCurrencyToProduct } from "./catalog-pricing";
+import { env, getPrintfulWebhookTypes, getStoreCurrency, requiredEnv, shouldConfirmPrintfulOrders } from "./env";
 import { toMinorUnits } from "./money";
 import { CatalogProduct, OrderItem, Recipient, ShippingRate, StoreOrder } from "./types";
 
@@ -106,7 +107,8 @@ export async function fetchPrintfulCatalog(): Promise<CatalogProduct[]> {
       .map((product) => printfulFetch<PrintfulResponse<PrintfulProductDetail>>(`/store/products/${product.id}`).then((response) => response.result))
   );
 
-  return details.map(mapPrintfulProduct);
+  const storeCurrency = getStoreCurrency();
+  return details.map((detail) => applyStoreCurrencyToProduct(mapPrintfulProduct(detail), storeCurrency));
 }
 
 function mapPrintfulProduct(detail: PrintfulProductDetail): CatalogProduct {

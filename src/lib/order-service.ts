@@ -18,13 +18,13 @@ import { createPrintfulOrder, findPrintfulOrderByExternalId, getPrintfulExternal
 import { createStripeCheckoutSession, getStripe } from "./stripe";
 import { assertAllowedCountry } from "./validation";
 import { sendOrderConfirmationEmail } from "./email";
-import { isStripeTaxEnabled, requiredEnv } from "./env";
+import { getStoreCurrency, isStripeTaxEnabled, requiredEnv } from "./env";
 import { CartItemInput, Recipient, ShippingRate, StoreOrder } from "./types";
 
 export async function quoteShipping(input: { recipient: Recipient; items: CartItemInput[] }): Promise<ShippingRate[]> {
   assertAllowedCountry(input.recipient.countryCode);
   const products = await loadProductsForCart(input.items);
-  const orderItems = buildOrderItems(input.items, products);
+  const orderItems = buildOrderItems(input.items, products, getStoreCurrency());
   assertSameCurrency(orderItems.map((item) => item.currency));
   return getShippingRates(input.recipient, orderItems);
 }
@@ -37,7 +37,7 @@ export async function createCheckout(input: {
   assertAllowedCountry(input.recipient.countryCode);
 
   const products = await loadProductsForCart(input.items);
-  const orderItems = buildOrderItems(input.items, products);
+  const orderItems = buildOrderItems(input.items, products, getStoreCurrency());
   assertSameCurrency(orderItems.map((item) => item.currency));
   const shippingRates = await getShippingRates(input.recipient, orderItems);
   const selectedShippingRate = shippingRates.find((rate) => rate.id === input.shippingRateId);

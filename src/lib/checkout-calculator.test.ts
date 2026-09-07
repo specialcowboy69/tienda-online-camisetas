@@ -45,6 +45,16 @@ describe("checkout calculator", () => {
     });
   });
 
+  it("uses the configured store currency without changing the retail price amount", () => {
+    const cart: CartItemInput[] = [{ productId: "101", syncVariantId: 201, quantity: 2 }];
+    const items = buildOrderItems(cart, [product], "USD");
+
+    expect(items[0]).toMatchObject({
+      unitAmount: 2550,
+      currency: "usd"
+    });
+  });
+
   it("rejects unavailable variants", () => {
     const unavailableProduct: CatalogProduct = {
       ...product,

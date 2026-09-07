@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { normalizeCurrencyCode } from "./money";
 
 const envSchema = z.object({
   NEXT_PUBLIC_BASE_URL: z.string().url().default("http://localhost:3000"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_TAX_ENABLED: z.string().optional(),
+  STORE_CURRENCY: z.string().optional(),
   PRINTFUL_API_TOKEN: z.string().optional(),
   PRINTFUL_STORE_ID: z.string().optional(),
   PRINTFUL_WEBHOOK_SECRET: z.string().optional(),
@@ -40,6 +42,10 @@ export function getAllowedShippingCountries(): string[] {
 
 export function isStripeTaxEnabled(): boolean {
   return env.STRIPE_TAX_ENABLED === "true";
+}
+
+export function getStoreCurrency(): string | undefined {
+  return env.STORE_CURRENCY ? normalizeCurrencyCode(env.STORE_CURRENCY) : undefined;
 }
 
 export function shouldConfirmPrintfulOrders(): boolean {

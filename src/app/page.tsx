@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Storefront } from "@/components/storefront";
-import { env, getAllowedShippingCountries } from "@/lib/env";
+import { applyStoreCurrencyToProducts } from "@/lib/catalog-pricing";
+import { env, getAllowedShippingCountries, getStoreCurrency } from "@/lib/env";
 import { listCatalogProducts } from "@/lib/firestore";
 import { CatalogProduct } from "@/lib/types";
 
@@ -11,7 +12,7 @@ export default async function HomePage() {
   let setupError = "";
 
   try {
-    products = await listCatalogProducts();
+    products = applyStoreCurrencyToProducts(await listCatalogProducts(), getStoreCurrency());
   } catch (error) {
     setupError = error instanceof Error ? error.message : "Catalog is not available yet.";
   }
