@@ -2,38 +2,6 @@ import { randomUUID } from "crypto";
 import { assertSameCurrency, toMinorUnits } from "./money";
 import { CatalogProduct, CartItemInput, OrderItem, OrderTotals, Recipient, ShippingRate, StoreOrder } from "./types";
 
-const freeShippingCountryCodes = new Set([
-  "US",
-  "AT",
-  "BE",
-  "BG",
-  "HR",
-  "CY",
-  "CZ",
-  "DK",
-  "EE",
-  "FI",
-  "FR",
-  "DE",
-  "GR",
-  "HU",
-  "IE",
-  "IT",
-  "LV",
-  "LT",
-  "LU",
-  "MT",
-  "NL",
-  "PL",
-  "PT",
-  "RO",
-  "SK",
-  "SI",
-  "ES",
-  "SE",
-  "GB"
-]);
-
 export function buildOrderItems(cartItems: CartItemInput[], products: CatalogProduct[]): OrderItem[] {
   return cartItems.map((cartItem) => {
     const product = products.find((candidate) => candidate.id === cartItem.productId);
@@ -63,7 +31,11 @@ export function buildOrderItems(cartItems: CartItemInput[], products: CatalogPro
 }
 
 export function priceCustomerShippingRate(shippingRate: ShippingRate, countryCode: string): ShippingRate {
-  if (!freeShippingCountryCodes.has(countryCode.trim().toUpperCase())) {
+  const shippingMethodId = shippingRate.id.trim().toUpperCase();
+  const normalizedCountryCode = countryCode.trim().toUpperCase();
+  const isIncludedShipping = shippingMethodId === "STANDARD" || (shippingMethodId === "PRINTFUL_FAST" && normalizedCountryCode === "US");
+
+  if (!isIncludedShipping) {
     return shippingRate;
   }
 

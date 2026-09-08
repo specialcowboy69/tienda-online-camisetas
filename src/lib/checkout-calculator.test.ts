@@ -72,14 +72,24 @@ describe("checkout calculator", () => {
     });
   });
 
-  it("prices customer shipping as free for the United States, Europe and the UK", () => {
+  it("prices standard customer shipping as free for every country", () => {
     expect(priceCustomerShippingRate(shippingRate, "US").rate).toBe("0.00");
     expect(priceCustomerShippingRate(shippingRate, "ES").rate).toBe("0.00");
-    expect(priceCustomerShippingRate(shippingRate, "GB").rate).toBe("0.00");
+    expect(priceCustomerShippingRate(shippingRate, "CA").rate).toBe("0.00");
   });
 
-  it("keeps Printful shipping rates for countries outside the free shipping region", () => {
-    expect(priceCustomerShippingRate(shippingRate, "CA").rate).toBe("4.95");
+  it("prices Printful fast customer shipping as free only for the United States", () => {
+    const fastRate = { ...shippingRate, id: "PRINTFUL_FAST", name: "Express" };
+
+    expect(priceCustomerShippingRate(fastRate, "US").rate).toBe("0.00");
+    expect(priceCustomerShippingRate(fastRate, "ES").rate).toBe("4.95");
+  });
+
+  it("keeps non-standard customer shipping rates outside the included shipping rules", () => {
+    const carbonOffsetRate = { ...shippingRate, id: "STANDARD_CARBON_OFFSET", name: "Standard carbon offset" };
+
+    expect(priceCustomerShippingRate(carbonOffsetRate, "US").rate).toBe("4.95");
+    expect(priceCustomerShippingRate(carbonOffsetRate, "ES").rate).toBe("4.95");
   });
 
   it("creates order IDs accepted by Printful external ID limits", () => {
