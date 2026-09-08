@@ -46,6 +46,10 @@ npm run dev
 - `/api/webhooks/printful` receives fulfillment updates and tracking.
 - `/admin` provides a small private operations panel using `ADMIN_SECRET`.
 
+## Operations
+
+See [`docs/operations.md`](docs/operations.md) for the deployment runbook, webhook checks, Printful retry handling, Resend sender setup, and the pre-production checklist.
+
 ## Printful Safety
 
 Keep this in staging until you have tested the complete flow:
@@ -78,3 +82,4 @@ npm test
 ```
 
 The current tests cover money conversion, cart-to-order mapping, availability rejection, totals and address mismatch detection.
+They also cover transactional emails, webhook protection, request validation, rate limiting, Firestore helpers and Printful order recovery.
