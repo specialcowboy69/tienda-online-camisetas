@@ -3,6 +3,7 @@
 import { ShoppingCart, Truck } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { toCartItemInputs } from "@/lib/cart";
+import { getCatalogProductImage } from "@/lib/catalog-images";
 import { CatalogProduct, CartItemInput, Recipient, ShippingRate } from "@/lib/types";
 
 type StorefrontProps = {
@@ -232,11 +233,12 @@ function ProductCard({ product, onAdd }: { product: CatalogProduct; onAdd: (prod
   );
   const [selectedVariantId, setSelectedVariantId] = useState(activeVariants[0]?.syncVariantId || 0);
   const selectedVariant = activeVariants.find((variant) => variant.syncVariantId === selectedVariantId) || activeVariants[0];
+  const productImage = getCatalogProductImage(product, selectedVariant);
 
   return (
     <article className="card">
-      {selectedVariant?.image || product.thumbnail ? (
-        <img className="product-image" src={selectedVariant?.image || product.thumbnail} alt={product.name} />
+      {productImage ? (
+        <img className="product-image" src={productImage} alt={product.name} />
       ) : (
         <div className="product-image" />
       )}

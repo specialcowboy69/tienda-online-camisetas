@@ -42,6 +42,8 @@ export type CatalogProduct = {
   syncProductId: number;
   externalId?: string;
   name: string;
+  storefrontImage?: string;
+  storefrontImages?: string[];
   thumbnail?: string;
   variants: CatalogVariant[];
   isIgnored?: boolean;
