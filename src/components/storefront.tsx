@@ -208,7 +208,7 @@ export function Storefront({ products, allowedCountries, defaultCountry }: Store
                 <input type="radio" checked={selectedRateId === rate.id} onChange={() => setSelectedRateId(rate.id)} />
                 <span>{rate.name}</span>
                 <strong>
-                  {rate.rate} {rate.currency}
+                  {Number(rate.rate) === 0 ? "Gratis" : `${rate.rate} ${rate.currency}`}
                 </strong>
               </label>
             ))}
