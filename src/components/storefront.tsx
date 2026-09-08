@@ -2,6 +2,7 @@
 
 import { ShoppingCart, Truck } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
+import { toCartItemInputs } from "@/lib/cart";
 import { CatalogProduct, CartItemInput, Recipient, ShippingRate } from "@/lib/types";
 
 type StorefrontProps = {
@@ -85,7 +86,7 @@ export function Storefront({ products, allowedCountries, defaultCountry }: Store
       const response = await fetch("/api/shipping/rates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipient, items: cart })
+        body: JSON.stringify({ recipient, items: toCartItemInputs(cart) })
       });
       const data = await response.json();
       if (!response.ok) {
@@ -111,7 +112,7 @@ export function Storefront({ products, allowedCountries, defaultCountry }: Store
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipient, items: cart, shippingRateId: selectedRateId })
+        body: JSON.stringify({ recipient, items: toCartItemInputs(cart), shippingRateId: selectedRateId })
       });
       const data = await response.json();
       if (!response.ok) {

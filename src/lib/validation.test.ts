@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { toCartItemInputs } from "./cart";
 import { checkoutRequestSchema } from "./validation";
 
 const validRequest = {
@@ -40,5 +41,29 @@ describe("checkoutRequestSchema", () => {
         items: [{ ...validRequest.items[0], ignored: true }]
       })
     ).toThrow();
+  });
+
+  it("accepts serialized storefront cart lines without UI-only fields", () => {
+    const storefrontCart = [
+      {
+        productId: "shirt-black-l",
+        syncVariantId: 123,
+        quantity: 1,
+        label: "Test Shirt - Black / L",
+        price: "24.99",
+        currency: "USD"
+      }
+    ];
+
+    expect(
+      checkoutRequestSchema.parse({
+        ...validRequest,
+        items: toCartItemInputs(storefrontCart)
+      })
+    ).toEqual({
+      ...validRequest,
+      recipient: { ...validRequest.recipient, countryCode: "ES" },
+      items: [{ productId: "shirt-black-l", syncVariantId: 123, quantity: 1 }]
+    });
   });
 });
