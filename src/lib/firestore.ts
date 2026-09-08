@@ -23,10 +23,26 @@ export async function getCatalogProduct(productId: string): Promise<CatalogProdu
 
 export async function saveCatalogProducts(products: CatalogProduct[]): Promise<void> {
   const db = getDb();
+  const productsRef = db.collection(productsCollection);
   const batch = db.batch();
+  const incomingIds = new Set(products.map((product) => product.id));
+  const incomingSyncProductIds = new Set(products.map((product) => product.syncProductId));
+  const existingSnapshot = await productsRef.get();
+  const now = new Date().toISOString();
 
   for (const product of products) {
-    batch.set(db.collection(productsCollection).doc(product.id), product, { merge: true });
+    batch.set(productsRef.doc(product.id), product, { merge: true });
+  }
+
+  for (const doc of existingSnapshot.docs) {
+    const product = doc.data() as Partial<CatalogProduct>;
+    const existsInPrintfulCatalog =
+      incomingIds.has(doc.id) ||
+      (typeof product.syncProductId === "number" && incomingSyncProductIds.has(product.syncProductId));
+
+    if (!existsInPrintfulCatalog && !product.isIgnored) {
+      batch.set(doc.ref, { isIgnored: true, updatedAt: now }, { merge: true });
+    }
   }
 
   await batch.commit();
