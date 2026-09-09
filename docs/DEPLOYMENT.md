@@ -100,13 +100,14 @@ Despues:
 1. Abrir tienda publica.
 2. Confirmar que carga catalogo desde Firestore.
 3. Calcular envio con un carrito pequeno y confirmar que no hay `400` local de validacion.
-4. Crear checkout en Stripe test.
-5. Completar pago de prueba.
-6. Confirmar pedido en Firestore.
-7. Confirmar evento de Stripe en `webhookEvents`.
-8. Confirmar pedido draft/confirmado en Printful segun `ORDER_CONFIRM_PRINTFUL`.
-9. Probar evento real o simulado de Printful, idealmente cambio de producto/stock.
-10. Confirmar email si Resend esta activo.
+4. Confirmar que Standard aparece incluido para el cliente y que Printful Fast solo aparece incluido para US.
+5. Crear checkout en Stripe test.
+6. Completar pago de prueba.
+7. Confirmar pedido en Firestore.
+8. Confirmar evento de Stripe en `webhookEvents`.
+9. Confirmar pedido draft/confirmado en Printful segun `ORDER_CONFIRM_PRINTFUL`.
+10. Probar evento real o simulado de Printful, idealmente cambio de producto/stock.
+11. Confirmar email si Resend esta activo.
 
 ## Rollback basico
 

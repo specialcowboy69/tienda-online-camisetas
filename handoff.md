@@ -1,6 +1,6 @@
 # Handoff Del Proyecto
 
-Actualizado: 2026-09-08
+Actualizado: 2026-09-09
 
 ## Resumen
 
@@ -12,7 +12,7 @@ La app está pensada para desplegarse en Vercel. En pruebas, Printful debe segui
 
 - Repositorio GitHub: `specialcowboy69/tienda-online-camisetas`.
 - Rama principal: `main`.
-- Último commit conocido en `main`: `629a002 Merge pull request #5 from specialcowboy69/codex/fix-shipping-cart-payload`.
+- Último commit conocido en `main`: `bb01dff Merge pull request #9 from specialcowboy69/codex/update-project-documentation`.
 - Firestore está creado en el proyecto Firebase `tienda-online-camisetas`, región `eur3`.
 - Printful store identificado como la tienda API/manual creada para el proyecto.
 - Stripe está configurado en modo test y el flujo de pago de prueba llegó a funcionar end-to-end.
@@ -22,7 +22,10 @@ La app está pensada para desplegarse en Vercel. En pruebas, Printful debe segui
 - El cálculo de envío debe enviar un carrito limpio con `toCartItemInputs()`; un `400` rápido sin llamadas externas suele indicar validación local.
 - Se detectó que Stripe podía hacer dos intentos si quedaba abierto `stripe listen` local además del webhook público. El código se endureció para recuperar pedidos duplicados en Printful usando `external_id`.
 - Los productos ignorados o borrados en Printful pueden seguir en Firestore, pero no deben aparecer en catálogo público.
+- El sync completo de catálogo reconcilia Printful contra Firestore y marca como ignorados productos que ya no aparecen en Printful.
 - La moneda de venta se gestiona en Printful/storefront settings y se refleja al sincronizar variantes activas en Firestore.
+- El envío Standard está incluido para clientes; Printful Fast solo está incluido para US.
+- La marca de trabajo es `No Context Club`; `Funny Tees 4 All` funciona como dominio/descriptor.
 
 ## Estructura Del Proyecto
 
@@ -50,6 +53,7 @@ src/components/
 
 src/lib/
   cart.ts                          Serializa carrito UI a payload limpio para APIs.
+  catalog-images.ts                Prioriza imagenes manuales antes que Printful.
   order-service.ts                 Orquesta checkout, webhooks y Printful.
   printful.ts                      Cliente Printful API v1.
   stripe.ts                        Cliente y Checkout de Stripe.
@@ -76,14 +80,15 @@ src/lib/
 2. La tienda pública lee productos desde `/api/catalog`, excluyendo productos `isIgnored`.
 3. El cliente introduce dirección y carrito.
 4. `Storefront` limpia el carrito con `toCartItemInputs()` y `/api/shipping/rates` pide tarifas reales a Printful.
-5. `/api/checkout` crea un pedido interno en Firestore y una sesión de Stripe Checkout.
-6. Stripe redirige al cliente al pago alojado.
-7. `/api/webhooks/stripe` verifica la firma y procesa `checkout.session.completed`.
-8. Si el pago coincide con el snapshot guardado, el pedido pasa a `paid`.
-9. Se crea pedido en Printful con `external_id = order.id`.
-10. Con `ORDER_CONFIRM_PRINTFUL=false`, Printful crea un draft order.
-11. El pedido interno pasa a `printful_confirmed`.
-12. `/api/webhooks/printful` actualiza envío, tracking, devoluciones, cancelaciones o productos.
+5. El servidor aplica reglas de envio incluido al cliente y recalcula esas reglas tambien en checkout.
+6. `/api/checkout` crea un pedido interno en Firestore y una sesión de Stripe Checkout.
+7. Stripe redirige al cliente al pago alojado.
+8. `/api/webhooks/stripe` verifica la firma y procesa `checkout.session.completed`.
+9. Si el pago coincide con el snapshot guardado, el pedido pasa a `paid`.
+10. Se crea pedido en Printful con `external_id = order.id`.
+11. Con `ORDER_CONFIRM_PRINTFUL=false`, Printful crea un draft order.
+12. El pedido interno pasa a `printful_confirmed`.
+13. `/api/webhooks/printful` actualiza envío, tracking, devoluciones, cancelaciones o productos.
 
 ## Estados De Pedido
 
@@ -158,11 +163,14 @@ Stripe CLI puede ejecutarse como `stripe.cmd`, pero no conviene dejar `stripe li
 - Lint funcionando con aviso conocido de `<img>` en `storefront.tsx`.
 - Sincronización de producto Printful hacia Firestore funcionando.
 - Cálculo de envío corregido para no enviar campos visuales del carrito a APIs públicas.
+- Envio Standard incluido para cliente y Printful Fast incluido solo en US.
+- Imagenes manuales de storefront priorizadas sobre imagenes de Printful.
 - Pago test de Stripe funcionando.
 - Creación de pedido draft en Printful funcionando.
 - Recuperación de duplicados de pedido Printful implementada.
 - Webhook Printful configurado contra la URL correcta de producción.
 - Productos ignorados ocultos de la tienda pública.
+- Productos ausentes de Printful reconciliados como `isIgnored` en sync completo.
 - Catálogo activo sincronizado en USD tras cambiar moneda desde Printful.
 
 ## Pendiente Recomendado
