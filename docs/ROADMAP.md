@@ -16,10 +16,15 @@ La tienda ya tiene una base funcional:
 - Productos ignorados por Printful ocultos en catalogo publico.
 - Payload limpio de carrito para shipping y checkout.
 - Moneda de venta gestionada desde Printful y reflejada en variantes activas sincronizadas.
+- Reconciliacion de catalogo: productos ausentes de Printful se marcan como `isIgnored` en Firestore.
+- Envio Standard incluido para clientes; Printful Fast incluido solo para US.
+- Imagenes manuales de storefront con prioridad sobre imagenes de Printful.
 
 ## Decisiones cerradas
 
 - La moneda de tienda debe cambiarse desde Printful/storefront settings. La aplicacion consume la moneda sincronizada por variante y no debe anadir un override propio salvo necesidad futura.
+- Los productos borrados de Printful se conservan en Firestore como historico con `isIgnored`, no se borran fisicamente de forma automatica.
+- Las reglas de envio incluido viven en servidor y se recalculan durante checkout.
 
 ## Pasos por delante
 
@@ -49,7 +54,7 @@ Resultado esperado:
 
 ### 3. Textos visibles y tono de marca
 
-Objetivo: revisar tienda, checkout-facing copy y emails en espanol.
+Objetivo: revisar tienda, checkout-facing copy, marca y emails.
 
 Incluye:
 
@@ -58,6 +63,7 @@ Incluye:
 - Mensajes de exito.
 - Emails HTML y texto plano.
 - Nombre de marca y tono.
+- Guia [Brand and storefront](BRAND_STOREFRONT.md).
 
 ### 4. Rotacion de secretos
 

@@ -67,6 +67,47 @@ User Agent: Printful API Webhook Daemon
 - `webhookEvents`: evento `printful:product_updated:...` o `printful:stock_updated:...` con `status: processed`.
 - `products`: `updatedAt` reciente en el producto actualizado.
 
+### Productos Borrados O Ignorados
+
+Firestore conserva productos antiguos para trazabilidad. La tienda publica no debe mostrarlos si tienen `isIgnored: true`.
+
+Hay dos caminos para ocultarlos:
+
+- Webhook `product_deleted`: marca el producto afectado como ignorado.
+- Sync completo de catalogo: compara el catalogo actual de Printful con Firestore y marca como ignorados los productos que ya no aparecen en Printful.
+
+Despues de borrar productos en Printful, ejecutar sync desde `/admin` o esperar cron/webhook. Resultado esperado:
+
+- Printful `/store/products`: solo productos activos.
+- `/api/catalog`: mismo numero de productos publicos que Printful activo.
+- Firestore `products`: puede tener mas documentos, pero los antiguos deben tener `isIgnored: true`.
+
+## Envio
+
+La app pide tarifas reales a Printful, pero aplica reglas de precio al cliente en servidor:
+
+- `STANDARD`: incluido para el cliente en todos los paises permitidos.
+- `PRINTFUL_FAST`: incluido solo para destinatarios `US`.
+- Otros metodos: mantienen el precio de Printful.
+
+Estas reglas se aplican tanto al listar tarifas como al crear checkout. Si Vercel muestra un `400` rapido y sin llamadas externas en `/api/shipping/rates`, revisar primero el contrato de validacion local del carrito.
+
+## Catalogo E Imagenes
+
+La fuente de verdad operativa sigue siendo Printful + Firestore. Para imagenes publicas, la app permite campos manuales en `products`:
+
+- `storefrontImage`: portada principal.
+- `storefrontImages`: galeria manual; la primera imagen actua como fallback prioritario.
+
+Prioridad de imagen visible:
+
+1. `storefrontImage`.
+2. Primera `storefrontImages`.
+3. Imagen de variante de Printful.
+4. Thumbnail de Printful.
+
+La direccion de marca y storefront vive en [`docs/BRAND_STOREFRONT.md`](BRAND_STOREFRONT.md).
+
 ### Reintentar Pedidos En Revision
 
 Desde `/admin`, pulsar `Load review orders` y luego `Retry` en el pedido.
@@ -132,7 +173,7 @@ Si `RESEND_API_KEY` o `RESEND_FROM_EMAIL` falta, la app omite el envio del email
 
 Colecciones principales:
 
-- `products`: catalogo sincronizado desde Printful.
+- `products`: catalogo sincronizado desde Printful; puede conservar historico con `isIgnored`.
 - `orders`: pedidos internos y estados de Stripe/Printful.
 - `webhookEvents`: idempotencia y trazabilidad de eventos.
 - `syncRuns`: historico de sincronizaciones.

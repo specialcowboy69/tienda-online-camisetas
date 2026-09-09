@@ -90,6 +90,29 @@ La moneda de venta se cambia en Printful/storefront settings. Despues hay que si
 
 Evitar un override en codigo mientras Printful siga siendo la fuente de verdad.
 
+## Como tocar envio
+
+Las reglas de precio de envio para el cliente viven en `priceCustomerShippingRate()`.
+
+Actualmente:
+
+- `STANDARD` se cobra al cliente como `0.00` en todos los paises permitidos.
+- `PRINTFUL_FAST` se cobra como `0.00` solo para `US`.
+- Otros metodos conservan la tarifa real de Printful.
+
+Si cambia esta politica, actualizar tests de `checkout-calculator` y `order-service`. No fiarse del precio que venga del cliente: shipping y totales se recalculan en servidor.
+
+## Como tocar imagenes de catalogo
+
+Las imagenes publicas se resuelven con `getCatalogProductImage()`. La prioridad es:
+
+1. `product.storefrontImage`.
+2. Primera URL de `product.storefrontImages`.
+3. Imagen de variante de Printful.
+4. Thumbnail de Printful.
+
+Usar campos manuales solo para assets finales y con derechos/uso comercial claros. No codificar datos de mockups como precio, fit, materiales o plazos sin verificarlos.
+
 ## Como tocar emails
 
 Los emails viven en `src/lib/email.ts`.

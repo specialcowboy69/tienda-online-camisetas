@@ -42,9 +42,10 @@ Colecciones implicadas:
 3. La tienda pide tarifas a `/api/shipping/rates`.
 4. La ruta aplica rate limit y limite de cuerpo JSON antes de procesar.
 5. `quoteShipping()` valida pais, carga productos de Firestore y pide tarifas a Printful.
-6. El cliente elige tarifa y llama a `/api/checkout`.
-7. `createCheckout()` crea un pedido interno en Firestore y una sesion de Stripe Checkout.
-8. El cliente paga en Stripe.
+6. `priceCustomerShippingRate()` ajusta el precio que ve el cliente segun reglas de tienda.
+7. El cliente elige tarifa y llama a `/api/checkout`.
+8. `createCheckout()` recalcula productos, envio y totales en servidor antes de crear el pedido interno en Firestore y la sesion de Stripe Checkout.
+9. El cliente paga en Stripe.
 
 Colecciones implicadas:
 
@@ -100,11 +101,13 @@ Si se cambia la moneda para clientes, debe hacerse en Printful/storefront settin
 `products` guarda productos sincronizados desde Printful:
 
 - id de producto sincronizado
-- nombre, miniatura y variantes
+- nombre, miniatura, imagen manual de storefront y variantes
 - precio, moneda, talla, color, imagen
 - flags de ignorado/disponibilidad
 
 Los productos o variantes ignorados pueden conservarse para trazabilidad operativa, pero las lecturas publicas y el checkout deben tratarlos como no comprables.
+
+Las imagenes de producto se resuelven con `getCatalogProductImage()`: primero `storefrontImage`, despues primera entrada de `storefrontImages`, despues imagen de variante de Printful y por ultimo `thumbnail`.
 
 `orders` guarda pedidos internos:
 
@@ -153,6 +156,13 @@ Los estados actuales estan definidos en `src/lib/types.ts`:
 - Endpoints publicos: rate limit en memoria, limite de cuerpo JSON, validacion estricta y contrato de carrito sin campos visuales.
 
 Limitacion importante: el rate limit en memoria es por instancia de runtime. En produccion con multiples instancias, conviene pasar a un almacenamiento compartido.
+
+## Reglas comerciales en codigo
+
+- Envio Standard: se muestra como incluido para el cliente.
+- Printful Fast: se muestra incluido solo para destinatarios de Estados Unidos.
+- Otros metodos de envio: mantienen la tarifa devuelta por Printful.
+- La tarifa se recalcula en servidor tanto al listar opciones como al crear checkout.
 
 ## Servicios externos
 
