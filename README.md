@@ -49,6 +49,7 @@ npm run dev
 ## Operations
 
 See [`docs/operations.md`](docs/operations.md) for the deployment runbook, webhook checks, Printful retry handling, Resend sender setup, and the pre-production checklist.
+Catalog products marked as ignored remain in Firestore for traceability, but are hidden from the public storefront. The storefront keeps display fields in the UI cart, then sends a clean cart input payload to shipping and checkout APIs.
 
 ## Printful Safety
 
@@ -59,6 +60,12 @@ ORDER_CONFIRM_PRINTFUL=false
 ```
 
 This creates Printful draft orders. Set it to `true` only when you are ready for Printful to submit orders for fulfillment and charge your Printful billing method.
+
+## Storefront Currency
+
+The customer-facing currency is managed in Printful/storefront settings. After changing it there, sync the catalog or wait for the Printful webhook, then verify that active Firestore variants use the expected currency.
+
+Do not add an app-level currency override unless the provider flow stops working.
 
 ## Taxes
 
@@ -81,5 +88,14 @@ Configure and verify the sending domain in Resend before using a production send
 npm test
 ```
 
-The current tests cover money conversion, cart-to-order mapping, availability rejection, totals and address mismatch detection.
-They also cover transactional emails, webhook protection, request validation, rate limiting, Firestore helpers and Printful order recovery.
+The current tests cover money conversion, cart-to-order mapping, ignored catalog products, availability rejection, totals, address mismatch detection, clean cart payload serialization, Printful webhook handling, public API rate limits, body-size limits, validation, and transactional email behavior.
+
+## Project Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Development workflow](docs/DEVELOPMENT.md)
+- [Security notes](docs/SECURITY.md)
+- [Deployment guide](docs/DEPLOYMENT.md)
+- [Roadmap](docs/ROADMAP.md)
+
+For AI agents and Codex sessions, read [AGENTS.md](AGENTS.md) before changing the project.
