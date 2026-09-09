@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { addressesMateriallyMatch, buildOrderItems, calculateTotals, createDraftOrder } from "./checkout-calculator";
+import {
+  addressesMateriallyMatch,
+  buildOrderItems,
+  calculateTotals,
+  createDraftOrder,
+  priceCustomerShippingRate
+} from "./checkout-calculator";
 import { CatalogProduct, CartItemInput, ShippingRate } from "./types";
 
 const product: CatalogProduct = {
@@ -64,6 +70,26 @@ describe("checkout calculator", () => {
       total: 5595,
       currency: "eur"
     });
+  });
+
+  it("prices standard customer shipping as free for every country", () => {
+    expect(priceCustomerShippingRate(shippingRate, "US").rate).toBe("0.00");
+    expect(priceCustomerShippingRate(shippingRate, "ES").rate).toBe("0.00");
+    expect(priceCustomerShippingRate(shippingRate, "CA").rate).toBe("0.00");
+  });
+
+  it("prices Printful fast customer shipping as free only for the United States", () => {
+    const fastRate = { ...shippingRate, id: "PRINTFUL_FAST", name: "Express" };
+
+    expect(priceCustomerShippingRate(fastRate, "US").rate).toBe("0.00");
+    expect(priceCustomerShippingRate(fastRate, "ES").rate).toBe("4.95");
+  });
+
+  it("keeps non-standard customer shipping rates outside the included shipping rules", () => {
+    const carbonOffsetRate = { ...shippingRate, id: "STANDARD_CARBON_OFFSET", name: "Standard carbon offset" };
+
+    expect(priceCustomerShippingRate(carbonOffsetRate, "US").rate).toBe("4.95");
+    expect(priceCustomerShippingRate(carbonOffsetRate, "ES").rate).toBe("4.95");
   });
 
   it("creates order IDs accepted by Printful external ID limits", () => {
