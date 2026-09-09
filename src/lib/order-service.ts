@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { FieldValue } from "firebase-admin/firestore";
-import { addressesMateriallyMatch, buildOrderItems, calculateTotals, createDraftOrder } from "./checkout-calculator";
+import { addressesMateriallyMatch, buildOrderItems, calculateTotals, createDraftOrder, priceCustomerShippingRate } from "./checkout-calculator";
 import {
   beginWebhookEventProcessing,
   createOrder,
@@ -26,7 +26,8 @@ export async function quoteShipping(input: { recipient: Recipient; items: CartIt
   const products = await loadProductsForCart(input.items);
   const orderItems = buildOrderItems(input.items, products);
   assertSameCurrency(orderItems.map((item) => item.currency));
-  return getShippingRates(input.recipient, orderItems);
+  const shippingRates = await getShippingRates(input.recipient, orderItems);
+  return shippingRates.map((rate) => priceCustomerShippingRate(rate, input.recipient.countryCode));
 }
 
 export async function createCheckout(input: {
@@ -40,7 +41,8 @@ export async function createCheckout(input: {
   const orderItems = buildOrderItems(input.items, products);
   assertSameCurrency(orderItems.map((item) => item.currency));
   const shippingRates = await getShippingRates(input.recipient, orderItems);
-  const selectedShippingRate = shippingRates.find((rate) => rate.id === input.shippingRateId);
+  const customerShippingRates = shippingRates.map((rate) => priceCustomerShippingRate(rate, input.recipient.countryCode));
+  const selectedShippingRate = customerShippingRates.find((rate) => rate.id === input.shippingRateId);
 
   if (!selectedShippingRate) {
     throw new Error("Selected shipping rate is no longer available.");

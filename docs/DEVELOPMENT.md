@@ -66,6 +66,12 @@ Checklist minimo:
 - Evitar llamar a Stripe, Printful, Firestore o Resend si la peticion ya es invalida.
 - Anadir tests de ruta o de helper segun el riesgo.
 
+## Contrato frontend/API
+
+El carrito de `Storefront` incluye campos visuales como etiqueta, precio y moneda para pintar la UI. Las APIs publicas aceptan solo `productId`, `syncVariantId` y `quantity`.
+
+Antes de llamar a `/api/shipping/rates` o `/api/checkout`, usar `toCartItemInputs()`. Si aparece un `400` rapido sin llamadas externas, revisar primero validacion local antes de culpar a Printful.
+
 ## Como tocar pedidos o pagos
 
 Los pedidos son la parte mas sensible del proyecto.
@@ -77,6 +83,12 @@ Antes de cambiar `src/lib/order-service.ts`, `src/lib/stripe.ts`, `src/app/api/w
 - Mantener idempotencia de webhooks.
 - Evitar enviar pedidos reales a Printful salvo que `ORDER_CONFIRM_PRINTFUL=true` sea una decision consciente.
 - Probar primero en modo test/sandbox.
+
+## Como cambiar moneda
+
+La moneda de venta se cambia en Printful/storefront settings. Despues hay que sincronizar catalogo o esperar el webhook de Printful y comprobar que las variantes activas en Firestore tienen la moneda esperada.
+
+Evitar un override en codigo mientras Printful siga siendo la fuente de verdad.
 
 ## Como tocar emails
 

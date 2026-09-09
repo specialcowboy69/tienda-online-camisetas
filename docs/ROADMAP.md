@@ -13,12 +13,19 @@ La tienda ya tiene una base funcional:
 - Panel admin basico.
 - Rate limiting y validacion en endpoints publicos.
 - Tests de logica critica.
+- Productos ignorados por Printful ocultos en catalogo publico.
+- Payload limpio de carrito para shipping y checkout.
+- Moneda de venta gestionada desde Printful y reflejada en variantes activas sincronizadas.
+
+## Decisiones cerradas
+
+- La moneda de tienda debe cambiarse desde Printful/storefront settings. La aplicacion consume la moneda sincronizada por variante y no debe anadir un override propio salvo necesidad futura.
 
 ## Pasos por delante
 
 ### 1. Webhook de Printful hacia Vercel
 
-Estado: solucionado en codigo, pendiente de prueba real si no se ha hecho ya.
+Estado: solucionado en codigo. Los cambios de variantes/moneda ya se han visto reflejados en tienda; conviene conservar una prueba operativa con `webhookEvents` para dejar evidencia completa.
 
 Objetivo: cambiar algo en Printful y confirmar que `/api/webhooks/printful` actualiza Firestore.
 
@@ -67,7 +74,9 @@ Incluye:
 
 ### 5. Dominio final en Vercel
 
-Objetivo: conectar el dominio real y ajustar `NEXT_PUBLIC_BASE_URL`.
+Estado: dominio conectado si `https://www.funnyteesforall.com` es el dominio final en uso.
+
+Objetivo: mantener dominio real, `NEXT_PUBLIC_BASE_URL` y webhooks alineados.
 
 Depende de:
 

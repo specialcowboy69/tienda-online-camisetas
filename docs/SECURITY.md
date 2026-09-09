@@ -72,6 +72,7 @@ Controles actuales:
 - Headers proxy no confiados por defecto.
 - Limite de cuerpo JSON de 64 KiB.
 - Validacion estricta de campos.
+- Serializacion de carrito en frontend para no aceptar campos visuales en APIs publicas.
 
 Limitacion: el rate limit no es distribuido. En produccion con multiples instancias, se recomienda usar Redis, Upstash, Vercel KV u otro backend compartido.
 
@@ -89,6 +90,8 @@ Limitacion: el rate limit no es distribuido. En produccion con multiples instanc
 - Configurar dominio final y `NEXT_PUBLIC_BASE_URL`.
 - Confirmar webhooks de Stripe y Printful contra dominio final.
 - Verificar que Resend usa dominio validado.
+- Confirmar que productos `isIgnored` no aparecen en catalogo publico ni checkout.
+- Confirmar que la moneda activa viene de Printful y coincide en Firestore, Stripe y emails.
 - Mantener `ORDER_CONFIRM_PRINTFUL=false` hasta la compra real controlada.
 - Mantener Stripe en test hasta cerrar textos, legales, secretos y fiscalidad.
 - Validar fiscalidad antes de activar Stripe Tax.

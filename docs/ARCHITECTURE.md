@@ -27,7 +27,8 @@ La aplicacion es una tienda online de camisetas con frontend y backend dentro de
 2. La ruta valida `ADMIN_SECRET` o `CRON_SECRET`.
 3. `fetchPrintfulCatalog()` lee productos y variantes desde Printful.
 4. `saveCatalogProducts()` guarda el catalogo en Firestore.
-5. La tienda lee productos activos desde Firestore.
+5. `listCatalogProducts()` lee desde Firestore y excluye productos marcados como `isIgnored`.
+6. Si Printful marca o borra un producto, puede quedar en Firestore como historico, pero no debe aparecer en la tienda publica.
 
 Colecciones implicadas:
 
@@ -37,12 +38,13 @@ Colecciones implicadas:
 ## Flujo de compra
 
 1. El cliente anade productos al carrito en `Storefront`.
-2. La tienda pide tarifas a `/api/shipping/rates`.
-3. La ruta aplica rate limit y limite de cuerpo JSON antes de procesar.
-4. `quoteShipping()` valida pais, carga productos de Firestore y pide tarifas a Printful.
-5. El cliente elige tarifa y llama a `/api/checkout`.
-6. `createCheckout()` crea un pedido interno en Firestore y una sesion de Stripe Checkout.
-7. El cliente paga en Stripe.
+2. Antes de llamar a APIs publicas, `Storefront` convierte el carrito visual a entradas limpias con `toCartItemInputs()`.
+3. La tienda pide tarifas a `/api/shipping/rates`.
+4. La ruta aplica rate limit y limite de cuerpo JSON antes de procesar.
+5. `quoteShipping()` valida pais, carga productos de Firestore y pide tarifas a Printful.
+6. El cliente elige tarifa y llama a `/api/checkout`.
+7. `createCheckout()` crea un pedido interno en Firestore y una sesion de Stripe Checkout.
+8. El cliente paga en Stripe.
 
 Colecciones implicadas:
 
@@ -87,6 +89,12 @@ Eventos relevantes:
 - `product_deleted`
 - `stock_updated`
 
+## Moneda
+
+La moneda de venta viene del catalogo sincronizado desde Printful. Las variantes guardan su `currency` y esa moneda se usa despues para totales, shipping, Stripe Checkout y emails.
+
+Si se cambia la moneda para clientes, debe hacerse en Printful/storefront settings y despues sincronizar catalogo. No existe un override de moneda en la aplicacion.
+
 ## Modelo de datos
 
 `products` guarda productos sincronizados desde Printful:
@@ -95,6 +103,8 @@ Eventos relevantes:
 - nombre, miniatura y variantes
 - precio, moneda, talla, color, imagen
 - flags de ignorado/disponibilidad
+
+Los productos o variantes ignorados pueden conservarse para trazabilidad operativa, pero las lecturas publicas y el checkout deben tratarlos como no comprables.
 
 `orders` guarda pedidos internos:
 
@@ -140,7 +150,7 @@ Los estados actuales estan definidos en `src/lib/types.ts`:
 - Cron: `CRON_SECRET` por bearer.
 - Stripe webhook: firma oficial de Stripe.
 - Printful webhook: secreto compartido por query param o header.
-- Endpoints publicos: rate limit en memoria, limite de cuerpo JSON y validacion estricta.
+- Endpoints publicos: rate limit en memoria, limite de cuerpo JSON, validacion estricta y contrato de carrito sin campos visuales.
 
 Limitacion importante: el rate limit en memoria es por instancia de runtime. En produccion con multiples instancias, conviene pasar a un almacenamiento compartido.
 

@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { getCatalogProductImage } from "./catalog-images";
 import { assertSameCurrency, toMinorUnits } from "./money";
 import { CatalogProduct, CartItemInput, OrderItem, OrderTotals, Recipient, ShippingRate, StoreOrder } from "./types";
 
@@ -22,12 +23,24 @@ export function buildOrderItems(cartItems: CartItemInput[], products: CatalogPro
       variantName: variant.name,
       size: variant.size,
       color: variant.color,
-      image: variant.image || product.thumbnail,
+      image: getCatalogProductImage(product, variant),
       quantity: cartItem.quantity,
       unitAmount: toMinorUnits(variant.retailPrice, variant.currency),
       currency: variant.currency
     };
   });
+}
+
+export function priceCustomerShippingRate(shippingRate: ShippingRate, countryCode: string): ShippingRate {
+  const shippingMethodId = shippingRate.id.trim().toUpperCase();
+  const normalizedCountryCode = countryCode.trim().toUpperCase();
+  const isIncludedShipping = shippingMethodId === "STANDARD" || (shippingMethodId === "PRINTFUL_FAST" && normalizedCountryCode === "US");
+
+  if (!isIncludedShipping) {
+    return shippingRate;
+  }
+
+  return { ...shippingRate, rate: "0.00" };
 }
 
 export function calculateTotals(items: OrderItem[], shippingRate: ShippingRate): OrderTotals {
