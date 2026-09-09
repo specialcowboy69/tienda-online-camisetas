@@ -46,6 +46,9 @@ npm run dev
 - `/api/webhooks/printful` receives fulfillment updates and tracking.
 - `/admin` provides a small private operations panel using `ADMIN_SECRET`.
 
+## Operations
+
+See [`docs/operations.md`](docs/operations.md) for the deployment runbook, webhook checks, Printful retry handling, Resend sender setup, and the pre-production checklist.
 Catalog products marked as ignored remain in Firestore for traceability, but are hidden from the public storefront. The storefront keeps display fields in the UI cart, then sends a clean cart input payload to shipping and checkout APIs.
 
 ## Printful Safety
