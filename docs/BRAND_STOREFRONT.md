@@ -56,6 +56,21 @@ mascotas, gótico/true crime, kawaii infantil o streetwear agresivo.
 - Evitar fondos blancos genéricos de marketplace cuando un escenario editorial
   controlado ayude a presentar la prenda con más personalidad.
 
+## El contexto, por una vez
+
+La sostenibilidad complementa el humor; no reemplaza la propuesta principal de
+la marca ni convierte la interfaz en una estética eco-genérica.
+
+- Idea guía: `No context for the joke. Full context for the tee.`
+- La home puede introducirlo con un bloque breve, no como sustituto del hero.
+- El PDP debe incluir una sección `The Context, For Once` con proveedor, qué
+  prácticas aplican a la prenda y una fuente oficial externa.
+- No usar el precio como justificación de estas prácticas ni mostrar códigos de
+  modelo o países de fabricación al cliente.
+
+Las afirmaciones públicas aprobadas, su alcance y sus fuentes se mantienen en
+[Perfiles de proveedor y afirmaciones de producto](SUPPLIER_PROFILES.md).
+
 ## Copy de home aprobado
 
 **Titular**
@@ -95,6 +110,49 @@ No exponer filtros ni colecciones hasta que haya suficientes productos con una
 intención común. Como regla inicial, esperar al menos cuatro productos que
 formen un grupo claro.
 
+## Arquitectura inicial de URLs
+
+La estructura pública prevista para el mercado US es:
+
+- `/`: home.
+- `/products`: listado completo del catálogo o drop actual.
+- `/products/{slug}`: página individual de producto.
+
+No crear colecciones públicas hasta que exista un grupo real de productos con
+una intención común. Los drops puntuales pueden presentarse desde home y desde
+`/products` sin crear una taxonomía permanente.
+
+Los slugs públicos son estables y no deben depender automáticamente del nombre
+editable en Printful. Printful y Firestore siguen siendo la fuente técnica para
+IDs, variantes, precios, imágenes, checkout y guías de tallas.
+
+Formato recomendado:
+
+```text
+{idea-del-diseno}-{animal-si-es-central}-{tipo-de-prenda}
+```
+
+Reglas:
+
+- usar inglés, minúsculas y guiones simples;
+- incluir el animal solo cuando sea parte central del diseño o intención SEO;
+- usar el tipo real de prenda (`graphic-tee`, `crop-top`, `cropped-hoodie`);
+- si un slug publicado cambia, crear un redirect 301 desde el slug anterior.
+
+Slugs iniciales previstos:
+
+| ID de Printful | Producto actual | URL prevista |
+| ---: | --- | --- |
+| 468682936 | Falling apart | `/products/falling-apart-cat-graphic-tee` |
+| 468513582 | Farming dog aura | `/products/farming-dog-aura-graphic-tee` |
+| 468520575 | Sorry i cant triblend | `/products/sorry-i-cant-cat-graphic-tee` |
+| 468502976 | Its a trap crop top | `/products/its-a-trap-cat-crop-top` |
+| 468471370 | Momma sorry sweeter | `/products/momma-sorry-cat-cropped-hoodie` |
+
+Estas rutas son una decisión de arquitectura. No implican por sí solas que el
+PDP dinámico, sitemap de productos, canonical o redirects ya estén
+implementados.
+
 ## Fotos de producto
 
 Cada producto debe contar una microhistoria, pero su diseño gráfico debe verse
@@ -121,7 +179,7 @@ es:
    de confianza confirmadas.
 2. Fit y guía de tallas.
 3. Historia del diseño o el contexto del chiste.
-4. Detalles útiles: composición, cuidado, fabricación, envío y devoluciones
+4. Detalles útiles: composición, fit, cuidado, envío y devoluciones
    verificadas.
 5. Productos relacionados o bloque `The First Drop`.
 6. CTA final.
@@ -129,6 +187,57 @@ es:
 Los mockups creados en el proyecto de diseño son referencias de jerarquía y
 dirección visual. No son pantallas ya implementadas y contienen datos de ejemplo
 que no deben reutilizarse sin comprobación.
+
+## Copy de producto y especificaciones
+
+La descripción debe ayudar a elegir la prenda; la broma sigue siendo el
+protagonista. Separar el beneficio de compra de la ficha técnica evita convertir
+el PDP en un bloque de texto de proveedor.
+
+Orden recomendado dentro de los detalles de producto:
+
+1. Una descripción breve bajo el bloque de compra.
+2. Una línea `FIT & FEEL` con dos o tres atributos que expliquen peso, corte o
+   acabado.
+3. Un acordeón `TEE SPECS` con los datos comprobables de esa prenda.
+
+Para la camiseta Comfort Colors 1717 de *Falling Apart*, usar esta plantilla
+con composición y especificaciones confirmadas por la propietaria el
+2026-09-10:
+
+```text
+THE TEE, NOT THE DRAMA
+
+Heavyweight, soft, and made for repeat wear. This relaxed-fit,
+garment-dyed tee has a structured feel without feeling stiff.
+
+FIT & FEEL
+Heavyweight · Relaxed fit · Garment-dyed
+
+TEE SPECS
+• 100% ring-spun cotton
+• 6.1 oz/yd² (206.8 g/m²)
+• Garment-dyed and pre-shrunk
+• Reinforced neck and shoulders
+• Double-needle stitching at armholes, sleeves, and hem
+```
+
+Reglas:
+
+- Eliminar copy genérico de Printful sobre personalización o vender online.
+- No mostrar especificaciones que no ayuden a la decisión de compra, como el
+  número de filamentos del hilo.
+- No prometer transpirabilidad, durabilidad, una etiqueta personalizada o un
+  país de fabricación si no está confirmado para la prenda vendida.
+- Mantener peso y medidas en formato estadounidense primero, seguido de la
+  equivalencia métrica cuando aporte claridad.
+- Revalidar composición, peso, acabado y construcción contra el ID de Printful
+  y la variante solo si Printful cambia la prenda base, las variantes o su
+  ficha de producto.
+
+Los textos originales de Printful y sus borradores adaptados se organizan por
+ID estable en [contenido de producto](product-content/README.md). Este archivo
+define el patrón; aquellos documentos contienen el copy de cada PDP.
 
 ## Flujo de trabajo de assets
 
@@ -147,8 +256,9 @@ Antes de incorporar un asset, confirmar:
 
 - Confirmar disponibilidad legal de la marca `No Context Club` para la clase y
   mercados relevantes.
-- Validar el catálogo, precio, moneda, tallas, variantes y specs reales de
-  Printful antes de adaptar la interfaz.
+- Validar el catálogo, precio, moneda y tallas reales de Printful antes de
+  adaptar la interfaz. Reconfirmar las specs solo si cambia la prenda base,
+  variante o ficha de Printful.
 - Definir y revisar legalmente las páginas de privacidad, contacto, condiciones
   y devoluciones.
 - Revisar todo copy visible y los emails para que compartan el tono de marca sin

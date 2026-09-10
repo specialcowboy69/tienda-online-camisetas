@@ -101,5 +101,8 @@ The current tests cover money conversion, cart-to-order mapping, ignored catalog
 - [Deployment guide](docs/DEPLOYMENT.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Brand and storefront guide](docs/BRAND_STOREFRONT.md)
+- [Supplier profiles and product claims](docs/SUPPLIER_PROFILES.md)
+- [Product content drafts](docs/product-content/README.md)
+- [Product assets and size guides](docs/product-assets/README.md)
 
 For AI agents and Codex sessions, read [AGENTS.md](AGENTS.md) before changing the project.
