@@ -65,10 +65,13 @@ Los puntos 1 y 2 del roadmap estan completados o en proceso:
 
 Siguientes prioridades practicas:
 
-1. Revisar textos visibles de tienda y emails en espanol con tono de marca.
+1. Mantener la tienda publica y emails en ingles con tono de marca `No Context Club`.
 2. Cambiar/rotar secretos fuertes si alguno se uso durante pruebas.
 3. Anadir dominio final en Vercel y ajustar `NEXT_PUBLIC_BASE_URL`.
 4. Crear paginas legales: privacidad, devoluciones, contacto y condiciones.
 5. Pasar Stripe a live solo cuando lo anterior este cerrado.
 6. Validar fiscalidad antes de activar Stripe Tax.
 7. Hacer una compra real controlada con `ORDER_CONFIRM_PRINTFUL=true`.
+
+La documentacion interna puede seguir en espanol si ayuda a operar y aprender,
+pero cualquier texto visible para cliente debe tratarse como ingles por defecto.

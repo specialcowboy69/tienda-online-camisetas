@@ -96,6 +96,18 @@ La moneda de venta viene del catalogo sincronizado desde Printful. Las variantes
 
 Si se cambia la moneda para clientes, debe hacerse en Printful/storefront settings y despues sincronizar catalogo. No existe un override de moneda en la aplicacion.
 
+## Idioma de storefront
+
+La experiencia publica esta configurada en ingles:
+
+- `src/app/layout.tsx` declara `lang="en"`.
+- Las paginas publicas y emails transaccionales usan copy en ingles.
+- `getShippingRates()` envia `locale: "en_US"` a Printful para tarifas de envio.
+- Los emails formatean dinero con locale `en-US`.
+
+Idioma y moneda son decisiones separadas. Cambiar a ingles no convierte precios;
+los precios y monedas siguen viniendo de variantes sincronizadas desde Printful.
+
 ## Modelo de datos
 
 `products` guarda productos sincronizados desde Printful:

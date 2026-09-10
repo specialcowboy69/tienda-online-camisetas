@@ -51,6 +51,19 @@ La moneda que ve y paga el cliente se gestiona en Printful/storefront settings. 
 
 No configurar `STORE_CURRENCY` ni otro override en la app salvo que se decida cambiar la arquitectura.
 
+## Idioma publico
+
+La tienda publica esta pensada en ingles por ahora:
+
+- `lang="en"` en el documento HTML.
+- Copy visible y emails transaccionales en ingles.
+- Printful shipping locale `en_US`.
+- Formato monetario de emails `en-US`.
+
+Mantener la documentacion interna en espanol es aceptable. Antes de live,
+confirmar en el dominio final que home, checkout, success/cancel y emails no
+mezclan idiomas.
+
 ## Webhooks
 
 Stripe:
@@ -87,7 +100,7 @@ Mantener como controles operativos:
 
 Despues:
 
-1. Revisar textos visibles de tienda y emails en espanol.
+1. Pulir textos visibles de tienda y emails en ingles con tono de marca.
 2. Rotar secretos fuertes si se usaron durante pruebas.
 3. Crear paginas legales.
 4. Confirmar webhooks contra el dominio final.
@@ -101,13 +114,14 @@ Despues:
 2. Confirmar que carga catalogo desde Firestore.
 3. Calcular envio con un carrito pequeno y confirmar que no hay `400` local de validacion.
 4. Confirmar que Standard aparece incluido para el cliente y que Printful Fast solo aparece incluido para US.
-5. Crear checkout en Stripe test.
-6. Completar pago de prueba.
-7. Confirmar pedido en Firestore.
-8. Confirmar evento de Stripe en `webhookEvents`.
-9. Confirmar pedido draft/confirmado en Printful segun `ORDER_CONFIRM_PRINTFUL`.
-10. Probar evento real o simulado de Printful, idealmente cambio de producto/stock.
-11. Confirmar email si Resend esta activo.
+5. Confirmar que UI publica y mensajes de checkout estan en ingles.
+6. Crear checkout en Stripe test.
+7. Completar pago de prueba.
+8. Confirmar pedido en Firestore.
+9. Confirmar evento de Stripe en `webhookEvents`.
+10. Confirmar pedido draft/confirmado en Printful segun `ORDER_CONFIRM_PRINTFUL`.
+11. Probar evento real o simulado de Printful, idealmente cambio de producto/stock.
+12. Confirmar email en ingles si Resend esta activo.
 
 ## Rollback basico
 

@@ -19,12 +19,14 @@ La tienda ya tiene una base funcional:
 - Reconciliacion de catalogo: productos ausentes de Printful se marcan como `isIgnored` en Firestore.
 - Envio Standard incluido para clientes; Printful Fast incluido solo para US.
 - Imagenes manuales de storefront con prioridad sobre imagenes de Printful.
+- Experiencia publica English-first: tienda, success/cancel, emails y locale de envio Printful en ingles.
 
 ## Decisiones cerradas
 
 - La moneda de tienda debe cambiarse desde Printful/storefront settings. La aplicacion consume la moneda sincronizada por variante y no debe anadir un override propio salvo necesidad futura.
 - Los productos borrados de Printful se conservan en Firestore como historico con `isIgnored`, no se borran fisicamente de forma automatica.
 - Las reglas de envio incluido viven en servidor y se recalculan durante checkout.
+- El idioma publico por defecto es ingles. La documentacion interna puede seguir en espanol.
 
 ## Pasos por delante
 
@@ -54,7 +56,9 @@ Resultado esperado:
 
 ### 3. Textos visibles y tono de marca
 
-Objetivo: revisar tienda, checkout-facing copy, marca y emails.
+Estado: base English-first implementada. Queda pulir tono, mensajes legales y consistencia cuando crezca la tienda.
+
+Objetivo: mantener tienda, checkout-facing copy, marca y emails en ingles claro y con personalidad `No Context Club`.
 
 Incluye:
 

@@ -1,6 +1,6 @@
 # Handoff Del Proyecto
 
-Actualizado: 2026-09-09
+Actualizado: 2026-09-10
 
 ## Resumen
 
@@ -12,7 +12,7 @@ La app está pensada para desplegarse en Vercel. En pruebas, Printful debe segui
 
 - Repositorio GitHub: `specialcowboy69/tienda-online-camisetas`.
 - Rama principal: `main`.
-- Último commit conocido en `main`: `bb01dff Merge pull request #9 from specialcowboy69/codex/update-project-documentation`.
+- Último commit conocido en `main`: `7c884b8 Merge pull request #11 from specialcowboy69/codex/update-docs-latest-status`.
 - Firestore está creado en el proyecto Firebase `tienda-online-camisetas`, región `eur3`.
 - Printful store identificado como la tienda API/manual creada para el proyecto.
 - Stripe está configurado en modo test y el flujo de pago de prueba llegó a funcionar end-to-end.
@@ -26,6 +26,7 @@ La app está pensada para desplegarse en Vercel. En pruebas, Printful debe segui
 - La moneda de venta se gestiona en Printful/storefront settings y se refleja al sincronizar variantes activas en Firestore.
 - El envío Standard está incluido para clientes; Printful Fast solo está incluido para US.
 - La marca de trabajo es `No Context Club`; `Funny Tees 4 All` funciona como dominio/descriptor.
+- La experiencia publica esta configurada en ingles: HTML `lang="en"`, success/cancel, checkout, emails transaccionales y Printful shipping locale `en_US`.
 
 ## Estructura Del Proyecto
 
@@ -172,12 +173,13 @@ Stripe CLI puede ejecutarse como `stripe.cmd`, pero no conviene dejar `stripe li
 - Productos ignorados ocultos de la tienda pública.
 - Productos ausentes de Printful reconciliados como `isIgnored` en sync completo.
 - Catálogo activo sincronizado en USD tras cambiar moneda desde Printful.
+- Base de idioma publico en ingles cubierta por tests de customer-facing language, email y Printful locale.
 
 ## Pendiente Recomendado
 
 1. Mantener una prueba operativa del webhook de Printful: cambiar un producto/stock y confirmar evento en `webhookEvents` y actualización en Firestore.
 2. Cerrar configuración final de Resend si falta dominio/remitente.
-3. Revisar textos de email y tienda para dejarlos en español y con tono de marca.
+3. Pulir textos de email y tienda en ingles con tono de marca `No Context Club`.
 4. Sustituir secretos fuertes si se usaron durante pruebas.
 5. Confirmar dominio final, `NEXT_PUBLIC_BASE_URL` y webhooks alineados.
 6. Completar páginas legales, política de devoluciones, privacidad y contacto.
@@ -195,4 +197,4 @@ Stripe CLI puede ejecutarse como `stripe.cmd`, pero no conviene dejar `stripe li
 
 ## Próximo Paso Natural
 
-Hacer un smoke test completo en dominio final: catálogo, cálculo de envío, checkout test, webhook Stripe, webhook Printful, emails y Firestore. Después, cerrar textos/legales/secretos antes de Stripe live.
+Hacer un smoke test completo en dominio final: catálogo, cálculo de envío, checkout test, webhook Stripe, webhook Printful, emails en ingles y Firestore. Después, cerrar legales/secretos antes de Stripe live.
