@@ -179,7 +179,7 @@ es:
    de confianza confirmadas.
 2. Fit y guía de tallas.
 3. Historia del diseño o el contexto del chiste.
-4. Detalles útiles: composición, cuidado, fabricación, envío y devoluciones
+4. Detalles útiles: composición, fit, cuidado, envío y devoluciones
    verificadas.
 5. Productos relacionados o bloque `The First Drop`.
 6. CTA final.
@@ -187,6 +187,57 @@ es:
 Los mockups creados en el proyecto de diseño son referencias de jerarquía y
 dirección visual. No son pantallas ya implementadas y contienen datos de ejemplo
 que no deben reutilizarse sin comprobación.
+
+## Copy de producto y especificaciones
+
+La descripción debe ayudar a elegir la prenda; la broma sigue siendo el
+protagonista. Separar el beneficio de compra de la ficha técnica evita convertir
+el PDP en un bloque de texto de proveedor.
+
+Orden recomendado dentro de los detalles de producto:
+
+1. Una descripción breve bajo el bloque de compra.
+2. Una línea `FIT & FEEL` con dos o tres atributos que expliquen peso, corte o
+   acabado.
+3. Un acordeón `TEE SPECS` con los datos comprobables de esa prenda.
+
+Para la camiseta Comfort Colors 1717 de *Falling Apart*, usar esta plantilla
+con composición y especificaciones confirmadas por la propietaria el
+2026-09-10:
+
+```text
+THE TEE, NOT THE DRAMA
+
+Heavyweight, soft, and made for repeat wear. This relaxed-fit,
+garment-dyed tee has a structured feel without feeling stiff.
+
+FIT & FEEL
+Heavyweight · Relaxed fit · Garment-dyed
+
+TEE SPECS
+• 100% ring-spun cotton
+• 6.1 oz/yd² (206.8 g/m²)
+• Garment-dyed and pre-shrunk
+• Reinforced neck and shoulders
+• Double-needle stitching at armholes, sleeves, and hem
+```
+
+Reglas:
+
+- Eliminar copy genérico de Printful sobre personalización o vender online.
+- No mostrar especificaciones que no ayuden a la decisión de compra, como el
+  número de filamentos del hilo.
+- No prometer transpirabilidad, durabilidad, una etiqueta personalizada o un
+  país de fabricación si no está confirmado para la prenda vendida.
+- Mantener peso y medidas en formato estadounidense primero, seguido de la
+  equivalencia métrica cuando aporte claridad.
+- Revalidar composición, peso, acabado y construcción contra el ID de Printful
+  y la variante solo si Printful cambia la prenda base, las variantes o su
+  ficha de producto.
+
+Los textos originales de Printful y sus borradores adaptados se organizan por
+ID estable en [contenido de producto](product-content/README.md). Este archivo
+define el patrón; aquellos documentos contienen el copy de cada PDP.
 
 ## Flujo de trabajo de assets
 
@@ -205,8 +256,9 @@ Antes de incorporar un asset, confirmar:
 
 - Confirmar disponibilidad legal de la marca `No Context Club` para la clase y
   mercados relevantes.
-- Validar el catálogo, precio, moneda, tallas, variantes y specs reales de
-  Printful antes de adaptar la interfaz.
+- Validar el catálogo, precio, moneda y tallas reales de Printful antes de
+  adaptar la interfaz. Reconfirmar las specs solo si cambia la prenda base,
+  variante o ficha de Printful.
 - Definir y revisar legalmente las páginas de privacidad, contacto, condiciones
   y devoluciones.
 - Revisar todo copy visible y los emails para que compartan el tono de marca sin

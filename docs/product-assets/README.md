@@ -57,7 +57,29 @@ Rules:
 - Deleting and recreating a Printful product can change the product ID; update
   this mapping and `src/lib/size-guides.ts` if that happens.
 - Changing the base garment requires a new or existing matching size guide.
-- Use Printful's centimeter values as the storefront default. Keep inches as
-  source evidence or optional future display data.
+- For the US storefront, show Printful's inch values by default and offer
+  centimeters as an optional unit toggle. Keep both source assets available.
 - Do not infer fit, fabric composition, care, shipping or returns from these
   screenshots. Those require separate verified sources.
+
+## PDP sizing flow
+
+The size experience is a product-specific local modal, not a link to Printful.
+Resolve its content through the stable Printful / Firestore ID and the mapping
+above.
+
+1. `SIZE GUIDE` opens the modal on `PRODUCT MEASUREMENTS`.
+2. The first tab shows the matching size table, using inches for the US
+   storefront and a `CM` toggle. Include only the dimensions supplied by that
+   garment guide and its published tolerance note.
+3. `HOW TO MEASURE` is the second tab in the same modal. It shows a garment
+   laid flat and labels `A Length`, `B Width`, and `C Sleeve length` only when
+   that guide provides the measurement.
+4. The PDP may show `NEED HELP WITH SIZE?` as a quiet text link below the main
+   CTA. It opens the product's verified `FIT & FEEL` notes and, only as a last
+   step, a contact route with the product prefilled.
+
+Do not use a generic guide for every product, send shoppers to the Printful
+dashboard, or make a `size up` / `size down` recommendation without actual fit
+evidence. The product-specific fit attributes live in
+[`docs/product-content/`](../product-content/README.md).
