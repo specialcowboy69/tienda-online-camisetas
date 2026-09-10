@@ -238,6 +238,7 @@ function ProductCard({ product, onAdd }: { product: CatalogProduct; onAdd: (prod
   return (
     <article className="card">
       {productImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img className="product-image" src={productImage} alt={product.name} />
       ) : (
         <div className="product-image" />
