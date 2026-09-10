@@ -56,6 +56,21 @@ mascotas, gótico/true crime, kawaii infantil o streetwear agresivo.
 - Evitar fondos blancos genéricos de marketplace cuando un escenario editorial
   controlado ayude a presentar la prenda con más personalidad.
 
+## El contexto, por una vez
+
+La sostenibilidad complementa el humor; no reemplaza la propuesta principal de
+la marca ni convierte la interfaz en una estética eco-genérica.
+
+- Idea guía: `No context for the joke. Full context for the tee.`
+- La home puede introducirlo con un bloque breve, no como sustituto del hero.
+- El PDP debe incluir una sección `The Context, For Once` con proveedor, qué
+  prácticas aplican a la prenda y una fuente oficial externa.
+- No usar el precio como justificación de estas prácticas ni mostrar códigos de
+  modelo o países de fabricación al cliente.
+
+Las afirmaciones públicas aprobadas, su alcance y sus fuentes se mantienen en
+[Perfiles de proveedor y afirmaciones de producto](SUPPLIER_PROFILES.md).
+
 ## Copy de home aprobado
 
 **Titular**
@@ -94,6 +109,49 @@ Preparar el catálogo para crecer sin forzar páginas de categoría todavía:
 No exponer filtros ni colecciones hasta que haya suficientes productos con una
 intención común. Como regla inicial, esperar al menos cuatro productos que
 formen un grupo claro.
+
+## Arquitectura inicial de URLs
+
+La estructura pública prevista para el mercado US es:
+
+- `/`: home.
+- `/products`: listado completo del catálogo o drop actual.
+- `/products/{slug}`: página individual de producto.
+
+No crear colecciones públicas hasta que exista un grupo real de productos con
+una intención común. Los drops puntuales pueden presentarse desde home y desde
+`/products` sin crear una taxonomía permanente.
+
+Los slugs públicos son estables y no deben depender automáticamente del nombre
+editable en Printful. Printful y Firestore siguen siendo la fuente técnica para
+IDs, variantes, precios, imágenes, checkout y guías de tallas.
+
+Formato recomendado:
+
+```text
+{idea-del-diseno}-{animal-si-es-central}-{tipo-de-prenda}
+```
+
+Reglas:
+
+- usar inglés, minúsculas y guiones simples;
+- incluir el animal solo cuando sea parte central del diseño o intención SEO;
+- usar el tipo real de prenda (`graphic-tee`, `crop-top`, `cropped-hoodie`);
+- si un slug publicado cambia, crear un redirect 301 desde el slug anterior.
+
+Slugs iniciales previstos:
+
+| ID de Printful | Producto actual | URL prevista |
+| ---: | --- | --- |
+| 468682936 | Falling apart | `/products/falling-apart-cat-graphic-tee` |
+| 468513582 | Farming dog aura | `/products/farming-dog-aura-graphic-tee` |
+| 468520575 | Sorry i cant triblend | `/products/sorry-i-cant-cat-graphic-tee` |
+| 468502976 | Its a trap crop top | `/products/its-a-trap-cat-crop-top` |
+| 468471370 | Momma sorry sweeter | `/products/momma-sorry-cat-cropped-hoodie` |
+
+Estas rutas son una decisión de arquitectura. No implican por sí solas que el
+PDP dinámico, sitemap de productos, canonical o redirects ya estén
+implementados.
 
 ## Fotos de producto
 
