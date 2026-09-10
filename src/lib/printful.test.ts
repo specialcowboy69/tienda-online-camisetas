@@ -98,4 +98,45 @@ describe("Printful order recovery", () => {
       "https://store.example/api/webhooks/printful?source=admin&secret=strong-test-secret"
     );
   });
+
+  it("requests shipping rates with the English storefront locale", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ code: 200, result: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { getShippingRates } = await import("./printful");
+    await getShippingRates(
+      {
+        name: "Ada Customer",
+        email: "ada@example.com",
+        address1: "1 Test Street",
+        city: "New York",
+        stateCode: "NY",
+        countryCode: "US",
+        zip: "10001"
+      },
+      [
+        {
+          productId: "453103125",
+          productName: "Test Shirt",
+          syncVariantId: 5419713597,
+          variantId: 12634,
+          variantName: "Test Shirt / Maroon / S",
+          quantity: 1,
+          unitAmount: 2499,
+          currency: "usd"
+        }
+      ]
+    );
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toMatchObject({
+      currency: "USD",
+      locale: "en_US"
+    });
+  });
 });

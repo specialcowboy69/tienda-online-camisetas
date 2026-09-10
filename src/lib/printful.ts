@@ -156,7 +156,7 @@ export async function getShippingRates(recipient: Recipient, items: OrderItem[])
         value: toPrintfulAmount(item.unitAmount, item.currency)
       })),
       currency: items[0]?.currency?.toUpperCase() || "EUR",
-      locale: "es_ES"
+      locale: "en_US"
     })
   });
 

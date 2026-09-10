@@ -19,7 +19,7 @@ export default async function HomePage() {
   return (
     <main className="shell">
       <header className="topbar">
-        <div className="brand">Tienda Camisetas</div>
+        <div className="brand">No Context Club</div>
         <nav>
           <Link href="/admin">Admin</Link>
         </nav>

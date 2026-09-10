@@ -6,7 +6,7 @@ export async function sendOrderConfirmationEmail(order: StoreOrder): Promise<voi
   const orderNumber = formatOrderNumber(order.id);
   await sendEmail({
     to: order.recipient.email,
-    subject: `Pedido ${orderNumber} confirmado`,
+    subject: `Order ${orderNumber} confirmed`,
     text: buildOrderConfirmationText(order),
     html: buildOrderConfirmationHtml(order),
     idempotencyKey: `order-confirmation-${order.id}`,
@@ -18,7 +18,7 @@ export async function sendShipmentEmail(order: StoreOrder): Promise<void> {
   const orderNumber = formatOrderNumber(order.id);
   await sendEmail({
     to: order.recipient.email,
-    subject: `Tu pedido ${orderNumber} está en camino`,
+    subject: `Your order ${orderNumber} is on the way`,
     text: buildShipmentText(order),
     html: buildShipmentHtml(order),
     idempotencyKey: `shipment-${order.id}-${order.tracking?.trackingNumber || "pending"}`,
@@ -66,45 +66,45 @@ async function sendEmail(input: EmailInput): Promise<void> {
 
 function buildOrderConfirmationText(order: StoreOrder): string {
   const lines = [
-    `Hola ${order.recipient.name},`,
+    `Hi ${order.recipient.name},`,
     "",
-    "Hemos recibido tu pago y tu pedido ya se está preparando.",
+    "We've received your payment and your order is now being prepared.",
     "",
-    `Pedido: ${formatOrderNumber(order.id)}`,
+    `Order: ${formatOrderNumber(order.id)}`,
     `Total: ${formatMoney(order.totals.total, order.totals.currency)}`,
     "",
-    "Artículos:",
+    "Items:",
     ...order.items.map((item) => `- ${item.quantity} x ${item.productName} (${item.variantName})`),
     "",
-    "Te avisaremos por email cuando el pedido salga hacia tu dirección.",
+    "We'll email you again when your order ships.",
     "",
-    "Gracias por comprar en Tienda Online Camisetas."
+    "Thanks for shopping with No Context Club."
   ];
 
   return lines.join("\n");
 }
 
 function buildShipmentText(order: StoreOrder): string {
-  const tracking = order.tracking?.trackingUrl || order.tracking?.trackingNumber || "El seguimiento estará disponible pronto.";
+  const tracking = order.tracking?.trackingUrl || order.tracking?.trackingNumber || "Tracking will be available soon.";
   return [
-    `Hola ${order.recipient.name},`,
+    `Hi ${order.recipient.name},`,
     "",
-    `Tu pedido ${formatOrderNumber(order.id)} ya está en camino.`,
+    `Your order ${formatOrderNumber(order.id)} is on the way.`,
     "",
-    `Seguimiento: ${tracking}`,
+    `Tracking: ${tracking}`,
     "",
-    "Gracias por comprar en Tienda Online Camisetas."
+    "Thanks for shopping with No Context Club."
   ].join("\n");
 }
 
 function buildOrderConfirmationHtml(order: StoreOrder): string {
   return renderEmailLayout({
-    title: "Pedido confirmado",
-    intro: `Hola ${escapeHtml(order.recipient.name)}, hemos recibido tu pago y tu pedido ya se está preparando.`,
+    title: "Order confirmed",
+    intro: `Hi ${escapeHtml(order.recipient.name)}, we've received your payment and your order is now being prepared.`,
     content: `
-      <p><strong>Pedido:</strong> ${escapeHtml(formatOrderNumber(order.id))}</p>
+      <p><strong>Order:</strong> ${escapeHtml(formatOrderNumber(order.id))}</p>
       <p><strong>Total:</strong> ${escapeHtml(formatMoney(order.totals.total, order.totals.currency))}</p>
-      <h2>Artículos</h2>
+      <h2>Items</h2>
       <ul>
         ${order.items
           .map(
@@ -113,21 +113,21 @@ function buildOrderConfirmationHtml(order: StoreOrder): string {
           )
           .join("")}
       </ul>
-      <p>Te avisaremos por email cuando el pedido salga hacia tu dirección.</p>
+      <p>We'll email you again when your order ships.</p>
     `
   });
 }
 
 function buildShipmentHtml(order: StoreOrder): string {
   const trackingUrl = order.tracking?.trackingUrl;
-  const trackingText = order.tracking?.trackingNumber || trackingUrl || "El seguimiento estará disponible pronto.";
+  const trackingText = order.tracking?.trackingNumber || trackingUrl || "Tracking will be available soon.";
 
   return renderEmailLayout({
-    title: "Tu pedido está en camino",
-    intro: `Hola ${escapeHtml(order.recipient.name)}, tu pedido ${escapeHtml(formatOrderNumber(order.id))} ya está en camino.`,
+    title: "Your order is on the way",
+    intro: `Hi ${escapeHtml(order.recipient.name)}, your order ${escapeHtml(formatOrderNumber(order.id))} is on the way.`,
     content: trackingUrl
-      ? `<p><a href="${escapeHtml(trackingUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;border-radius:6px;padding:12px 16px;">Ver seguimiento</a></p>`
-      : `<p><strong>Seguimiento:</strong> ${escapeHtml(trackingText)}</p>`
+      ? `<p><a href="${escapeHtml(trackingUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;border-radius:6px;padding:12px 16px;">View tracking</a></p>`
+      : `<p><strong>Tracking:</strong> ${escapeHtml(trackingText)}</p>`
   });
 }
 
@@ -137,11 +137,11 @@ function renderEmailLayout(input: { title: string; intro: string; content: strin
   <body style="margin:0;background:#f6f3ed;color:#111827;font-family:Arial,sans-serif;">
     <div style="max-width:640px;margin:0 auto;padding:32px 20px;">
       <main style="background:#ffffff;border:1px solid #ded7ca;border-radius:8px;padding:28px;">
-        <p style="margin:0 0 16px;color:#0f766e;font-weight:700;">Tienda Online Camisetas</p>
+        <p style="margin:0 0 16px;color:#0f766e;font-weight:700;">No Context Club</p>
         <h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;">${escapeHtml(input.title)}</h1>
         <p style="margin:0 0 20px;line-height:1.6;">${input.intro}</p>
         <div style="line-height:1.6;">${input.content}</div>
-        <p style="margin:24px 0 0;color:#4b5563;font-size:14px;">Gracias por comprar con nosotros.</p>
+        <p style="margin:24px 0 0;color:#4b5563;font-size:14px;">Thanks for shopping with No Context Club.</p>
       </main>
     </div>
   </body>
@@ -153,7 +153,7 @@ function formatOrderNumber(orderId: string): string {
 }
 
 function formatMoney(amount: number, currency: string): string {
-  return new Intl.NumberFormat("es-ES", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: currency.toUpperCase()
   }).format(Number(fromMinorUnits(amount, currency)));
