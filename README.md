@@ -1,6 +1,10 @@
-# Tienda Online Camisetas
+# No Context Club Storefront
 
 Custom storefront with Next.js, Firebase Firestore, Stripe Checkout and Printful API.
+
+The customer-facing storefront is English-first for now. Internal project
+documentation may remain in Spanish to keep operations clear for the project
+owner.
 
 ## Setup
 
@@ -70,6 +74,18 @@ The customer-facing currency is managed in Printful/storefront settings. After c
 
 Do not add an app-level currency override unless the provider flow stops working.
 
+## Storefront Language
+
+The public storefront, checkout support pages, transactional emails and
+Printful shipping locale are English-first:
+
+- HTML document language: `en`.
+- Printful shipping locale: `en_US`.
+- Customer money formatting in emails: `en-US`.
+
+Keep customer-facing copy aligned with `No Context Club`. The domain or search
+descriptor `Funny Tees 4 All` should not replace the brand in visible UI.
+
 ## Taxes
 
 `STRIPE_TAX_ENABLED=false` by default. Enable it only after Stripe Tax is configured correctly and your fiscal obligations are clear.
@@ -80,7 +96,7 @@ The app sends transactional emails through Resend when these variables are confi
 
 ```text
 RESEND_API_KEY=re_xxx
-RESEND_FROM_EMAIL=Tienda Online Camisetas <orders@your-domain.com>
+RESEND_FROM_EMAIL=No Context Club <orders@your-domain.com>
 ```
 
 Configure and verify the sending domain in Resend before using a production sender address. If either variable is missing, email sending is skipped and the order flow continues.
@@ -91,7 +107,7 @@ Configure and verify the sending domain in Resend before using a production send
 npm test
 ```
 
-The current tests cover money conversion, cart-to-order mapping, ignored catalog products, catalog image priority, availability rejection, shipping pricing rules, order creation, totals, address mismatch detection, clean cart payload serialization, Printful webhook handling, public API rate limits, body-size limits, validation, and transactional email behavior.
+The current tests cover money conversion, cart-to-order mapping, ignored catalog products, catalog image priority, availability rejection, shipping pricing rules, order creation, totals, address mismatch detection, clean cart payload serialization, customer-facing language signals, Printful webhook handling, public API rate limits, body-size limits, validation, and transactional email behavior.
 
 ## Project Documentation
 
