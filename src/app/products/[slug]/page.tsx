@@ -75,7 +75,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         />
       </section>
 
-      <ProductDetails content={content} />
+      <ProductDetails content={content} images={gallery} />
 
       {relatedProducts.length ? (
         <section className="ncc-related" aria-label="Related products">

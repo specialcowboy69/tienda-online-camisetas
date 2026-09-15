@@ -329,10 +329,10 @@ label {
 }
 
 .ncc-pdp-hero {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: clamp(24px, 3vw, 44px);
-  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
 }
 
 .ncc-gallery {
@@ -344,8 +344,9 @@ label {
 .ncc-gallery__main {
   aspect-ratio: 4 / 5;
   background: #f4e7d2;
-  border: 2px solid rgba(23, 23, 23, 0.12);
-  border-radius: 18px;
+  border: 3px solid var(--ncc-ink);
+  border-radius: 28px 8px 28px 8px;
+  box-shadow: 12px 12px 0 var(--ncc-cobalt);
   overflow: hidden;
 }
 
@@ -390,11 +391,16 @@ label {
 
 .ncc-buybox {
   align-self: start;
-  background: rgba(255, 243, 223, 0.92);
-  border-left: 2px solid var(--ncc-ink);
+  background:
+    linear-gradient(135deg, rgba(40, 89, 231, 0.22), transparent 34%),
+    var(--ncc-ink);
+  border: 3px solid var(--ncc-ink);
+  border-radius: 8px 28px 8px 28px;
+  box-shadow: -10px 10px 0 rgba(40, 89, 231, 0.22);
+  color: #fff8ec;
   display: grid;
   gap: 18px;
-  padding: clamp(10px, 2vw, 28px) 0 clamp(10px, 2vw, 28px) clamp(18px, 3vw, 38px);
+  padding: clamp(22px, 3vw, 38px);
   position: sticky;
   top: 18px;
 }
@@ -411,7 +417,9 @@ label {
 .ncc-buybox h1,
 .ncc-products-hero h1,
 .ncc-related h2,
-.ncc-detail-card h2,
+.ncc-editorial-panel h2,
+.ncc-supplier-card h2,
+.ncc-useful-card h2,
 .ncc-modal h2 {
   font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
   font-weight: 900;
@@ -434,11 +442,36 @@ label {
 }
 
 .ncc-buybox__summary {
-  border-bottom: 2px solid var(--ncc-ink);
+  border-bottom: 2px solid rgba(255, 248, 236, 0.28);
   font-size: clamp(18px, 2vw, 24px);
   line-height: 1.35;
   margin: 0;
   padding-bottom: 22px;
+}
+
+.ncc-buybox .ncc-option-group legend,
+.ncc-buybox label {
+  color: #fff8ec;
+}
+
+.ncc-buybox .ncc-choice,
+.ncc-buybox .ncc-inline-button,
+.ncc-buybox .ncc-secondary-button {
+  border-color: #fff8ec;
+  color: #fff8ec;
+}
+
+.ncc-buybox .ncc-choice[aria-pressed="true"] {
+  background: var(--ncc-cobalt);
+  border-color: var(--ncc-cobalt);
+  color: white;
+}
+
+.ncc-buybox input,
+.ncc-buybox select {
+  background: #fff8ec;
+  border-color: transparent;
+  color: var(--ncc-ink);
 }
 
 .ncc-option-group {
@@ -554,8 +587,8 @@ label {
 
 .ncc-buybox__shipping {
   align-items: center;
-  border-bottom: 1px solid var(--ncc-line);
-  border-top: 1px solid var(--ncc-line);
+  border-bottom: 1px solid rgba(255, 248, 236, 0.24);
+  border-top: 1px solid rgba(255, 248, 236, 0.24);
   display: flex;
   gap: 12px;
   margin: 0;
@@ -589,6 +622,7 @@ label {
 
 .ncc-rate {
   align-items: center;
+  background: #fff8ec;
   border: 1px solid var(--ncc-line);
   border-radius: 12px;
   color: var(--ncc-ink);
@@ -606,31 +640,82 @@ label {
 
 .ncc-details {
   display: grid;
-  gap: 18px;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr);
+  gap: clamp(22px, 4vw, 54px);
   margin-top: clamp(42px, 8vw, 112px);
 }
 
-.ncc-detail-card {
-  background: #fff9ee;
-  border: 2px solid var(--ncc-line);
-  border-radius: 20px;
+.ncc-editorial-panel {
+  align-items: stretch;
+  background: rgba(255, 249, 238, 0.78);
+  border-top: 2px solid var(--ncc-ink);
+  border-bottom: 2px solid var(--ncc-ink);
+  display: grid;
+  gap: clamp(22px, 4vw, 54px);
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  padding: clamp(24px, 4vw, 54px) 0;
+}
+
+.ncc-editorial-panel--situation {
+  align-items: center;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(240, 78, 56, 0.18), transparent 20rem),
+    var(--ncc-ink);
+  border: 0;
+  border-radius: 34px 8px 34px 8px;
+  color: #fff8ec;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  overflow: hidden;
   padding: clamp(22px, 4vw, 48px);
 }
 
-.ncc-detail-card--story {
-  grid-row: span 3;
+.ncc-editorial-copy,
+.ncc-situation-copy {
+  align-self: center;
+  display: grid;
+  gap: 18px;
 }
 
-.ncc-detail-card h2 {
-  font-size: clamp(44px, 6vw, 92px);
+.ncc-editorial-panel h2,
+.ncc-useful-card h2 {
+  font-size: clamp(46px, 7vw, 110px);
   margin-top: 16px;
   max-width: 10ch;
 }
 
-.ncc-detail-card p:not(.ncc-microcopy) {
+.ncc-editorial-panel p:not(.ncc-microcopy),
+.ncc-useful-card > p:not(.ncc-microcopy) {
   font-size: clamp(18px, 2vw, 26px);
   line-height: 1.3;
+  margin: 0;
+}
+
+.ncc-editorial-image,
+.ncc-situation-art {
+  margin: 0;
+  min-height: 100%;
+}
+
+.ncc-editorial-image {
+  border: 2px solid var(--ncc-raspberry);
+  border-radius: 28px 8px 28px 8px;
+  overflow: hidden;
+}
+
+.ncc-situation-art {
+  background: var(--ncc-tomato);
+  border: 8px solid var(--ncc-cobalt);
+  box-shadow: 0 0 0 2px #fff8ec;
+  min-height: 420px;
+  overflow: hidden;
+  transform: rotate(-1deg);
+}
+
+.ncc-editorial-image img,
+.ncc-situation-art img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 
 .ncc-fit-pills {
@@ -648,17 +733,109 @@ label {
   padding: 10px 16px;
 }
 
+.ncc-editorial-panel--situation .ncc-fit-pills span,
+.ncc-situation-tags span {
+  border-color: #fff8ec;
+  color: #fff8ec;
+}
+
+.ncc-situation-tags {
+  border-top: 2px solid rgba(255, 248, 236, 0.42);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 20px;
+}
+
+.ncc-situation-tags span {
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  padding: 10px 14px;
+}
+
+.ncc-supplier-card {
+  background: rgba(255, 249, 238, 0.86);
+  border: 2px solid rgba(23, 23, 23, 0.12);
+  border-radius: 24px;
+  display: grid;
+  gap: clamp(20px, 4vw, 54px);
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  padding: clamp(24px, 4vw, 54px);
+}
+
+.ncc-supplier-card h2 {
+  font-size: clamp(36px, 5vw, 74px);
+  line-height: 0.92;
+  margin: 18px 0 0;
+  max-width: 12ch;
+}
+
+.ncc-supplier-card__body {
+  border-left: 2px solid var(--ncc-line);
+  display: grid;
+  gap: 18px;
+  padding-left: clamp(20px, 4vw, 42px);
+}
+
+.ncc-supplier-card__body p:not(.ncc-microcopy) {
+  font-size: clamp(18px, 2vw, 26px);
+  line-height: 1.35;
+  margin: 0;
+}
+
+.ncc-supplier-card__body a {
+  align-items: center;
+  border: 2px solid var(--ncc-cobalt);
+  border-radius: 10px;
+  color: var(--ncc-cobalt);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  justify-content: center;
+  letter-spacing: 0.14em;
+  min-height: 54px;
+  padding: 12px 18px;
+  text-decoration: none;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.ncc-supplier-note {
+  color: var(--muted);
+  font-size: 14px !important;
+}
+
+.ncc-useful-card {
+  background: #fff8ec;
+  border: 2px solid var(--ncc-ink);
+  border-radius: 8px 30px 8px 30px;
+  display: grid;
+  gap: 14px;
+  padding: clamp(24px, 4vw, 54px);
+}
+
+.ncc-useful-card h2 {
+  margin: 8px 0 12px;
+  max-width: 12ch;
+}
+
 .ncc-accordion {
   background: rgba(255, 249, 238, 0.8);
-  border: 2px solid var(--ncc-line);
-  border-radius: 16px;
-  padding: 18px;
+  border: 0;
+  border-top: 2px solid var(--ncc-ink);
+  border-radius: 0;
+  padding: 18px 0;
 }
 
 .ncc-accordion summary {
   cursor: pointer;
   font-size: 18px;
   font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .ncc-accordion li {
@@ -887,14 +1064,22 @@ label {
 @media (max-width: 980px) {
   .ncc-pdp-hero,
   .ncc-details,
-  .ncc-measure {
+  .ncc-measure,
+  .ncc-editorial-panel,
+  .ncc-editorial-panel--situation,
+  .ncc-supplier-card {
     grid-template-columns: 1fr;
   }
 
   .ncc-buybox {
-    border-left: 0;
-    padding-left: 0;
     position: static;
+  }
+
+  .ncc-supplier-card__body {
+    border-left: 0;
+    border-top: 2px solid var(--ncc-line);
+    padding-left: 0;
+    padding-top: 24px;
   }
 }
 
@@ -934,9 +1119,29 @@ label {
   .ncc-buybox h1,
   .ncc-products-hero h1,
   .ncc-related h2,
-  .ncc-detail-card h2,
+  .ncc-editorial-panel h2,
+  .ncc-supplier-card h2,
+  .ncc-useful-card h2,
   .ncc-modal h2 {
     letter-spacing: -0.015em;
+  }
+
+  .ncc-buybox {
+    box-shadow: 0 8px 0 rgba(40, 89, 231, 0.28);
+  }
+
+  .ncc-gallery__main {
+    box-shadow: 0 8px 0 var(--ncc-cobalt);
+  }
+
+  .ncc-editorial-panel--situation {
+    border-radius: 24px 6px 24px 6px;
+    padding: 18px;
+  }
+
+  .ncc-situation-art {
+    min-height: 320px;
+    transform: none;
   }
 
   .ncc-modal__panel {
