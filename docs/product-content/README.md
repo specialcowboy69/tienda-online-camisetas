@@ -15,7 +15,9 @@ Cada archivo se nombra con el ID estable de Printful. Debe contener:
 1. El texto original de Printful, sin usarlo directamente en la tienda.
 2. El copy de storefront en inglés: descripción, `FIT & FEEL` y
    especificaciones.
-3. Notas de publicación, incluyendo cualquier condición aplicable por color.
+3. El bloque editorial `THE SITUATION`: titular, microhistoria y tres palabras
+   de apoyo extraídas del diseño concreto.
+4. Notas de publicación, incluyendo cualquier condición aplicable por color.
 
 No introducir en el copy público frases genéricas de Printful sobre
 personalización o vender online. Tampoco mostrar país de fabricación ni ampliar
@@ -42,6 +44,19 @@ de talla del PDP. Explican el corte y la sensación de la prenda, pero no son un
 regla de `size up` o `size down`. La tabla y el método de medición se mantienen
 en [assets de producto](../product-assets/README.md) y se resuelven por ID de
 Printful.
+
+## Uso de `THE SITUATION`
+
+`THE SITUATION` da contexto al chiste sin explicarlo por completo. Se resuelve
+por ID de Printful y se muestra como bloque narrativo editorial del PDP, no
+como parte de las especificaciones ni de la guía de talla. Cada entrada incluye
+un titular, una microhistoria y tres palabras de apoyo que pueden convertirse
+en pequeños acentos visuales.
+
+- Mantener el copy en inglés y ligado al diseño correspondiente.
+- No sustituir el nombre del producto ni el copy funcional de compra.
+- No reutilizar una historia para otra prenda aunque compartan proveedor o
+  modelo base.
 
 ## Revisión futura
 

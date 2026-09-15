@@ -178,7 +178,7 @@ es:
 1. Galería y bloque de compra: nombre, precio real, color, talla, CTA y señales
    de confianza confirmadas.
 2. Fit y guía de tallas.
-3. Historia del diseño o el contexto del chiste.
+3. `THE SITUATION`: historia breve del diseño o contexto del chiste.
 4. Detalles útiles: composición, fit, cuidado, envío y devoluciones
    verificadas.
 5. Productos relacionados o bloque `The First Drop`.
@@ -238,6 +238,20 @@ Reglas:
 Los textos originales de Printful y sus borradores adaptados se organizan por
 ID estable en [contenido de producto](product-content/README.md). Este archivo
 define el patrón; aquellos documentos contienen el copy de cada PDP.
+
+### `THE SITUATION`
+
+Cada PDP puede incorporar un bloque editorial `THE SITUATION` después de fit o
+de los detalles de la prenda. Su objetivo es añadir una microhistoria que dé
+contexto al diseño sin matar la broma. Cada producto define por ID de Printful:
+
+- un titular editorial breve;
+- una microhistoria de dos o tres frases;
+- tres palabras de apoyo que pueden usarse como acentos visuales.
+
+Este bloque no reemplaza el nombre de producto, la descripción funcional, las
+especificaciones ni la información operativa de compra. El copy aprobado de
+cada diseño se mantiene en `docs/product-content/{printful-id}.md`.
 
 ## Flujo de trabajo de assets
 
