@@ -40,9 +40,23 @@ npm.cmd audit --omit=dev
 
 - `main` representa la rama estable.
 - No hacer push directo a `main`.
-- Crear ramas de trabajo, por ejemplo `codex/textos-espanol`.
+- Crear ramas de trabajo, por ejemplo `codex/storefront-copy`.
 - Abrir Pull Request contra `main`.
 - Mergear solo despues de revisar cambios y verificaciones.
+
+## Idioma publico
+
+La experiencia visible para clientes esta en ingles por defecto:
+
+- HTML `lang="en"`.
+- UI publica, checkout, success/cancel y mensajes de error en ingles.
+- Emails transaccionales en ingles.
+- Printful shipping locale `en_US`.
+- Formato monetario de emails `en-US`.
+
+La documentacion interna puede seguir en espanol. Si se toca copy publico,
+actualizar o anadir tests que cubran la senal de idioma, el email o el mensaje
+visible afectado.
 
 ## Como cambiar codigo
 
@@ -120,7 +134,7 @@ Los emails viven en `src/lib/email.ts`.
 Al cambiar textos:
 
 - Mantener version texto plano y HTML.
-- Revisar tono en espanol.
+- Revisar tono en ingles segun la marca `No Context Club`.
 - No incluir datos sensibles innecesarios.
 - Mantener idempotency keys para evitar duplicados.
 - Probar sin `RESEND_API_KEY` para confirmar que el flujo no se rompe cuando emails estan desactivados.

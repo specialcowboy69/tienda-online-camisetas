@@ -10,6 +10,26 @@ La marca es **No Context Club**. **Funny Tees 4 All** es el dominio y un
 descriptor orientado a búsqueda, no el nombre que debe dominar la identidad
 visual.
 
+## Estrategia de idioma
+
+La experiencia pública es **English-first** por ahora. Esto incluye home,
+catálogo, checkout, páginas de éxito/cancelación, mensajes de estado, errores
+visibles para cliente y emails transaccionales.
+
+La documentación interna del proyecto puede seguir en español para facilitar
+trabajo operativo. Esa decisión no cambia el idioma del cliente: si un texto
+aparece en navegador, Stripe-facing copy, email o mensaje de soporte automático,
+debe escribirse en inglés salvo decisión explícita posterior.
+
+Configuración técnica asociada:
+
+- HTML: `lang="en"`.
+- Printful shipping locale: `en_US`.
+- Formato de dinero en emails: `en-US`.
+
+La moneda es una decisión separada del idioma. La app no traduce ni convierte
+precios por idioma; consume la moneda sincronizada desde Printful.
+
 La guía no sustituye las fuentes de verdad operativas:
 
 - Printful y Firestore: productos activos, variantes, precio, moneda, stock e
@@ -151,5 +171,5 @@ Antes de incorporar un asset, confirmar:
   Printful antes de adaptar la interfaz.
 - Definir y revisar legalmente las páginas de privacidad, contacto, condiciones
   y devoluciones.
-- Revisar todo copy visible y los emails para que compartan el tono de marca sin
+- Mantener todo copy visible y los emails en inglés, con tono de marca, sin
   comprometer claridad en compra, soporte o incidencias.

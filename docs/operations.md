@@ -157,10 +157,10 @@ No dejar `stripe listen` local reenviando eventos al mismo tiempo que el webhook
 
 ```text
 RESEND_API_KEY=re_xxx
-RESEND_FROM_EMAIL=Tienda Online Camisetas <pedidos@tu-dominio.com>
+RESEND_FROM_EMAIL=No Context Club <orders@tu-dominio.com>
 ```
 
-Resend permite enviar desde una direccion del dominio verificado, pero no crea automaticamente una bandeja de entrada. Si quieres recibir respuestas en `pedidos@tu-dominio.com`, crea ese buzon o alias en tu proveedor de correo.
+Resend permite enviar desde una direccion del dominio verificado, pero no crea automaticamente una bandeja de entrada. Si quieres recibir respuestas en `orders@tu-dominio.com`, crea ese buzon o alias en tu proveedor de correo.
 
 ### Emails Que Envia La App
 
