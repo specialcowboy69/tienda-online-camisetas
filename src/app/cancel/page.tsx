@@ -6,12 +6,12 @@ export default async function CancelPage({ searchParams }: { searchParams: Promi
   return (
     <main className="shell">
       <header className="topbar">
-        <div className="brand">Checkout cancelado</div>
-        <Link href="/">Volver</Link>
+        <div className="brand">No Context Club</div>
+        <Link href="/">Back to shop</Link>
       </header>
       <section className="panel">
-        <h1>Pago cancelado</h1>
-        <p>No se ha cobrado el pedido. Puedes revisar el carrito y volver a intentarlo.</p>
+        <h1>Checkout canceled</h1>
+        <p>Payment canceled. You were not charged, and you can review your cart before trying again.</p>
         {params.order_id ? <p className="muted">Order ID: {params.order_id}</p> : null}
       </section>
     </main>
