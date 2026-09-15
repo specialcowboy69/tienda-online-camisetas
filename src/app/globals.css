@@ -477,7 +477,7 @@ label {
 .ncc-option-group {
   border: 0;
   display: grid;
-  gap: 12px;
+  gap: 16px;
   margin: 0;
   padding: 0;
 }
@@ -490,6 +490,7 @@ label {
   font-weight: 900;
   justify-content: space-between;
   letter-spacing: 0.14em;
+  margin-bottom: 4px;
   text-transform: uppercase;
   width: 100%;
 }
@@ -500,9 +501,10 @@ label {
 }
 
 .ncc-choice-row {
+  clear: both;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px 10px;
 }
 
 .ncc-choice,
@@ -542,6 +544,11 @@ label {
   font-size: 14px;
   min-height: auto;
   padding: 0 0 2px;
+}
+
+.ncc-buybox .ncc-inline-button {
+  border-bottom-color: var(--ncc-cobalt);
+  color: #fff8ec;
 }
 
 .ncc-primary-button {
@@ -935,6 +942,7 @@ label {
   border: 2px solid var(--ncc-ink);
   border-radius: 16px;
   box-shadow: 0 24px 90px rgba(0, 0, 0, 0.32);
+  color: var(--ncc-ink);
   display: grid;
   gap: 18px;
   left: 50%;
@@ -1006,6 +1014,7 @@ label {
 .ncc-size-table th,
 .ncc-size-table td {
   border-bottom: 1px solid var(--ncc-line);
+  color: var(--ncc-ink);
   padding: 14px;
   text-align: left;
 }
