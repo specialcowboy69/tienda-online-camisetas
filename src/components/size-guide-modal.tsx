@@ -80,6 +80,20 @@ export function SizeGuideModal({ guide, isOpen, onClose, productName }: SizeGuid
         ) : (
           <div className="ncc-measure">
             <div className="ncc-measure__shirt" aria-hidden="true">
+              <svg className="ncc-measure__shirt-illustration" viewBox="0 0 240 240">
+                <path
+                  d="M83 46 101 34h38l18 12 43 36-24 40-23-13v91H87v-91l-23 13-24-40 43-36Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M99 35c5 13 13 20 21 20s16-7 21-20M87 109v91h66v-91"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="7"
+                />
+              </svg>
               <span className="ncc-measure__line ncc-measure__line--length">A</span>
               <span className="ncc-measure__line ncc-measure__line--width">B</span>
               {columns.includes("sleeveLength") ? <span className="ncc-measure__line ncc-measure__line--sleeve">C</span> : null}

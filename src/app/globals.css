@@ -694,8 +694,11 @@ label {
 }
 
 .ncc-editorial-panel--situation h2 {
-  font-size: clamp(40px, 5.2vw, 82px);
-  max-width: 10ch;
+  font-size: clamp(36px, 4.4vw, 70px);
+  line-height: 0.98;
+  max-width: min(100%, 12.5ch);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .ncc-editorial-panel p:not(.ncc-microcopy),
@@ -1056,10 +1059,20 @@ label {
   position: relative;
 }
 
+.ncc-measure__shirt-illustration {
+  color: rgba(23, 23, 23, 0.1);
+  height: 72%;
+  inset: 12% 14% auto;
+  position: absolute;
+  width: 72%;
+  z-index: 1;
+}
+
 .ncc-measure__line {
   color: var(--ncc-cobalt);
   font-weight: 900;
   position: absolute;
+  z-index: 2;
 }
 
 .ncc-measure__line--length {
