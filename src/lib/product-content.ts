@@ -1,3 +1,17 @@
+export type ProductSituation = {
+  heading: string;
+  body: string;
+  tags: string[];
+};
+
+export type ProductSupplierContext = {
+  supplier: string;
+  whatApplies: string;
+  note: string;
+  sourceLabel: string;
+  sourceUrl: string;
+};
+
 export type ProductContent = {
   status: "verified";
   heading: string;
@@ -6,6 +20,26 @@ export type ProductContent = {
   specsTitle: string;
   specs: string[];
   customerNote?: string;
+  situation: ProductSituation;
+  supplierContext: ProductSupplierContext;
+};
+
+const comfortColors1717: ProductSupplierContext = {
+  supplier: "Comfort Colors by Gildan. Canadian apparel company",
+  whatApplies:
+    "Pigment Pure dyeing uses, on average, 3x less water, 40% less process time, less energy, and zero salt compared with conventional reactive dyeing.",
+  note: "Applies to the garment's dyeing process. Supplier-reported comparison.",
+  sourceLabel: "See the source",
+  sourceUrl: "https://retail.comfortcolors.com/sustainability"
+};
+
+const bellaCanvasProduction: ProductSupplierContext = {
+  supplier: "BELLA+CANVAS. U.S.-based apparel company",
+  whatApplies:
+    "BELLA+CANVAS reports WRAP-certified facilities and Fair Labor Accreditation, alongside water-reduction practices, treated wastewater, and bluesign-approved inputs at its primary dye house.",
+  note: "These are supplier and supply-chain practices, not a style-specific impact measurement.",
+  sourceLabel: "See the source",
+  sourceUrl: "https://www.bellacanvas.com/our-commitment"
 };
 
 export const productContentById: Record<string, ProductContent> = {
@@ -21,7 +55,14 @@ export const productContentById: Record<string, ProductContent> = {
       "Garment-dyed and pre-shrunk",
       "Reinforced neck and shoulders",
       "Double-needle stitching at armholes, sleeves, and hem"
-    ]
+    ],
+    situation: {
+      heading: "EVERYONE IS COPING DIFFERENTLY.",
+      body:
+        "There was coffee. There was a volcano. The cat arrived dressed for a floral apocalypse and chose peace anyway. Everything is falling apart. She's just fine.",
+      tags: ["CAT", "COFFEE", "VOLCANO"]
+    },
+    supplierContext: comfortColors1717
   },
   "468513582": {
     status: "verified",
@@ -35,7 +76,14 @@ export const productContentById: Record<string, ProductContent> = {
       "Garment-dyed and pre-shrunk",
       "Reinforced neck and shoulders",
       "Double-needle stitching at armholes, sleeves, and hem"
-    ]
+    ],
+    situation: {
+      heading: "THE FARM IS HYPOTHETICAL. THE AURA IS NOT.",
+      body:
+        "He has no livestock, no land, and somehow more executive presence than the entire group chat. The suit is real. The plan is still loading.",
+      tags: ["DOG", "SUIT", "AURA"]
+    },
+    supplierContext: comfortColors1717
   },
   "468520575": {
     status: "verified",
@@ -49,7 +97,14 @@ export const productContentById: Record<string, ProductContent> = {
       "Pre-shrunk fabric",
       "Lightweight, modern fit"
     ],
-    customerNote: "Light colors may be slightly sheer in some lighting."
+    customerNote: "Light colors may be slightly sheer in some lighting.",
+    situation: {
+      heading: "THE DOCUMENTARY IS ON. NOBODY IS INNOCENT.",
+      body:
+        "One of you is here for the evidence. One is here for the drama. The cat has been staring at the screen for forty minutes and definitely knows something.",
+      tags: ["CAT", "TRUE CRIME", "SUSPICION"]
+    },
+    supplierContext: bellaCanvasProduction
   },
   "468502976": {
     status: "verified",
@@ -64,7 +119,14 @@ export const productContentById: Record<string, ProductContent> = {
       "Cropped, boxy fit with oversized sleeves",
       "Side-seamed construction",
       "Double-needle stitching"
-    ]
+    ],
+    situation: {
+      heading: "THE TRAP WAS NEVER FOR THE CAT.",
+      body:
+        "The belly is out. The eyes say innocent. Your hand is already halfway there. At this point, whatever happens next is between you and your decision-making.",
+      tags: ["BELLY", "PAWS", "REGRET"]
+    },
+    supplierContext: bellaCanvasProduction
   },
   "468471370": {
     status: "verified",
@@ -78,7 +140,14 @@ export const productContentById: Record<string, ProductContent> = {
       "Cropped body with a raw hem",
       "Dropped shoulders",
       "Dyed-to-match drawcord"
-    ]
+    ],
+    situation: {
+      heading: "THE HOUSE HAS ENTERED ITS TRUE-CRIME ERA.",
+      body:
+        "Three witnesses. One tiny victim. Zero remorse. The evidence is on the bed, the suspects are adorable, and nobody in this household is qualified to lead the investigation.",
+      tags: ["CATS", "EVIDENCE", "ALIBIS"]
+    },
+    supplierContext: bellaCanvasProduction
   }
 };
 

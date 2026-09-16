@@ -329,10 +329,10 @@ label {
 }
 
 .ncc-pdp-hero {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: clamp(24px, 3vw, 44px);
-  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
 }
 
 .ncc-gallery {
@@ -344,8 +344,9 @@ label {
 .ncc-gallery__main {
   aspect-ratio: 4 / 5;
   background: #f4e7d2;
-  border: 2px solid rgba(23, 23, 23, 0.12);
-  border-radius: 18px;
+  border: 3px solid var(--ncc-ink);
+  border-radius: 28px 8px 28px 8px;
+  box-shadow: 12px 12px 0 var(--ncc-cobalt);
   overflow: hidden;
 }
 
@@ -390,11 +391,16 @@ label {
 
 .ncc-buybox {
   align-self: start;
-  background: rgba(255, 243, 223, 0.92);
-  border-left: 2px solid var(--ncc-ink);
+  background:
+    linear-gradient(135deg, rgba(40, 89, 231, 0.22), transparent 34%),
+    var(--ncc-ink);
+  border: 3px solid var(--ncc-ink);
+  border-radius: 8px 28px 8px 28px;
+  box-shadow: -10px 10px 0 rgba(40, 89, 231, 0.22);
+  color: #fff8ec;
   display: grid;
   gap: 18px;
-  padding: clamp(10px, 2vw, 28px) 0 clamp(10px, 2vw, 28px) clamp(18px, 3vw, 38px);
+  padding: clamp(22px, 3vw, 38px);
   position: sticky;
   top: 18px;
 }
@@ -411,19 +417,22 @@ label {
 .ncc-buybox h1,
 .ncc-products-hero h1,
 .ncc-related h2,
-.ncc-detail-card h2,
+.ncc-editorial-panel h2,
+.ncc-supplier-card h2,
+.ncc-useful-card h2,
 .ncc-modal h2 {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-family: "Arial Black", Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
   font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 0.92;
+  letter-spacing: -0.012em;
+  line-height: 0.98;
   margin: 0;
   text-transform: uppercase;
 }
 
 .ncc-buybox h1 {
-  font-size: clamp(56px, 7vw, 104px);
-  max-width: 9ch;
+  font-size: clamp(48px, 6.2vw, 92px);
+  line-height: 0.96;
+  max-width: 11ch;
 }
 
 .ncc-price {
@@ -434,17 +443,42 @@ label {
 }
 
 .ncc-buybox__summary {
-  border-bottom: 2px solid var(--ncc-ink);
+  border-bottom: 2px solid rgba(255, 248, 236, 0.28);
   font-size: clamp(18px, 2vw, 24px);
   line-height: 1.35;
   margin: 0;
   padding-bottom: 22px;
 }
 
+.ncc-buybox .ncc-option-group legend,
+.ncc-buybox label {
+  color: #fff8ec;
+}
+
+.ncc-buybox .ncc-choice,
+.ncc-buybox .ncc-inline-button,
+.ncc-buybox .ncc-secondary-button {
+  border-color: #fff8ec;
+  color: #fff8ec;
+}
+
+.ncc-buybox .ncc-choice[aria-pressed="true"] {
+  background: var(--ncc-cobalt);
+  border-color: var(--ncc-cobalt);
+  color: white;
+}
+
+.ncc-buybox input,
+.ncc-buybox select {
+  background: #fff8ec;
+  border-color: transparent;
+  color: var(--ncc-ink);
+}
+
 .ncc-option-group {
   border: 0;
   display: grid;
-  gap: 12px;
+  gap: 16px;
   margin: 0;
   padding: 0;
 }
@@ -457,6 +491,7 @@ label {
   font-weight: 900;
   justify-content: space-between;
   letter-spacing: 0.14em;
+  margin-bottom: 4px;
   text-transform: uppercase;
   width: 100%;
 }
@@ -467,9 +502,10 @@ label {
 }
 
 .ncc-choice-row {
+  clear: both;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px 10px;
 }
 
 .ncc-choice,
@@ -509,6 +545,11 @@ label {
   font-size: 14px;
   min-height: auto;
   padding: 0 0 2px;
+}
+
+.ncc-buybox .ncc-inline-button {
+  border-bottom-color: var(--ncc-cobalt);
+  color: #fff8ec;
 }
 
 .ncc-primary-button {
@@ -554,8 +595,8 @@ label {
 
 .ncc-buybox__shipping {
   align-items: center;
-  border-bottom: 1px solid var(--ncc-line);
-  border-top: 1px solid var(--ncc-line);
+  border-bottom: 1px solid rgba(255, 248, 236, 0.24);
+  border-top: 1px solid rgba(255, 248, 236, 0.24);
   display: flex;
   gap: 12px;
   margin: 0;
@@ -589,6 +630,7 @@ label {
 
 .ncc-rate {
   align-items: center;
+  background: #fff8ec;
   border: 1px solid var(--ncc-line);
   border-radius: 12px;
   color: var(--ncc-ink);
@@ -606,31 +648,93 @@ label {
 
 .ncc-details {
   display: grid;
-  gap: 18px;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr);
+  gap: clamp(22px, 4vw, 54px);
   margin-top: clamp(42px, 8vw, 112px);
 }
 
-.ncc-detail-card {
-  background: #fff9ee;
-  border: 2px solid var(--ncc-line);
-  border-radius: 20px;
+.ncc-editorial-panel {
+  align-items: stretch;
+  background: rgba(255, 249, 238, 0.78);
+  border-top: 2px solid var(--ncc-ink);
+  border-bottom: 2px solid var(--ncc-ink);
+  display: grid;
+  gap: clamp(22px, 4vw, 54px);
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  padding: clamp(24px, 4vw, 54px) 0;
+}
+
+.ncc-editorial-panel--situation {
+  align-items: center;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(240, 78, 56, 0.18), transparent 20rem),
+    var(--ncc-ink);
+  border: 0;
+  border-radius: 34px 8px 34px 8px;
+  color: #fff8ec;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  overflow: hidden;
   padding: clamp(22px, 4vw, 48px);
 }
 
-.ncc-detail-card--story {
-  grid-row: span 3;
+.ncc-editorial-copy,
+.ncc-situation-copy {
+  align-self: center;
+  display: grid;
+  gap: 18px;
+  min-width: 0;
 }
 
-.ncc-detail-card h2 {
-  font-size: clamp(44px, 6vw, 92px);
+.ncc-editorial-panel h2,
+.ncc-useful-card h2 {
+  font-size: clamp(42px, 6.2vw, 96px);
+  line-height: 1;
   margin-top: 16px;
-  max-width: 10ch;
+  max-width: 12ch;
+  overflow-wrap: normal;
 }
 
-.ncc-detail-card p:not(.ncc-microcopy) {
+.ncc-editorial-panel--situation h2 {
+  font-size: clamp(36px, 4.4vw, 70px);
+  line-height: 0.98;
+  max-width: min(100%, 12.5ch);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.ncc-editorial-panel p:not(.ncc-microcopy),
+.ncc-useful-card > p:not(.ncc-microcopy) {
   font-size: clamp(18px, 2vw, 26px);
   line-height: 1.3;
+  margin: 0;
+}
+
+.ncc-editorial-image,
+.ncc-situation-art {
+  margin: 0;
+  min-height: 100%;
+}
+
+.ncc-editorial-image {
+  border: 2px solid var(--ncc-raspberry);
+  border-radius: 28px 8px 28px 8px;
+  overflow: hidden;
+}
+
+.ncc-situation-art {
+  background: var(--ncc-tomato);
+  border: 8px solid var(--ncc-cobalt);
+  box-shadow: 0 0 0 2px #fff8ec;
+  min-height: 420px;
+  overflow: hidden;
+  transform: rotate(-1deg);
+}
+
+.ncc-editorial-image img,
+.ncc-situation-art img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 
 .ncc-fit-pills {
@@ -648,17 +752,116 @@ label {
   padding: 10px 16px;
 }
 
+.ncc-editorial-panel--situation .ncc-fit-pills span,
+.ncc-situation-tags span {
+  border-color: #fff8ec;
+  color: #fff8ec;
+}
+
+.ncc-situation-tags {
+  border-top: 2px solid rgba(255, 248, 236, 0.42);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 20px;
+}
+
+.ncc-situation-tags span {
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  padding: 10px 14px;
+}
+
+.ncc-supplier-card {
+  background: rgba(255, 249, 238, 0.86);
+  border: 2px solid rgba(23, 23, 23, 0.12);
+  border-radius: 24px;
+  display: grid;
+  gap: clamp(22px, 3vw, 42px);
+  grid-template-columns: minmax(0, 0.72fr) minmax(320px, 1.28fr);
+  padding: clamp(24px, 4vw, 54px);
+}
+
+.ncc-supplier-card > div,
+.ncc-supplier-card__body {
+  min-width: 0;
+}
+
+.ncc-supplier-card h2 {
+  font-size: clamp(32px, 3.8vw, 58px);
+  line-height: 1.02;
+  margin: 18px 0 0;
+  max-width: 11ch;
+  overflow-wrap: anywhere;
+}
+
+.ncc-supplier-card__body {
+  border-left: 2px solid var(--ncc-line);
+  display: grid;
+  gap: 18px;
+  padding-left: clamp(20px, 4vw, 42px);
+}
+
+.ncc-supplier-card__body p:not(.ncc-microcopy) {
+  font-size: clamp(17px, 1.55vw, 23px);
+  line-height: 1.35;
+  margin: 0;
+  max-width: 44rem;
+}
+
+.ncc-supplier-card__body a {
+  align-items: center;
+  border: 2px solid var(--ncc-cobalt);
+  border-radius: 10px;
+  color: var(--ncc-cobalt);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  justify-content: center;
+  letter-spacing: 0.14em;
+  min-height: 54px;
+  padding: 12px 18px;
+  text-decoration: none;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.ncc-supplier-note {
+  color: var(--muted);
+  font-size: 14px !important;
+}
+
+.ncc-useful-card {
+  background: #fff8ec;
+  border: 2px solid var(--ncc-ink);
+  border-radius: 8px 30px 8px 30px;
+  display: grid;
+  gap: 14px;
+  padding: clamp(24px, 4vw, 54px);
+}
+
+.ncc-useful-card h2 {
+  margin: 8px 0 12px;
+  max-width: 12ch;
+}
+
 .ncc-accordion {
   background: rgba(255, 249, 238, 0.8);
-  border: 2px solid var(--ncc-line);
-  border-radius: 16px;
-  padding: 18px;
+  border: 0;
+  border-top: 2px solid var(--ncc-ink);
+  border-radius: 0;
+  padding: 18px 0;
 }
 
 .ncc-accordion summary {
   cursor: pointer;
   font-size: 18px;
   font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .ncc-accordion li {
@@ -758,6 +961,7 @@ label {
   border: 2px solid var(--ncc-ink);
   border-radius: 16px;
   box-shadow: 0 24px 90px rgba(0, 0, 0, 0.32);
+  color: var(--ncc-ink);
   display: grid;
   gap: 18px;
   left: 50%;
@@ -829,6 +1033,7 @@ label {
 .ncc-size-table th,
 .ncc-size-table td {
   border-bottom: 1px solid var(--ncc-line);
+  color: var(--ncc-ink);
   padding: 14px;
   text-align: left;
 }
@@ -854,10 +1059,20 @@ label {
   position: relative;
 }
 
+.ncc-measure__shirt-illustration {
+  color: rgba(23, 23, 23, 0.1);
+  height: 72%;
+  inset: 12% 14% auto;
+  position: absolute;
+  width: 72%;
+  z-index: 1;
+}
+
 .ncc-measure__line {
   color: var(--ncc-cobalt);
   font-weight: 900;
   position: absolute;
+  z-index: 2;
 }
 
 .ncc-measure__line--length {
@@ -887,14 +1102,22 @@ label {
 @media (max-width: 980px) {
   .ncc-pdp-hero,
   .ncc-details,
-  .ncc-measure {
+  .ncc-measure,
+  .ncc-editorial-panel,
+  .ncc-editorial-panel--situation,
+  .ncc-supplier-card {
     grid-template-columns: 1fr;
   }
 
   .ncc-buybox {
-    border-left: 0;
-    padding-left: 0;
     position: static;
+  }
+
+  .ncc-supplier-card__body {
+    border-left: 0;
+    border-top: 2px solid var(--ncc-line);
+    padding-left: 0;
+    padding-top: 24px;
   }
 }
 
@@ -934,9 +1157,29 @@ label {
   .ncc-buybox h1,
   .ncc-products-hero h1,
   .ncc-related h2,
-  .ncc-detail-card h2,
+  .ncc-editorial-panel h2,
+  .ncc-supplier-card h2,
+  .ncc-useful-card h2,
   .ncc-modal h2 {
-    letter-spacing: -0.015em;
+    letter-spacing: 0;
+  }
+
+  .ncc-buybox {
+    box-shadow: 0 8px 0 rgba(40, 89, 231, 0.28);
+  }
+
+  .ncc-gallery__main {
+    box-shadow: 0 8px 0 var(--ncc-cobalt);
+  }
+
+  .ncc-editorial-panel--situation {
+    border-radius: 24px 6px 24px 6px;
+    padding: 18px;
+  }
+
+  .ncc-situation-art {
+    min-height: 320px;
+    transform: none;
   }
 
   .ncc-modal__panel {
