@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getCatalogProductGallery } from "./product-gallery";
+import { getCatalogProductGallery, getProductContextImage } from "./product-gallery";
 import { CatalogProduct } from "./types";
 
 const product: CatalogProduct = {
@@ -64,5 +64,30 @@ describe("product gallery", () => {
         variants: product.variants.map((variant) => ({ ...variant, image: undefined }))
       })
     ).toEqual([{ src: "https://example.com/thumb.webp", alt: "Test Shirt product image 1" }]);
+  });
+
+  it("uses the fourth manual storefront image for the product context section", () => {
+    const gallery = getCatalogProductGallery({
+      ...product,
+      storefrontImage: "https://cdn.example.com/products/test-shirt-01-main.webp",
+      storefrontImages: [
+        "https://cdn.example.com/products/test-shirt-01-main.webp",
+        "https://cdn.example.com/products/test-shirt-02-detail.webp",
+        "https://cdn.example.com/products/test-shirt-03-front.webp",
+        "https://cdn.example.com/products/test-shirt-04-context.webp"
+      ],
+      variants: [
+        {
+          ...product.variants[0],
+          image: "https://files.cdn.printful.com/files/test/printful-variant-preview.png"
+        }
+      ],
+      thumbnail: "https://files.cdn.printful.com/files/test/printful-thumbnail-preview.png"
+    });
+
+    expect(getProductContextImage(gallery)).toEqual({
+      src: "https://cdn.example.com/products/test-shirt-04-context.webp",
+      alt: "Test Shirt product image 4"
+    });
   });
 });

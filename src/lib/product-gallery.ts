@@ -31,3 +31,7 @@ export function getCatalogProductGallery(product: CatalogProduct): ProductGaller
     alt: `${product.name} product image ${index + 1}`
   }));
 }
+
+export function getProductContextImage(images: ProductGalleryImage[]): ProductGalleryImage | undefined {
+  return images[3] || images[images.length - 1] || images[0];
+}

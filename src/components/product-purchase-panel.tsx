@@ -37,6 +37,54 @@ function formatPrice(price?: string, currency?: string) {
   }
 }
 
+function toDisplayCase(value: string) {
+  return value
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => (word ? `${word[0].toUpperCase()}${word.slice(1)}` : word))
+    .join(" ");
+}
+
+function toSentenceCase(value: string) {
+  const lower = value.toLowerCase();
+  return lower ? `${lower[0].toUpperCase()}${lower.slice(1)}` : lower;
+}
+
+function getGarmentLabel(content?: (typeof productContentById)[string]) {
+  const specsTitle = content?.specsTitle.toLowerCase() || "";
+  const heading = content?.heading.toLowerCase() || "";
+
+  if (specsTitle.includes("hoodie")) {
+    return "Cropped Hoodie";
+  }
+
+  if (heading.includes("crop")) {
+    return "Crop Top";
+  }
+
+  return "Graphic Tee";
+}
+
+function getDisplayTitle(productName: string, content?: (typeof productContentById)[string]) {
+  const title = toDisplayCase(productName);
+  const normalized = title.toLowerCase();
+
+  if (normalized.includes("tee") || normalized.includes("hoodie") || normalized.includes("crop top")) {
+    return title;
+  }
+
+  return `${title} ${getGarmentLabel(content)}`;
+}
+
+function getDisplayMood(content?: (typeof productContentById)[string]) {
+  if (!content) {
+    return "";
+  }
+
+  const sentence = toSentenceCase(content.heading).replace(/\.$/, "");
+  return `${sentence}.`;
+}
+
 export function ProductPurchasePanel({ product, allowedCountries, defaultCountry, sizeGuide }: ProductPurchasePanelProps) {
   const content = productContentById[product.id];
   const activeVariants = useMemo(() => getActiveProductVariants(product), [product]);
@@ -71,6 +119,8 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
     : price
       ? `${price.isRange ? "From " : ""}${formatPrice(price.min, price.currency)}`
       : "Unavailable";
+  const displayTitle = getDisplayTitle(product.name, content);
+  const displayMood = getDisplayMood(content);
 
   function chooseColor(color: string) {
     const nextVariant = activeVariants.find((variant) => variant.color === color) || firstVariant;
@@ -170,10 +220,11 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
   }
 
   return (
-    <aside className="ncc-buybox" aria-label="Product purchase options">
-      <p className="ncc-microcopy">No Context Club</p>
-      <h1>{product.name}</h1>
+    <aside className="ncc-buybox" id="product-purchase" aria-label="Product purchase options">
+      <p className="ncc-microcopy">{content ? "Pet drama" : "No Context Club"}</p>
+      <h1>{displayTitle}</h1>
       <p className="ncc-price">{priceLabel}</p>
+      {displayMood ? <p className="ncc-buybox__mood">{displayMood}</p> : null}
       {content ? <p className="ncc-buybox__summary">{content.summary}</p> : null}
 
       {options.colors.length ? (

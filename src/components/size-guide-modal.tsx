@@ -1,21 +1,30 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatMeasurement, getSizeGuideColumns, SizeGuideUnit } from "@/lib/size-guide-display";
 import { SizeGuide } from "@/lib/size-guides";
 
+export type SizeGuideTab = "measurements" | "measure";
+
 type SizeGuideModalProps = {
   guide: SizeGuide;
+  initialTab?: SizeGuideTab;
   isOpen: boolean;
   onClose: () => void;
   productName: string;
 };
 
-export function SizeGuideModal({ guide, isOpen, onClose, productName }: SizeGuideModalProps) {
+export function SizeGuideModal({ guide, initialTab = "measurements", isOpen, onClose, productName }: SizeGuideModalProps) {
   const [unit, setUnit] = useState<SizeGuideUnit>("in");
-  const [tab, setTab] = useState<"measurements" | "measure">("measurements");
+  const [tab, setTab] = useState<SizeGuideTab>(initialTab);
   const columns = useMemo(() => getSizeGuideColumns(guide), [guide]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTab(initialTab);
+    }
+  }, [initialTab, isOpen]);
 
   if (!isOpen) {
     return null;
