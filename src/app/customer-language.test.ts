@@ -4,7 +4,12 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import CancelPage from "./cancel/page";
 import RootLayout, { metadata } from "./layout";
 import SuccessPage from "./success/page";
+import ProductsPage from "./products/page";
 import { Storefront } from "@/components/storefront";
+import { HomePageContent } from "@/components/home-page-content";
+import { getPublicCatalog } from "@/lib/public-catalog";
+
+vi.mock("@/lib/public-catalog", () => ({ getPublicCatalog: vi.fn() }));
 
 const spanishCustomerCopy = /Pedido|Pago|Volver|Gratis|Camisetas/;
 
@@ -53,5 +58,17 @@ describe("customer-facing language", () => {
     expect(html).toContain("Calculate shipping");
     expect(html).toContain("Pay with Stripe");
     expect(html).not.toMatch(spanishCustomerCopy);
+  });
+
+  it("renders the public home and catalog states in English", async () => {
+    vi.mocked(getPublicCatalog).mockResolvedValue({ products: [], status: "available" });
+    const homeHtml = renderToStaticMarkup(
+      createElement(HomePageContent, { catalog: { products: [], status: "available" } })
+    );
+    const productsHtml = renderToStaticMarkup(await ProductsPage());
+
+    expect(homeHtml).toContain("Funny graphic tees for whatever that was.");
+    expect(productsHtml).toContain("Nothing here yet. Check back after the next questionable decision.");
+    expect(`${homeHtml}\n${productsHtml}`).not.toMatch(spanishCustomerCopy);
   });
 });
