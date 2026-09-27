@@ -110,6 +110,12 @@ El segundo CTA solo se muestra cuando exista una base real para llamarla “best
 sellers”. Mientras el catálogo sea muy pequeño, se puede sustituir por `Shop
 All` o `The First Drop`.
 
+## Implementación de home y listado
+
+La especificación ejecutable de `/` y `/products`, incluida la separación entre
+datos reales de catálogo y mockups de diseño, está en
+[Implementación de home y listado de productos](STOREFRONT_HOME_AND_PRODUCTS.md).
+
 ## Navegación y catálogo inicial
 
 Con un catálogo pequeño no crear colecciones o categorías visibles de relleno.
