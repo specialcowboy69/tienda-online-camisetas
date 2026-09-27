@@ -19,7 +19,13 @@ function formatPrice(price?: string, currency?: string) {
   }
 }
 
-export function ProductCard({ product }: { product: CatalogProduct }) {
+type ProductCardProps = {
+  product: CatalogProduct;
+  ctaLabel?: string;
+  showMeta?: boolean;
+};
+
+export function ProductCard({ product, ctaLabel = "View product", showMeta = true }: ProductCardProps) {
   const slug = getProductSlug(product);
   const image = getCatalogProductImage(product);
   const price = getProductPriceSummary(product);
@@ -37,12 +43,16 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
         )}
       </Link>
       <div className="ncc-product-card__body">
-        <h2>
-          <Link href={href}>{product.name}</Link>
-        </h2>
-        <p>{priceLabel}</p>
-        <Link className="ncc-pill-link" href={href}>
-          View product
+        {showMeta ? (
+          <>
+            <h2>
+              <Link href={href}>{product.name}</Link>
+            </h2>
+            <p>{priceLabel}</p>
+          </>
+        ) : null}
+        <Link className="ncc-pill-link ncc-product-card__cta" href={href}>
+          {ctaLabel}
         </Link>
       </div>
     </article>

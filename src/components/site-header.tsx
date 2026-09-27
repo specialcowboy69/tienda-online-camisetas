@@ -5,7 +5,8 @@ export function SiteHeader() {
     <header className="ncc-header">
       <Link className="ncc-brand" href="/">
         <span className="ncc-mark" aria-hidden="true">
-          [ ]
+          <span />
+          <span />
         </span>
         <span>No Context Club</span>
       </Link>
