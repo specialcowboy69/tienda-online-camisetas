@@ -79,11 +79,12 @@ Limitacion: el rate limit no es distribuido. En produccion con multiples instanc
 
 ## Dependencias
 
-Estado verificado localmente el 2026-09-28:
+Estado verificado localmente y en el preview del PR #18 el 2026-09-28:
 
 - Firebase Admin actualizado de `12.7.0` a `14.5.0` (version resuelta en el lockfile; rango declarado `^14.5.0`).
-- Node.js `22.12.0` o posterior es obligatorio (`engines.node: >=22.12.0`) para desarrollo, builds y servidor. La verificacion local usa Node.js `24.15.0`; el runtime de Vercel queda pendiente de confirmar en un preview.
-- Tests, lint, TypeScript y build local pasan. Esto no verifica acceso real a Firebase ni un despliegue.
+- Node.js `22.12.0` o posterior es obligatorio (`engines.node: >=22.12.0`) para desarrollo, builds y servidor. La verificacion local usa Node.js `24.15.0` y el proyecto de Vercel está configurado con Node.js `24.x`.
+- Tests, lint, TypeScript y build local pasan. El preview `b404522` quedó `Ready`, leyó el catálogo real y renderizó `/`, `/products` y un PDP sin errores de inicialización de Firebase.
+- Los smoke tests sin credenciales devolvieron `401` en `/api/admin/orders`, `/api/catalog/sync` y `/api/webhooks/printful`; un checkout con payload vacío devolvió `400`. No se usaron credenciales válidas ni se crearon pedidos, sesiones de Stripe o escrituras de prueba.
 - `npm audit --omit=dev` baja de **13 hallazgos (10 moderate, 3 high)** antes de la migracion a **7 (4 moderate, 3 high)**. El comando sigue terminando con codigo 1; la auditoria no esta limpia. Los recuentos corresponden a paquetes afectados, no al numero de advisories individuales.
 - Las antiguas rutas vulnerables de Firestore/Google GAX/retry-request/teeny-request dejan de aparecer en la auditoria. Firebase Admin y esos paquetes ya no figuran como hallazgos; queda la siguiente ruta de Firebase Storage.
 
