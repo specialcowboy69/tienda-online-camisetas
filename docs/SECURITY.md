@@ -106,10 +106,13 @@ La aplicacion actual no importa Firebase Storage; el `gaxios` instalado llama a
 cuando se proporciona un buffer. Esta revision del uso actual no elimina el
 hallazgo de la auditoria ni garantiza todos los usos futuros de la dependencia.
 
-La persona propietaria acepta documentar este residual para crear el PR de la
-migracion. Esa aceptacion se limita a esta ruta y a la creacion del PR; no supone
-aprobar los otros hallazgos, un merge o un despliegue. Revisar esta evaluacion si
-se incorpora Firebase Storage o cambia el uso de UUID.
+La persona propietaria acepta este residual y ha autorizado integrar el PR #18.
+En este proyecto, ese merge normalmente activa el despliegue automatico de
+Vercel; la autorizacion comprende esa consecuencia operativa. Esta aceptacion
+se limita a esta ruta y no autoriza otros cambios de infraestructura o
+dependencias ni acepta otros riesgos. La auditoria sigue terminando con codigo
+1 y no esta limpia. Revisar esta evaluacion si se incorpora Firebase Storage o
+cambia el uso de UUID.
 
 ### Todos los hallazgos productivos restantes
 
