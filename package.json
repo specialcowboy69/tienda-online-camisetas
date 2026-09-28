@@ -2,6 +2,9 @@
   "name": "tienda-online-camisetas",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,7 +14,7 @@
     "test:watch": "vitest --environment node src/lib/checkout-calculator.test.ts src/lib/money.test.ts"
   },
   "dependencies": {
-    "firebase-admin": "^12.7.0",
+    "firebase-admin": "^14.5.0",
     "lucide-react": "^0.468.0",
     "next": "^15.5.26",
     "react": "^19.0.0",
