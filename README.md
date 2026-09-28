@@ -8,7 +8,7 @@ owner.
 
 ## Setup
 
-1. Install Node.js 20+.
+1. Install Node.js 22.12.0 or newer (`engines.node: >=22.12.0`).
 2. Install dependencies:
 
 ```bash
@@ -40,6 +40,12 @@ refund.updated
 ```bash
 npm run dev
 ```
+
+Deployment builds and server runtimes must also support Node.js 22.12.0 or newer.
+Verify the selected Vercel runtime in a preview deployment before production;
+the local build does not confirm the deployed runtime. The lockfile currently
+resolves Firebase Admin 14.5.0. See [Security notes](docs/SECURITY.md) for the
+verified dependency audit and remaining findings.
 
 ## Operational Flow
 

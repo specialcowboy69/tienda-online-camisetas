@@ -6,7 +6,7 @@ Esta guia describe como trabajar en el proyecto sin romper flujos sensibles como
 
 ## Primer arranque
 
-1. Instala Node.js 20 o superior.
+1. Instala Node.js 22.12.0 o superior (`>=22.12.0`).
 2. Instala dependencias:
 
 ```powershell
@@ -151,4 +151,4 @@ Proceso recomendado:
 4. Ejecutar test, lint, typecheck y build.
 5. Documentar riesgos que queden diferidos.
 
-Actualmente quedan vulnerabilidades que requieren upgrades mayores de Next/Firebase Admin. Conviene tratarlas como una tarea dedicada.
+Firebase Admin ya esta actualizado a `14.5.0`. Quedan hallazgos productivos documentados en `docs/SECURITY.md`, incluido el residual de Firebase Storage y un upgrade mayor de Next propuesto por la auditoria. Conviene tratarlos como tareas dedicadas.
