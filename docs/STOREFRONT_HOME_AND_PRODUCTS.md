@@ -35,9 +35,10 @@ los assets comerciales reales.
 - La interfaz pública y cualquier estado visible al cliente son **English-first**.
 - Firestore y Printful siguen siendo la fuente de verdad para producto activo,
   variantes, precio, moneda, disponibilidad e imágenes.
-- El frontend debe usar `getCatalogProductImage(product)` y los datos actuales
-  de catálogo; no se codifican imágenes, precios, variantes, stock, testimonios
-  ni urgencia del mockup.
+- Las tarjetas y los bloques de producto deben usar los helpers y datos
+  actuales de catálogo; no se codifican imágenes de producto, precios,
+  variantes, stock, testimonios ni urgencia del mockup. El hero y el cierre
+  usan los assets editoriales independientes de Cloudflare R2 aprobados.
 - En el catálogo inicial de cinco productos no habrá filtros, categorías,
   colecciones de relleno, `Best Sellers`, descuentos ni ratings inventados.
 - Una tarjeta solo enlaza a un PDP cuando `getProductSlug(product)` devuelve
@@ -88,9 +89,8 @@ clases pueden reflejarlos con el prefijo `ncc-home-*`.
 - Apoyo: `Graphic apparel for pet drama, coffee disasters, questionable choices, and every other story that gets worse with context.`
 - CTA principal: `SHOP THE FIRST DROP`, destino `/products`.
 - Visual: composición de papel cálido, tipografía condensada, marco abierto
-  aislado y una imagen real de producto solo si existe una portada disponible.
-  Cuando no exista imagen, el hero conserva su composición tipográfica; no
-  muestra una imagen de mockup o un placeholder técnico.
+  aislado y el asset editorial aprobado `no-context-club-home-hero.webp`,
+  alojado en Cloudflare R2 e independiente de la disponibilidad del catálogo.
 
 #### 2. The First Drop — selección editable desde el catálogo
 
@@ -144,9 +144,8 @@ El contenedor usa `id="about"` para que funcione la navegación existente.
 - Título: `No context? Perfect.`
 - Apoyo: `The drop is waiting. The explanation isn't.`
 - CTA: `SHOP THE FIRST DROP`, destino `/products`.
-- Puede reutilizar una portada real del primer producto destacado solo si el
-  asset tiene calidad comercial. Con catálogo vacío, se mantiene como bloque
-  gráfico tipográfico sin imagen.
+- Usa el asset editorial aprobado `no-context-club-home-final-cta.webp`,
+  alojado en Cloudflare R2 e independiente de la disponibilidad del catálogo.
 
 ### `/products` — elegir y comparar el drop
 
@@ -172,14 +171,17 @@ esa base y alinear el contenido con la home:
 1. La portada comercial de cada producto se guarda y sincroniza como asset de
    catálogo (`storefrontImage` o `storefrontImages`); esa es la única fuente
    para tarjetas y bloques de producto en estas rutas.
-2. Una imagen elegida para hero, proof, situation o cierre debe seguir
-   representando la prenda real, el color y el diseño vendible. Si no cumple
-   esa condición, el bloque queda tipográfico.
-3. Escribir `alt` útil mediante el nombre real de producto. Los elementos de
+2. Hero y cierre usan los dos assets editoriales independientes aprobados de
+   Cloudflare R2; no sustituyen imágenes ni datos del catálogo. Las imágenes
+   de proof, situation y demás bloques de producto deben representar la prenda
+   real, el color y el diseño vendible. Sin imagen útil, el bloque queda
+   tipográfico.
+3. Escribir `alt` útil mediante el nombre real de producto en sus imágenes y
+   una descripción de la escena en los assets editoriales. Los elementos de
    acento puramente decorativos usan `aria-hidden="true"`.
 4. No subir los mockups de referencia a producción. Los assets finales deben
    tener derechos comerciales confirmados y una versión web optimizada antes
-   de formar parte del catálogo.
+   de publicarse en la web.
 
 ## Responsive, accesibilidad y comportamiento
 
@@ -204,8 +206,9 @@ criterios:
    el ancla `about` real y CTAs que llegan a rutas existentes.
 2. `/products` muestra el drop público real sin filtros ni datos comerciales
    falsos, y presenta estados distintos para vacío y error de catálogo.
-3. Precios, imágenes, nombres y enlaces a PDP proceden de los helpers y datos
-   existentes; los mockups no se sirven como assets.
+3. Precios, imágenes de producto, nombres y enlaces a PDP proceden de los
+   helpers y datos existentes; hero y cierre usan los assets editoriales de R2
+   aprobados. Los mockups de referencia no se sirven como assets.
 4. Los productos sin slug no generan URL de PDP inexistente.
 5. El antiguo enlace visible a `Admin`, mensajes técnicos de Firebase y el
    checkout integrado no aparecen en la home pública.
