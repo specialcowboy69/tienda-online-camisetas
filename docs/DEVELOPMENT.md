@@ -44,6 +44,29 @@ npm.cmd audit --omit=dev
 - Abrir Pull Request contra `main`.
 - Mergear solo despues de revisar cambios y verificaciones.
 
+### Control obligatorio de trabajo pendiente
+
+Antes de abrir o mergear un Pull Request hay que auditar el repositorio completo,
+no solo la rama actual:
+
+1. Actualizar referencias con `git fetch origin --prune`.
+2. Revisar todos los PRs abiertos, sus checks, conflictos y dependencias.
+3. Buscar ramas locales o remotas con commits que todavia no esten en
+   `origin/main`.
+4. Revisar los worktrees y detectar cambios sin commit, commits sin push o ramas
+   que necesiten PR.
+5. Publicar un resumen de lo pendiente y del orden recomendado antes de hacer el
+   merge. Un trabajo no relacionado se informa, pero no se mezcla ni bloquea sin
+   una razon tecnica.
+6. Verificar el SHA exacto, la base `main`, la suite obligatoria y los checks del
+   PR inmediatamente antes del merge.
+7. Despues del merge, confirmar GitHub, pertenencia del commit a `origin/main` y
+   deployment de produccion cuando corresponda.
+
+La respuesta de cierre siempre debe indicar `Pendiente por integrar` y enumerar
+lo que quede, o escribir `Nada pendiente`. El procedimiento detallado y
+obligatorio para agentes esta en `AGENTS.md`.
+
 ## Idioma publico
 
 La experiencia visible para clientes esta en ingles por defecto:
