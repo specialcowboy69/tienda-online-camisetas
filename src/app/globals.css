@@ -3150,7 +3150,7 @@ label {
   color: var(--ncc-cobalt);
   justify-content: flex-start;
   justify-self: start;
-  min-height: 34px;
+  min-height: 44px;
   padding: 6px 0;
 }
 
@@ -3573,6 +3573,10 @@ label {
   .ncc-home-about h2,
   .ncc-home-context h2 {
     font-size: clamp(50px, 10vw, 70px);
+  }
+
+  .ncc-home-about h2 {
+    overflow-wrap: anywhere;
   }
 
   .ncc-home-about__visual {

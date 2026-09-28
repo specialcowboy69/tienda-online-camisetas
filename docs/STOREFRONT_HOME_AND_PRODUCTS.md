@@ -121,8 +121,7 @@ El contenedor usa `id="about"` para que funcione la navegación existente.
 
 - Kicker: `THE TEE, NOT THE DRAMA`.
 - Título: `The art gets the attention. The tee has to earn the repeat wear.`
-- CTA: `SEE THE DETAILS`, destino al PDP del primer producto destacado si ese
-  producto conserva slug; en cualquier otro caso, `/products`.
+- CTA: `Shop the drop`, destino `/products`.
 - La imagen debe proceder del catálogo real. Si no hay una imagen útil, usar el
   bloque tipográfico y los acentos de marca; no generar ni publicar un asset
   ficticio para completar el hueco.
@@ -168,9 +167,10 @@ esa base y alinear el contenido con la home:
 
 ## Assets de fotografía y contenido
 
-1. La portada comercial de cada producto se guarda y sincroniza como asset de
-   catálogo (`storefrontImage` o `storefrontImages`); esa es la única fuente
-   para tarjetas y bloques de producto en estas rutas.
+1. Las tarjetas y bloques de producto resuelven imágenes mediante los helpers
+   existentes de catálogo. Se prefieren las imágenes manuales
+   (`storefrontImage` o `storefrontImages`), con las imágenes de variantes y
+   la miniatura de Printful como fallback cuando corresponda.
 2. Hero y cierre usan los dos assets editoriales independientes aprobados de
    Cloudflare R2; no sustituyen imágenes ni datos del catálogo. Las imágenes
    de proof, situation y demás bloques de producto deben representar la prenda

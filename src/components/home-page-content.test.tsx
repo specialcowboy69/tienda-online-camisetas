@@ -1,4 +1,6 @@
 import React, { createElement } from "react";
+import { readFileSync } from "node:fs";
+import postcss, { AtRule, type Node } from "postcss";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { HomePageContent } from "./home-page-content";
@@ -202,5 +204,39 @@ describe("HomePageContent", () => {
 
     expect(contextHtml).toContain('src="https://example.com/falling-fit.webp"');
     expect(contextHtml).toContain('alt="Falling apart close-up"');
+  });
+});
+
+describe("home CSS layout contract", () => {
+  const css = postcss.parse(readFileSync(new URL("../app/globals.css", import.meta.url), "utf8"));
+
+  // These matching selectors have equal specificity; resolve their active declarations in source order.
+  function declarationsAt(width: number, matchingSelectors: string[]) {
+    const declarations: Record<string, string> = {};
+    css.walkRules((rule) => {
+      if (!rule.selectors.some((selector) => matchingSelectors.includes(selector))) return;
+      let parent: Node | undefined = rule.parent;
+      while (parent && parent.type !== "root") {
+        if (parent instanceof AtRule && parent.name === "media") {
+          const query = parent.params.match(/^\((max|min)-width:\s*(\d+)px\)$/);
+          if (!query || (query[1] === "max" ? width > Number(query[2]) : width < Number(query[2]))) return;
+        }
+        parent = parent.parent;
+      }
+      rule.walkDecls((declaration) => { declarations[declaration.prop] = declaration.value; });
+    });
+    return declarations;
+  }
+
+  it("allows an overlong About heading word to wrap inside the narrow mobile copy box", () => {
+    // At 320px the copy has about 166px of text width; a 50px fallback-font word can exceed it.
+    // Emergency wrapping must win over the later editorial no-word-break rule.
+    const heading = declarationsAt(320, [".ncc-home :is(h1, h2)", ".ncc-home-about h2"]);
+    expect(heading["overflow-wrap"]).toBe("anywhere");
+  });
+
+  it.each([320, 375, 768, 1440])("preserves the featured product CTA minimum touch height at %ipx", (width) => {
+    const cta = declarationsAt(width, [".ncc-home-drop .ncc-product-card__cta"]);
+    expect(parseFloat(cta["min-height"])).toBeGreaterThanOrEqual(44);
   });
 });
