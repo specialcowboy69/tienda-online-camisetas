@@ -94,8 +94,9 @@ el 2026-09-29:
   PDP comprobado devolvieron `200`; el catalogo real devolvio 5 productos.
   `/api/admin/orders` y `/api/webhooks/printful` sin credenciales devolvieron
   `401`, y `/api/checkout` con `{}` devolvio `400`. No se crearon pedidos,
-  sesiones de Stripe ni escrituras de prueba. La consulta de logs de error del
-  deployment durante la hora posterior no devolvio errores.
+  sesiones de Stripe ni escrituras de prueba. En la comprobacion posterior
+  realizada el 29 de septiembre de 2026, la consulta de logs de error del
+  deployment limitada a una ventana de una hora no devolvio errores.
 - `npm audit --omit=dev` baja de **13 hallazgos (10 moderate, 3 high)** antes de la migracion a **7 (4 moderate, 3 high)**. El comando sigue terminando con codigo 1; la auditoria no esta limpia. Los recuentos corresponden a paquetes afectados, no al numero de advisories individuales.
 - Las antiguas rutas vulnerables de Firestore/Google GAX/retry-request/teeny-request dejan de aparecer en la auditoria. Firebase Admin y esos paquetes ya no figuran como hallazgos; queda la siguiente ruta de Firebase Storage.
 
