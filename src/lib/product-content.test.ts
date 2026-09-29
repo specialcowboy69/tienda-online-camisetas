@@ -55,8 +55,39 @@ describe("product content", () => {
     expect(visibleStrings.join("\n")).not.toMatch(/[—–]/);
   });
 
-  it("documents the customer-facing return window and support address", () => {
+  it("keeps support requests free of deadlines that reduce legal rights", () => {
+    const returnsCopy = [productPolicies.returns.summary, ...productPolicies.returns.details].join("\n");
+
     expect(productPolicies.returns.summary).toContain("orders@funnyteesforall.com");
-    expect(productPolicies.returns.summary).toContain("7 days");
+    expect(returnsCopy).not.toMatch(/(?:within|must be sent within) 7 days/i);
+    expect(returnsCopy).toMatch(/no short reporting deadline reduces your legal rights/i);
+    expect(returnsCopy).toMatch(/order number/i);
+    expect(returnsCopy).toMatch(/description/i);
+    expect(returnsCopy).toMatch(/reasonable photos/i);
+  });
+
+  it("offers refunds for store-responsible problems and preserves other legal remedies", () => {
+    const returnsCopy = [productPolicies.returns.summary, ...productPolicies.returns.details].join("\n");
+
+    expect(returnsCopy).toMatch(/damaged on arrival/i);
+    expect(returnsCopy).toMatch(/manufacturing or printing defect/i);
+    expect(returnsCopy).toMatch(/wrong item/i);
+    expect(returnsCopy).toMatch(/another error attributable to us/i);
+    expect(returnsCopy).toMatch(/request a refund/i);
+    expect(returnsCopy).toMatch(/choose another legally available remedy/i);
+    expect(returnsCopy).toMatch(/we cover necessary return or replacement costs/i);
+    expect(returnsCopy).not.toMatch(/printful|production partner|supplier/i);
+  });
+
+  it("explains EU withdrawal and change-of-mind return costs without promising size exchanges", () => {
+    const returnsCopy = productPolicies.returns.details.join("\n");
+
+    expect(returnsCopy).toMatch(/standard catalog/i);
+    expect(returnsCopy).toMatch(/14 days from delivery to notify us of withdrawal/i);
+    expect(returnsCopy).toMatch(/another 14 days to return/i);
+    expect(returnsCopy).toMatch(/direct return costs only if you were informed/i);
+    expect(returnsCopy).toMatch(/unless applicable law or our agreement says otherwise/i);
+    expect(returnsCopy).toMatch(/other returns and exchanges depend on applicable law and the circumstances/i);
+    expect(returnsCopy).not.toMatch(/free size exchanges|all size exchanges|any size exchange/i);
   });
 });
