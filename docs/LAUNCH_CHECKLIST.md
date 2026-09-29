@@ -1,0 +1,262 @@
+# Checklist de lanzamiento — No Context Club
+
+Este documento es la lista operativa para lanzar la tienda con ventas reales.
+Se actualiza cada vez que una tarea queda terminada y verificada.
+
+**Estado global:** `NO-GO — todavía no aceptar pagos reales`
+
+**Ultima revision:** 29 de septiembre de 2026
+
+## Como actualizar esta lista
+
+- `[ ]` significa pendiente o todavia no verificado.
+- `[x] ~~Texto~~` significa terminado y comprobado con evidencia.
+- Una tarea no se marca como terminada solo porque este configurada: debe
+  probarse en el entorno correspondiente.
+- La evidencia puede ser un Pull Request, un deployment, una captura del
+  proveedor, un evento registrado o el resultado de una prueba.
+- No se deben guardar secretos, tokens ni valores sensibles en este documento.
+
+## 1. Integracion y despliegue del storefront
+
+- [x] ~~Desarrollar el rediseno de la home y `/products` en una rama de
+  feature.~~
+  - Evidencia: PR
+    [#16 — Redesign No Context Club home and products](https://github.com/specialcowboy69/tienda-online-camisetas/pull/16).
+- [x] ~~Revisar y mergear el PR #16 contra `main`.~~
+  - Evidencia: commit de merge `9bc329fd` en `main`.
+- [x] ~~Confirmar que Vercel ha desplegado el commit mergeado desde `main`.~~
+  - Evidencia: deployment de produccion `Ready`; los despliegues posteriores
+    de `main` conservan el storefront.
+- [ ] Revisar visualmente home y `/products` en produccion, tanto en escritorio
+  como en movil.
+- [ ] Confirmar funcionalmente que el PDP y el checkout no han sufrido
+  regresiones tras el despliegue. El smoke test HTTP esta correcto, pero no
+  sustituye una compra de prueba.
+
+## 2. Acceso publico y dominio
+
+- [x] ~~Conectar `funnyteesforall.com` y `www.funnyteesforall.com` con Vercel.~~
+  - Evidencia: ambos dominios alcanzan la plataforma de Vercel.
+- [x] ~~Desactivar la proteccion SSO de Vercel para el deployment de
+  produccion.~~
+  - Evidencia: el dominio de produccion es accesible publicamente sin login.
+- [x] ~~Confirmar que `https://www.funnyteesforall.com` devuelve la tienda
+  publica y no una pantalla de acceso de Vercel.~~
+  - Evidencia: `/` devolvio `200` el 29 de septiembre de 2026.
+- [x] ~~Confirmar que `/products` y una pagina individual de producto responden
+  publicamente.~~
+  - Evidencia: `/products` y `/products/falling-apart-cat-graphic-tee`
+    devolvieron `200`.
+- [ ] Confirmar que `/api/webhooks/stripe` y `/api/webhooks/printful` alcanzan
+  la aplicacion sin redireccion SSO.
+  - Verificado parcialmente: Printful sin credenciales devolvio `401`, lo que
+    confirma que alcanza la aplicacion. Stripe sigue pendiente de una prueba
+    controlada.
+- [ ] Elegir el dominio canonico —recomendado: `www.funnyteesforall.com`— y
+  redirigir el otro dominio hacia el.
+- [ ] Configurar `NEXT_PUBLIC_BASE_URL` con el dominio canonico en Vercel
+  Production.
+
+## 3. Dependencias y seguridad
+
+- [x] ~~Actualizar Next.js de `15.5.22` al parche `15.5.26` que corrige los
+  avisos criticos conocidos y actualizar el lockfile.~~
+  - Evidencia: PR
+    [#17 — Update Next.js security patch](https://github.com/specialcowboy69/tienda-online-camisetas/pull/17),
+    mergeado en `main` mediante `38c3e01`.
+- [x] ~~Ejecutar `npm.cmd audit --omit=dev` despues de actualizar Next.js.~~
+  - Evidencia: los dos avisos criticos de Next.js ya no aparecen y el resultado
+    tiene `0 critical`.
+- [ ] Resolver o aceptar explicitamente todas las vulnerabilidades productivas
+  restantes.
+  - Estado tras PR
+    [#18 — Upgrade Firebase Admin to 14.5.0](https://github.com/specialcowboy69/tienda-online-camisetas/pull/18):
+    `3 high`, `4 moderate` y `0 critical`.
+  - Aceptado para el merge y su despliegue automatico: residual
+    `firebase-admin -> @google-cloud/storage -> gaxios -> uuid`, documentado
+    como exposicion limitada por el uso actual.
+  - Siguen pendientes de resolucion o aceptacion explicita los avisos de
+    `nanoid`, `postcss`/Next.js, `sharp` y `qs`.
+- [x] ~~Preparar, probar y mergear por separado la actualizacion de
+  `firebase-admin` a `14.5.0`.~~
+  - Evidencia: PR #18 mergeado mediante `6b885052`; Node requerido
+    `>=22.12.0`; 96/96 tests, lint, TypeScript y build correctos.
+  - Vercel desplego el commit exacto de `main` con Node.js `24.x` y Next.js
+    `15.5.26`; el deployment quedo `Ready`.
+  - En produccion, `/api/catalog`, `/`, `/products` y un PDP devolvieron `200`;
+    admin y Printful sin credenciales devolvieron `401`; checkout vacio devolvio
+    `400`.
+  - No se usaron credenciales validas ni se crearon pedidos, sesiones de Stripe
+    o escrituras de prueba.
+- [ ] Verificar que no hay secretos reales versionados en Git.
+- [ ] Rotar los secretos de produccion que se hayan compartido o utilizado
+  durante pruebas.
+  - `ADMIN_SECRET`
+  - `CRON_SECRET`
+  - `PRINTFUL_API_TOKEN`
+  - `PRINTFUL_WEBHOOK_SECRET`
+  - Claves de Stripe, Firebase y Resend si procede.
+- [ ] Confirmar que todos los endpoints administrativos siguen protegidos
+  despues de retirar el SSO publico de Vercel.
+- [x] ~~Ejecutar la verificacion obligatoria final sobre el resultado combinado
+  de PR #18 y `main`.~~
+  - [x] `npm.cmd test` — 96/96 tests.
+  - [x] `npm.cmd run lint`.
+  - [x] `npx.cmd tsc --noEmit --incremental false`.
+  - [x] `npm.cmd run build` — Next.js `15.5.26`.
+
+## 4. Paginas legales y atencion al cliente
+
+- [ ] Crear y publicar la pagina de Privacy Policy.
+- [ ] Crear y publicar la pagina de Terms and Conditions.
+- [ ] Crear y publicar la pagina de Returns and Product Issues.
+- [ ] Crear y publicar la pagina de Shipping Policy.
+- [ ] Crear y publicar la pagina de Contact.
+- [ ] Enlazar todas las paginas legales desde el footer.
+- [ ] Confirmar que todos los textos visibles para clientes estan en ingles.
+- [ ] Revisar legalmente los textos antes de aceptar pagos reales.
+- [ ] Confirmar que `orders@funnyteesforall.com` puede recibir respuestas y
+  solicitudes de devolucion.
+
+## 5. Configuracion de produccion
+
+### Stripe
+
+- [ ] Activar y configurar Stripe en modo live.
+- [ ] Configurar las claves live unicamente como variables de entorno de Vercel
+  Production.
+- [ ] Registrar el webhook live de Stripe en el dominio final.
+- [ ] Configurar y verificar estos eventos:
+  - [ ] `checkout.session.completed`
+  - [ ] `checkout.session.async_payment_succeeded`
+  - [ ] `checkout.session.async_payment_failed`
+  - [ ] `checkout.session.expired`
+  - [ ] `charge.refunded`
+  - [ ] `refund.updated`
+- [ ] Confirmar que el secreto del webhook live coincide con el configurado en
+  Vercel.
+
+### Printful
+
+- [ ] Confirmar el token y el Store ID de produccion.
+- [ ] Confirmar que el metodo de pago o saldo de Printful puede cubrir pedidos
+  reales.
+- [ ] Registrar el webhook de Printful en el dominio final con su secreto.
+- [ ] Probar un evento real de actualizacion de producto o stock.
+- [ ] Mantener `ORDER_CONFIRM_PRINTFUL=false` durante las pruebas previas a la
+  compra real controlada.
+
+### Firestore
+
+- [ ] Confirmar que las credenciales de produccion apuntan al proyecto correcto.
+- [ ] Confirmar que el catalogo publico contiene unicamente productos activos y
+  no ignorados.
+- [ ] Confirmar que precios, moneda, variantes, tallas e imagenes coinciden con
+  Printful y el storefront.
+- [ ] Confirmar trazabilidad en `orders`, `webhookEvents` y `syncRuns`.
+
+### Email
+
+- [x] ~~Publicar los registros SPF, DKIM y MX necesarios para el subdominio de
+  envio de Resend.~~
+  - Evidencia: los registros de `send.funnyteesforall.com` y
+    `resend._domainkey.funnyteesforall.com` resuelven publicamente.
+- [ ] Configurar `RESEND_API_KEY` y `RESEND_FROM_EMAIL` en Vercel Production.
+- [ ] Enviar y recibir correctamente un email transaccional de prueba.
+- [ ] Confirmar que los emails de pedido y envio se muestran correctamente en
+  movil y escritorio.
+- [ ] Anadir un registro DMARC; empezar con una politica de observacion si
+  todavia no hay datos suficientes.
+
+## 6. Paises, envios y fiscalidad
+
+- [ ] Decidir y documentar los paises del lanzamiento inicial.
+  - Recomendacion operativa: empezar solo con Estados Unidos hasta validar el
+    resto de mercados.
+- [ ] Ajustar `ALLOWED_SHIPPING_COUNTRIES` a la decision final.
+- [ ] Confirmar que las tarifas y plazos de envio mostrados coinciden con el
+  comportamiento real de Printful.
+- [ ] Confirmar que la politica de envio gratuito o incluido sigue siendo
+  economicamente sostenible.
+- [ ] Validar obligaciones fiscales y contables con una persona profesional.
+- [ ] Decidir si se utilizara Stripe Tax.
+- [ ] Mantener `STRIPE_TAX_ENABLED=false` hasta haber cerrado la decision fiscal.
+
+## 7. Prueba integral antes de abrir
+
+### Compra de prueba
+
+- [ ] Abrir publicamente la home, `/products` y cada PDP.
+- [ ] Comprobar imagenes, precios, colores, tallas y disponibilidad con datos
+  reales.
+- [ ] Anadir variantes diferentes al carrito.
+- [ ] Calcular el envio con una direccion admitida.
+- [ ] Completar un checkout de Stripe en modo test.
+- [ ] Confirmar la creacion del pedido en Firestore.
+- [ ] Confirmar el procesamiento del evento en `webhookEvents`.
+- [ ] Confirmar la creacion del pedido draft en Printful.
+- [ ] Confirmar el email de pedido.
+- [ ] Probar las paginas de exito y cancelacion.
+- [ ] Probar un reembolso o cancelacion controlados y documentar el
+  procedimiento.
+
+### Compra real controlada
+
+- [ ] Activar temporalmente `ORDER_CONFIRM_PRINTFUL=true` para la prueba real
+  acordada.
+- [ ] Realizar una compra real de bajo coste con una direccion controlada.
+- [ ] Confirmar el cobro live en Stripe.
+- [ ] Confirmar el pedido y la fabricacion en Printful.
+- [ ] Confirmar la actualizacion del estado mediante webhook.
+- [ ] Confirmar los emails de pedido y envio.
+- [ ] Confirmar que el tracking llega al pedido y al cliente.
+- [ ] Mantener `ORDER_CONFIRM_PRINTFUL=true` solo cuando el flujo completo haya
+  pasado correctamente y se quiera automatizar el fulfillment.
+
+## 8. SEO, medicion y operaciones
+
+- [ ] Crear `robots.txt` y el sitemap publico.
+- [ ] Anadir `metadataBase`, canonical, Open Graph y Twitter metadata.
+- [ ] Confirmar metadatos unicos para cada producto.
+- [ ] Configurar Search Console y enviar el sitemap.
+- [ ] Decidir la herramienta de analitica.
+- [ ] Implementar consentimiento si la medicion utiliza cookies que lo requieran.
+- [ ] Configurar monitorizacion de errores y revisar logs de Vercel.
+- [ ] Definir alertas o revision periodica para pedidos en `manual_review` y
+  webhooks fallidos.
+- [ ] Planificar un rate limit compartido antes de escalar a multiples instancias
+  o trafico relevante.
+- [ ] Documentar quien revisa pedidos, devoluciones, emails y fallos de
+  fulfillment.
+
+## 9. Revision final y decision GO/NO-GO
+
+- [ ] Revisar accesibilidad: teclado, foco, contraste, textos alternativos y
+  modales.
+- [ ] Revisar rendimiento y estabilidad visual en movil y escritorio.
+- [ ] Probar Chrome, Safari y Firefox en los dispositivos disponibles.
+- [ ] Verificar que no aparecen textos de desarrollo, placeholders ni datos
+  inventados.
+- [ ] Preparar un rollback hacia el deployment estable anterior de Vercel.
+- [ ] Confirmar que existe una persona responsable de vigilar el primer dia de
+  ventas.
+- [ ] Realizar la revision final de esta checklist.
+- [ ] Cambiar el estado global de este documento a `GO`.
+- [ ] Abrir la tienda y comenzar el lanzamiento publico.
+
+## Criterio minimo para declarar `GO`
+
+La tienda solo esta lista para aceptar pagos reales cuando se cumplen
+simultaneamente estos puntos:
+
+- [ ] El storefront es publico y no esta bloqueado por Vercel SSO.
+- [ ] Los webhooks de Stripe y Printful llegan a la aplicacion.
+- [ ] No quedan vulnerabilidades criticas o altas sin resolver o aceptar
+  explicitamente.
+- [ ] Las paginas legales y el canal de soporte estan publicados.
+- [ ] Stripe, Printful, Firestore y Resend estan configurados y probados en
+  produccion.
+- [ ] La decision fiscal y los paises admitidos estan cerrados.
+- [ ] Una compra real controlada ha completado todo el recorrido correctamente.
+- [ ] Existe un procedimiento de monitorizacion, devolucion y rollback.

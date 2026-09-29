@@ -145,7 +145,11 @@ Checklist:
 ## Deuda tecnica importante
 
 - Rate limit en memoria: mover a almacenamiento compartido si hay trafico real.
-- Dependencias: plan dedicado para upgrades mayores de Next y Firebase Admin.
+- Dependencias: Firebase Admin `14.5.0` y Next.js `15.5.26` ya estan
+  integrados. Mantener un plan dedicado para los hallazgos residuales de
+  `nanoid`, `postcss`, `sharp`, `qs`, `gaxios` y `uuid`, y tratar cualquier
+  upgrade mayor de Next.js con verificacion de compatibilidad. Ver
+  `docs/SECURITY.md`.
 - Admin: valorar autenticacion mas robusta si el panel crece.
 - Tests: anadir pruebas e2e/smoke para el flujo completo cuando haya entorno estable.
 - Observabilidad: definir logs y alertas para webhooks fallidos y pedidos en `manual_review`.

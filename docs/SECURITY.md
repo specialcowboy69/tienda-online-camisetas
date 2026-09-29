@@ -79,12 +79,23 @@ Limitacion: el rate limit no es distribuido. En produccion con multiples instanc
 
 ## Dependencias
 
-Estado verificado localmente y en el preview del PR #18 el 2026-09-28:
+Estado verificado localmente, en preview y en produccion entre el 2026-09-28 y
+el 2026-09-29:
 
 - Firebase Admin actualizado de `12.7.0` a `14.5.0` (version resuelta en el lockfile; rango declarado `^14.5.0`).
 - Node.js `22.12.0` o posterior es obligatorio (`engines.node: >=22.12.0`) para desarrollo, builds y servidor. La verificacion local usa Node.js `24.15.0` y el proyecto de Vercel está configurado con Node.js `24.x`.
 - Tests, lint, TypeScript y build local pasan. El preview `b404522` quedó `Ready`, leyó el catálogo real y renderizó `/`, `/products` y un PDP sin errores de inicialización de Firebase.
 - Los smoke tests sin credenciales devolvieron `401` en `/api/admin/orders`, `/api/catalog/sync` y `/api/webhooks/printful`; un checkout con payload vacío devolvió `400`. No se usaron credenciales válidas ni se crearon pedidos, sesiones de Stripe o escrituras de prueba.
+- El PR [#18](https://github.com/specialcowboy69/tienda-online-camisetas/pull/18)
+  se integro en `main` mediante `6b885052`. Vercel desplego exactamente ese
+  commit con Node.js `24.x` y Next.js `15.5.26`; el deployment de produccion
+  quedo `Ready`.
+- En `https://www.funnyteesforall.com`, `/`, `/products`, `/api/catalog` y el
+  PDP comprobado devolvieron `200`; el catalogo real devolvio 5 productos.
+  `/api/admin/orders` y `/api/webhooks/printful` sin credenciales devolvieron
+  `401`, y `/api/checkout` con `{}` devolvio `400`. No se crearon pedidos,
+  sesiones de Stripe ni escrituras de prueba. La consulta de logs de error del
+  deployment durante la hora posterior no devolvio errores.
 - `npm audit --omit=dev` baja de **13 hallazgos (10 moderate, 3 high)** antes de la migracion a **7 (4 moderate, 3 high)**. El comando sigue terminando con codigo 1; la auditoria no esta limpia. Los recuentos corresponden a paquetes afectados, no al numero de advisories individuales.
 - Las antiguas rutas vulnerables de Firestore/Google GAX/retry-request/teeny-request dejan de aparecer en la auditoria. Firebase Admin y esos paquetes ya no figuran como hallazgos; queda la siguiente ruta de Firebase Storage.
 
@@ -106,13 +117,12 @@ La aplicacion actual no importa Firebase Storage; el `gaxios` instalado llama a
 cuando se proporciona un buffer. Esta revision del uso actual no elimina el
 hallazgo de la auditoria ni garantiza todos los usos futuros de la dependencia.
 
-La persona propietaria acepta este residual y ha autorizado integrar el PR #18.
-En este proyecto, ese merge normalmente activa el despliegue automatico de
-Vercel; la autorizacion comprende esa consecuencia operativa. Esta aceptacion
-se limita a esta ruta y no autoriza otros cambios de infraestructura o
-dependencias ni acepta otros riesgos. La auditoria sigue terminando con codigo
-1 y no esta limpia. Revisar esta evaluacion si se incorpora Firebase Storage o
-cambia el uso de UUID.
+La persona propietaria acepta este residual. El PR #18 se integro en `main` y
+activo el despliegue automatico de Vercel con la autorizacion expresa dada para
+el merge. Esta aceptacion se limita a esta ruta y no autoriza otros cambios de
+infraestructura o dependencias ni acepta otros riesgos. La auditoria sigue
+terminando con codigo 1 y no esta limpia. Revisar esta evaluacion si se
+incorpora Firebase Storage o cambia el uso de UUID.
 
 ### Todos los hallazgos productivos restantes
 
@@ -130,7 +140,7 @@ Severidades tomadas de `npm audit --omit=dev --json`:
 
 Los hallazgos de `nanoid`, `postcss`, `next`, `sharp` y `qs` permanecen sin cambios
 y pendientes de remediacion en tareas separadas. La auditoria propone Next
-`16.3.6`, un upgrade mayor, para PostCSS/Next; otros hallazgos indican fixes sin
+`16.3.7`, un upgrade mayor, para PostCSS/Next; otros hallazgos indican fixes sin
 upgrade mayor. No se aplicaron overrides ni `npm audit fix`. No usar `--force`
 sin plan de compatibilidad y aprobacion explicita.
 
