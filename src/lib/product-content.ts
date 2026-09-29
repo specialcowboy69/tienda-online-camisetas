@@ -164,11 +164,13 @@ export const productPolicies = {
   },
   returns: {
     summary:
-      "If there is an issue with your order, email orders@funnyteesforall.com within 7 days of delivery. Include clear product photos and a short description of the problem.",
+      "For help with your order, email No Context Club at orders@funnyteesforall.com. We may ask for your order number, a short description, and reasonable photos of the issue.",
     details: [
-      "Requests must be sent within 7 days after delivery.",
-      "Include clear photos of the product.",
-      "Describe the problem clearly so support can review the case."
+      "If your item is damaged on arrival, has a manufacturing or printing defect, is the wrong item, or has another error attributable to us, you can request a refund or choose another legally available remedy.",
+      "We cover necessary return or replacement costs when the problem is our responsibility. No short reporting deadline reduces your legal rights.",
+      "EU consumers buying from our standard catalog have 14 days from delivery to notify us of withdrawal, then another 14 days to return the items after notifying us.",
+      "For change-of-mind withdrawal, you pay direct return costs only if you were informed before purchase, unless applicable law or our agreement says otherwise.",
+      "Outside those rights, other returns and exchanges depend on applicable law and the circumstances."
     ]
   }
 } as const;
