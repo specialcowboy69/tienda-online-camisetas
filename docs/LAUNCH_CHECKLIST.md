@@ -118,11 +118,37 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 - [ ] Revisar legalmente los textos antes de aceptar pagos reales.
 - [ ] Confirmar que `orders@funnyteesforall.com` puede recibir respuestas y
   solicitudes de devolucion.
+- [ ] Completar en las plantillas la identidad legal del vendedor, los datos
+  fiscales que correspondan, la direccion geografica de contacto y el canal
+  real de soporte.
+- [ ] Confirmar una direccion real y autorizada para devoluciones, su
+  procedimiento y sus costes; no publicar la direccion de un centro de
+  fulfillment como direccion de devolucion sin acuerdo operativo.
+- [ ] Revisar todas las plantillas de `docs/legal-templates/`, completar las
+  decisiones pendientes y eliminar todos los placeholders antes de publicar.
+- [ ] Revisar legalmente las plantillas para Estados Unidos, Espana, Francia,
+  Alemania, Italia y Portugal; preparar y revisar traducciones ES/FR/DE/IT/PT
+  cuando sean exigibles para los mercados y el proceso de compra dirigidos.
+  El borrador ingles no cierra esta tarea.
+- [ ] Implementar y probar la funcion online de desistimiento exigible para
+  contratos celebrados mediante una interfaz online desde el 19 de junio de
+  2026; comprobar acceso durante el plazo legal, identificacion del contrato,
+  confirmacion de envio y acuse en soporte duradero, conforme a la norma
+  aplicable en cada mercado. Una pagina o un formulario modelo en PDF no
+  sustituyen esta funcion.
+- [ ] Incorporar el aviso armonizado de la UE sobre la garantia legal conforme
+  al formato y calendario aplicables, incluidos los requisitos que se aplican
+  desde el 27 de septiembre de 2026; revisar sus traducciones y ubicacion.
+- [ ] Publicar las paginas revisadas y comprobar sus enlaces desde footer,
+  checkout y emails, su acceso en movil y que el email publicado recibe una
+  solicitud real de soporte o devolucion.
 
 ## 5. Configuracion de produccion
 
 ### Stripe
 
+- [ ] Mantener Stripe en modo test y no activar Stripe Tax ni pagos live hasta
+  cerrar la revision fiscal de las rutas, los paises y las importaciones.
 - [ ] Activar y configurar Stripe en modo live.
 - [ ] Configurar las claves live unicamente como variables de entorno de Vercel
   Production.
@@ -174,6 +200,14 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 - [ ] Decidir y documentar los paises del lanzamiento inicial.
   - Recomendacion operativa: empezar solo con Estados Unidos hasta validar el
     resto de mercados.
+  - Alcance de las plantillas preparadas el 29 de septiembre de 2026:
+    Estados Unidos (`US`), Espana (`ES`), Francia (`FR`), Alemania (`DE`),
+    Italia (`IT`) y Portugal (`PT`). Este alcance no confirma la apertura ni
+    sustituye la decision final pendiente; la recomendacion anterior queda
+    conservada como antecedente operativo.
+- [ ] Confirmar expresamente el lanzamiento en `US`, `ES`, `FR`, `DE`, `IT`
+  y `PT` y la cobertura geografica admitida dentro de cada pais antes de
+  ajustar la configuracion.
 - [ ] Ajustar `ALLOWED_SHIPPING_COUNTRIES` a la decision final.
 - [ ] Confirmar que las tarifas y plazos de envio mostrados coinciden con el
   comportamiento real de Printful.
@@ -182,6 +216,17 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 - [ ] Validar obligaciones fiscales y contables con una persona profesional.
 - [ ] Decidir si se utilizara Stripe Tax.
 - [ ] Mantener `STRIPE_TAX_ENABLED=false` hasta haber cerrado la decision fiscal.
+- [ ] Revisar la [matriz interna de fulfillment](legal-templates/printful-fulfillment-matrix.md)
+  contra el catalogo y las rutas reales: disponibilidad regional, stock y
+  tecnica no garantizan una fabrica ni un pais de expedicion.
+- [ ] Confirmar por ruta y pedido el pais de expedicion, importador,
+  obligaciones de IVA/OSS/IOSS, aduanas, transportista y cargos de importacion;
+  distinguir la compra a Printful de la venta al cliente. No prometer DDP ni
+  ausencia de cargos de importacion en la UE sin confirmacion de la ruta.
+- [ ] Validar con una persona profesional el tratamiento fiscal y aduanero de
+  las variantes disponibles solo en Estados Unidos cuando se vendan a
+  `ES`, `FR`, `DE`, `IT` o `PT`, y reflejar los costes y responsabilidades
+  confirmados en checkout, politicas y emails.
 
 ## 7. Prueba integral antes de abrir
 
@@ -255,8 +300,14 @@ simultaneamente estos puntos:
 - [ ] No quedan vulnerabilidades criticas o altas sin resolver o aceptar
   explicitamente.
 - [ ] Las paginas legales y el canal de soporte estan publicados.
+- [ ] La identidad, contacto y direccion de devolucion son reales; las
+  plantillas no contienen placeholders, han recibido revision legal y cuentan
+  con las traducciones, funcion de desistimiento y aviso de garantia exigibles.
 - [ ] Stripe, Printful, Firestore y Resend estan configurados y probados en
   produccion.
 - [ ] La decision fiscal y los paises admitidos estan cerrados.
+- [ ] Las rutas de fulfillment e importacion para `US`, `ES`, `FR`, `DE`,
+  `IT` y `PT` estan confirmadas; se han cerrado IVA/OSS/IOSS y aduanas antes
+  de habilitar Stripe Tax o pagos live.
 - [ ] Una compra real controlada ha completado todo el recorrido correctamente.
 - [ ] Existe un procedimiento de monitorizacion, devolucion y rollback.
