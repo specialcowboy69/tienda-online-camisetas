@@ -122,6 +122,7 @@ The current tests cover money conversion, cart-to-order mapping, ignored catalog
 - [Security notes](docs/SECURITY.md)
 - [Deployment guide](docs/DEPLOYMENT.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Launch checklist](docs/LAUNCH_CHECKLIST.md)
 - [Brand and storefront guide](docs/BRAND_STOREFRONT.md)
 - [Supplier profiles and product claims](docs/SUPPLIER_PROFILES.md)
 - [Product content drafts](docs/product-content/README.md)

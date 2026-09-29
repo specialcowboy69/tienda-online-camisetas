@@ -17,6 +17,53 @@ La prioridad es avanzar hacia una version lista para produccion con cambios pequ
 - No incluyas artefactos de proceso en commits, como `.superpowers/`.
 - Si el arbol de git ya tiene cambios ajenos, no los reviertas ni los mezcles sin permiso.
 
+## Auditoria obligatoria antes de Pull Requests y merges
+
+Antes de crear un Pull Request, declarar que una rama esta lista para revision o
+mergear cualquier Pull Request, es obligatorio comprobar el estado completo de
+integracion del repositorio. No asumas que el PR actual es el unico trabajo
+pendiente.
+
+1. Ejecuta `git fetch origin --prune` para trabajar con referencias remotas
+   actuales.
+2. Lista todos los Pull Requests abiertos y revisa para cada uno su rama base,
+   rama head, checks, estado de merge y posibles conflictos.
+3. Inventaria las ramas locales y remotas que tengan commits no contenidos en
+   `origin/main`. Distingue trabajo real pendiente de ramas antiguas ya
+   integradas.
+4. Revisa los worktrees registrados, los cambios sin commit y los commits sin
+   push que puedan necesitar una rama o un Pull Request.
+5. Informa antes de integrar:
+   - PRs pendientes y sus bloqueos;
+   - ramas que necesitan crear o actualizar un PR;
+   - cambios locales o commits aun no publicados;
+   - el orden de integracion cuando existan dependencias entre trabajos.
+6. No crees un PR duplicado. Si ya existe uno para la rama o el mismo cambio,
+   actualiza ese PR.
+7. No mezcles automaticamente trabajo pendiente ajeno o no relacionado. Su
+   existencia debe informarse, pero solo bloquea el merge actual si es una
+   dependencia, provoca conflictos o altera la verificacion del cambio.
+8. Justo antes del merge, confirma sobre el SHA exacto que la base es `main`,
+   que los checks y verificaciones obligatorias estan en verde, que el PR es
+   mergeable y que no aparecieron nuevos pendientes relevantes.
+9. Despues del merge, confirma el estado `MERGED`, verifica que el commit esta
+   contenido en `origin/main` y, si aplica, comprueba el deployment real.
+10. La respuesta final debe incluir una seccion `Pendiente por integrar` con la
+    lista actual, o indicar expresamente `Nada pendiente`.
+
+Comandos de referencia para esta auditoria:
+
+```powershell
+git fetch origin --prune
+gh pr list --state open
+git branch -vv
+git worktree list
+git for-each-ref --format='%(refname:short)' 'refs/remotes/origin/codex/*'
+```
+
+Si `gh` no esta disponible, usa la API o interfaz de GitHub equivalente. La
+ausencia de una herramienta concreta no elimina la obligacion de auditar.
+
 ## Superpowers
 
 Usa las skills de Superpowers cuando encajen:
