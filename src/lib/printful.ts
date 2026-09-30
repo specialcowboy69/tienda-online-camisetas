@@ -63,6 +63,13 @@ export class PrintfulApiError extends Error {
   get isTemporary(): boolean {
     return this.status >= 500 || this.status === 429;
   }
+
+  get isDuplicateExternalId(): boolean {
+    if (this.status === 409) return true;
+    const details = this.details as { error?: { code?: unknown; reason?: unknown }; code?: unknown; reason?: unknown } | null;
+    return this.status === 400 && [details?.code, details?.reason, details?.error?.code, details?.error?.reason]
+      .some((code) => code === "OR-13" || code === "EXTERNAL_ID_IN_USE");
+  }
 }
 
 async function printfulFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -74,14 +81,24 @@ async function printfulFetch<T>(path: string, init: RequestInit = {}): Promise<T
     headers.set("X-PF-Store-Id", env.PRINTFUL_STORE_ID);
   }
 
-  const response = await fetch(`${PRINTFUL_API_BASE}${path}`, { ...init, headers });
-  const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new PrintfulApiError(`Printful request failed: ${response.status}`, response.status, data);
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), 20000);
+  try {
+    const signal = init.signal ? AbortSignal.any([init.signal, controller.signal]) : controller.signal;
+    const response = await fetch(`${PRINTFUL_API_BASE}${path}`, { ...init, headers, signal });
+    const data = await response.json().catch((error: unknown) => {
+      // Keep cancellation effective while consuming the body. An empty error
+      // body can still establish HTTP404, but a successful malformed body cannot.
+      if (signal.aborted || response.ok) throw error;
+      return null;
+    });
+    if (!response.ok) {
+      throw new PrintfulApiError(`Printful request failed: ${response.status}`, response.status, data);
+    }
+    return data as T;
+  } finally {
+    clearTimeout(deadline);
   }
-
-  return data as T;
 }
 
 export async function fetchPrintfulCatalog(): Promise<CatalogProduct[]> {
@@ -186,7 +203,7 @@ export async function createPrintfulOrder(order: StoreOrder): Promise<PrintfulOr
     })
   });
 
-  return data.result;
+  return readPrintfulOrder(data);
 }
 
 export function getPrintfulExternalId(order: Pick<StoreOrder, "id" | "printfulExternalId">): string {
@@ -196,13 +213,21 @@ export function getPrintfulExternalId(order: Pick<StoreOrder, "id" | "printfulEx
 export async function findPrintfulOrderByExternalId(externalId: string): Promise<PrintfulOrder | null> {
   try {
     const data = await printfulFetch<PrintfulResponse<PrintfulOrder>>(`/orders/@${encodeURIComponent(externalId)}`);
-    return data.result;
+    return readPrintfulOrder(data);
   } catch (error) {
     if (error instanceof PrintfulApiError && error.status === 404) {
       return null;
     }
     throw error;
   }
+}
+
+function readPrintfulOrder(data: PrintfulResponse<PrintfulOrder>): PrintfulOrder {
+  const order = data?.result;
+  if (!order || !Number.isSafeInteger(order.id) || order.id <= 0 || typeof order.status !== "string" || !order.status) {
+    throw new PrintfulApiError("Printful returned an incomplete order response.", 502, null);
+  }
+  return order;
 }
 
 export function appendWebhookSecret(url: string, secret?: string): string {

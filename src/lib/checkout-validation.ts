@@ -82,7 +82,8 @@ export function getPrintfulSubmissionEligibility(order: StoreOrder): PrintfulSub
     return { allowed: false, reason: "CheckoutSnapshotChanged", message: "The order no longer matches its checkout validation. Revalidation is required." };
   }
   const temporaryFailure = order.status === "failed" && order.error?.type === "PrintfulApiError" && (order.error.status === 429 || (order.error.status !== undefined && order.error.status >= 500));
-  if (order.status !== "paid" && !temporaryFailure) {
+  const pendingRecovery = order.status === "printful_pending" && !!order.printfulExternalId;
+  if (order.status !== "paid" && !temporaryFailure && !pendingRecovery) {
     return { allowed: false, reason: "OrderStatusBlocked", message: "This order status requires review and cannot retry fulfillment." };
   }
   return { allowed: true };

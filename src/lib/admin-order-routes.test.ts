@@ -2,9 +2,9 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StoreOrder } from "./types";
 
-const mocks = vi.hoisted(() => ({ getOrder: vi.fn(), listOrders: vi.fn(), updateOrder: vi.fn(), updateOrderStatus: vi.fn(), createPrintfulOrder: vi.fn(), retrieve: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getOrder: vi.fn(), listOrders: vi.fn(), updateOrder: vi.fn(), updateOrderStatus: vi.fn(), createPrintfulOrder: vi.fn(), retrieve: vi.fn(), claim: vi.fn(), renew: vi.fn(), updateClaimed: vi.fn(), release: vi.fn() }));
 vi.mock("./env", () => ({ env: { ADMIN_SECRET: "synthetic-admin-secret" }, isStripeTaxEnabled: () => false }));
-vi.mock("./firestore", () => ({ getOrder: mocks.getOrder, listOrdersForReview: mocks.listOrders, updateOrder: mocks.updateOrder, updateOrderStatus: mocks.updateOrderStatus }));
+vi.mock("./firestore", () => ({ getOrder: mocks.getOrder, listOrdersForReview: mocks.listOrders, updateOrder: mocks.updateOrder, updateOrderStatus: mocks.updateOrderStatus, claimOrderProcessing: mocks.claim, renewOrderProcessing: mocks.renew, updateClaimedOrder: mocks.updateClaimed, releaseOrderProcessing: mocks.release }));
 vi.mock("./stripe", () => ({ getStripe: () => ({ checkout: { sessions: { retrieve: mocks.retrieve } } }) }));
 vi.mock("./printful", () => ({ createPrintfulOrder: mocks.createPrintfulOrder, PrintfulApiError: class extends Error {} }));
 vi.mock("./email", () => ({ sendOrderConfirmationEmail: vi.fn() }));
@@ -15,7 +15,7 @@ function request(path: string, authenticated = true) {
   return new NextRequest(`http://localhost/api/admin/orders/${path}`, { method: "POST", headers: authenticated ? { "x-admin-secret": "synthetic-admin-secret" } : {} });
 }
 describe("authenticated order safety routes", () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.getOrder.mockResolvedValue(order); mocks.listOrders.mockResolvedValue([order]); });
+  beforeEach(() => { vi.resetAllMocks(); mocks.getOrder.mockResolvedValue(order); mocks.listOrders.mockResolvedValue([order]); mocks.claim.mockResolvedValue({ kind: "claimed", value: order, lease: { token: "owner", expiresAtMs: Date.now() + 120000 } }); mocks.renew.mockResolvedValue(true); mocks.updateClaimed.mockResolvedValue(true); mocks.release.mockResolvedValue(true); });
   it("returns 409 with a reason before blocked retries can write or call Printful", async () => {
     const { POST } = await import("../app/api/admin/orders/[orderId]/retry-printful/route");
     const response = await POST(request("order1/retry-printful"), context);
@@ -23,6 +23,7 @@ describe("authenticated order safety routes", () => {
     expect(await response.json()).toMatchObject({ reason: "CheckoutValidationRequired" });
     expect(mocks.updateOrder).not.toHaveBeenCalled();
     expect(mocks.updateOrderStatus).not.toHaveBeenCalled();
+    expect(mocks.updateClaimed).not.toHaveBeenCalled();
     expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
   });
   it("rejects unauthenticated revalidation before Stripe or order access", async () => {
@@ -38,10 +39,26 @@ describe("authenticated order safety routes", () => {
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({ reason: "PaymentNotCompleted" });
     expect(mocks.updateOrder).not.toHaveBeenCalled(); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
+    expect(mocks.updateClaimed).not.toHaveBeenCalled();
   });
   it("returns server eligibility alongside review orders", async () => {
     const { GET } = await import("../app/api/admin/orders/route");
     const response = await GET(request(""));
     expect(await response.json()).toMatchObject({ orders: [{ id: "order1", printfulSubmissionEligibility: { allowed: false, reason: "CheckoutValidationRequired" } }] });
+  });
+  it.each(["retry-printful", "revalidate-checkout"])("returns retryable 503 when %s meets a held order lease", async (path) => {
+    mocks.claim.mockResolvedValue({ kind: "busy", retryAfterSeconds: 77 });
+    const { POST } = path === "retry-printful" ? await import("../app/api/admin/orders/[orderId]/retry-printful/route") : await import("../app/api/admin/orders/[orderId]/revalidate-checkout/route");
+    const response = await POST(request(`order1/${path}`), context);
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("77");
+    expect(mocks.retrieve).not.toHaveBeenCalled(); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
+  });
+  it("returns retryable 503 when revalidation loses order ownership", async () => {
+    mocks.retrieve.mockResolvedValue({ id: "cs_1", metadata: { order_id: "order1" }, mode: "payment", status: "complete", payment_status: "paid", payment_intent: "pi_1", amount_total: 2000, currency: "eur", shipping_details: { address: { line1: "Main St", city: "Madrid", country: "ES", postal_code: "28001" } } });
+    mocks.updateClaimed.mockResolvedValue(false);
+    const { POST } = await import("../app/api/admin/orders/[orderId]/revalidate-checkout/route");
+    const response = await POST(request("order1/revalidate-checkout"), context);
+    expect(response.status).toBe(503); expect(response.headers.get("Retry-After")).toBe("1");
   });
 });

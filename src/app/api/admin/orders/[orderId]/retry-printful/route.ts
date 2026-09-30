@@ -3,6 +3,7 @@ import { isAdminRequest } from "@/lib/auth";
 import { jsonError } from "@/lib/http";
 import { submitOrderToPrintful } from "@/lib/order-service";
 import { CheckoutValidationError } from "@/lib/checkout-validation";
+import { processingErrorResponse } from "@/lib/processing-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ or
     const order = await submitOrderToPrintful(orderId);
     return NextResponse.json({ order });
   } catch (error) {
+    const processingResponse = processingErrorResponse(error);
+    if (processingResponse) return processingResponse;
     if (error instanceof CheckoutValidationError) {
       return NextResponse.json({ error: error.message, reason: error.reason }, { status: 409 });
     }
