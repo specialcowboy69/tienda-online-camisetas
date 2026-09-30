@@ -14,6 +14,7 @@ import {
   listOrderEmailJobs,
   releaseOrderProcessing,
   renewOrderProcessing,
+  renewWebhookEventProcessing,
   updateClaimedOrder,
   updateOrder
 } from "./firestore";
@@ -99,11 +100,14 @@ export async function handleStripeWebhook(rawBody: string, signature: string | n
     return Response.json({ received: true, duplicate: true });
   }
   if (claim.kind === "busy") throw new ProcessingBusyError(claim.retryAfterSeconds);
+  const checkpoint = async () => {
+    if (!await renewWebhookEventProcessing("stripe", event.id, claim.lease.token)) throw new ProcessingOwnershipLostError();
+  };
 
   try {
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       const session = event.data.object as Stripe.Checkout.Session;
-      await handleCheckoutCompleted(session);
+      await handleCheckoutCompleted(session, checkpoint);
     }
 
     if (event.type === "checkout.session.async_payment_failed") {
@@ -117,7 +121,7 @@ export async function handleStripeWebhook(rawBody: string, signature: string | n
     }
 
     if (["charge.refunded", "refund.created", "refund.updated", "refund.failed"].includes(event.type)) {
-      await handleStripeRefundEvent(event);
+      await handleStripeRefundEvent(event, checkpoint);
     }
 
     if (!await finishWebhookEventProcessing("stripe", event.id, claim.lease.token)) throw new ProcessingOwnershipLostError();
@@ -155,9 +159,11 @@ async function writeClaimedOrder(orderId: string, token: string, patch: Paramete
   if (!await updateClaimedOrder(orderId, token, patch)) throw new ProcessingOwnershipLostError();
 }
 
-async function submitClaimedOrderToPrintful(order: StoreOrder, token: string): Promise<StoreOrder> {
+async function submitClaimedOrderToPrintful(order: StoreOrder, token: string, checkpoint?: () => Promise<void>): Promise<StoreOrder> {
+  const renewOwnership = async () => { await checkpoint?.(); await renewOrderOwnership(order.id, token); };
+  await renewOwnership();
   if (order.printfulOrderId) {
-    await recoverExistingOrderEmails(order, token);
+    await recoverExistingOrderEmails(order, token, checkpoint);
     return order;
   }
   const eligibility = getPrintfulSubmissionEligibility(order);
@@ -177,18 +183,19 @@ async function submitClaimedOrderToPrintful(order: StoreOrder, token: string): P
   // An unavailable lookup never authorizes creation. Only the provider helper's
   // explicit HTTP404/null does; recovery always uses the same persisted ID.
   try {
-    await renewOrderOwnership(order.id, token);
+    await renewOwnership();
     remote = await findPrintfulOrderByExternalId(externalId);
+    await renewOwnership();
   } catch (error) {
     if (error instanceof ProcessingOwnershipLostError) throw error;
     await writeClaimedOrder(order.id, token, { error: summarizeError(error) });
     throw error;
   }
   if (!remote) {
-    const refundSummary = await reconcileOrderRefunds(pending, token);
+    const refundSummary = await reconcileOrderRefunds(pending, token, checkpoint);
     const financialEligibility = getPrintfulSubmissionEligibility({ ...pending, refundSummary, refundReviewReason: undefined });
     if (!financialEligibility.allowed) throw new CheckoutValidationError(financialEligibility.reason, financialEligibility.message);
-    await renewOrderOwnership(order.id, token);
+    await renewOwnership();
     try {
       // A Dashboard refund can still race this remote request; the shared local
       // lease serializes our workers, not Stripe/Printful provider operations.
@@ -196,10 +203,12 @@ async function submitClaimedOrderToPrintful(order: StoreOrder, token: string): P
     } catch (error) {
       // HTTP400 can be OR-13/EXTERNAL_ID_IN_USE. Read-only reconciliation is
       // safe after any create rejection, including timeout/network/5xx/409.
-      await renewOrderOwnership(order.id, token);
+      await renewOwnership();
       try {
         remote = await findPrintfulOrderByExternalId(externalId);
+        await renewOwnership();
       } catch (lookupError) {
+        if (lookupError instanceof ProcessingOwnershipLostError) throw lookupError;
         await writeClaimedOrder(order.id, token, { error: summarizeError(lookupError) });
         throw lookupError;
       }
@@ -215,13 +224,15 @@ async function submitClaimedOrderToPrintful(order: StoreOrder, token: string): P
   }
   // Deliberately await completion outside the create-recovery catch. Database
   // and email failures must never be mislabeled as a rejected Printful create.
-  return await finishPrintfulOrder(pending, token, remote);
+  await renewOwnership();
+  return await finishPrintfulOrder(pending, token, remote, checkpoint);
 }
 
 async function finishPrintfulOrder(
   order: StoreOrder,
   token: string,
-  printfulOrder: { id: number; status: string; external_id?: string }
+  printfulOrder: { id: number; status: string; external_id?: string },
+  checkpoint?: () => Promise<void>
 ): Promise<StoreOrder> {
   if (printfulOrder.external_id !== order.printfulExternalId) {
     const error = { type: "PrintfulIdentityMismatch", message: "Printful returned an order with a different or missing external identity." };
@@ -240,7 +251,10 @@ async function finishPrintfulOrder(
   } satisfies Parameters<typeof updateClaimedOrder>[2];
   const job = needsReview ? undefined : buildEmailJob({ ...order, status, printfulOrderId: printfulOrder.id, printfulStatus: printfulOrder.status }, "order_confirmation");
   if (!await completeClaimedFulfillment(order.id, token, patch, job)) throw new ProcessingOwnershipLostError();
-  if (job) requireEmailRecovery([{ result: await processEmailJob(job.id) }]);
+  if (job) {
+    await checkpoint?.();
+    requireEmailRecovery([{ result: await processEmailJob(job.id) }]);
+  }
 
   const updated = await getOrder(order.id);
   if (updated) {
@@ -250,8 +264,9 @@ async function finishPrintfulOrder(
   return order;
 }
 
-async function recoverExistingOrderEmails(order: StoreOrder, token: string): Promise<void> {
+async function recoverExistingOrderEmails(order: StoreOrder, token: string, checkpoint?: () => Promise<void>): Promise<void> {
   const jobs = await listOrderEmailJobs(order.id);
+  await checkpoint?.();
   const missingConfirmation = order.emailPolicyVersion === 1 ? !jobs.some((job) => job.kind === "order_confirmation") : jobs.length === 0;
   if (missingConfirmation && !["canceled", "failed"].includes(order.printfulStatus || "")) {
     await writeClaimedOrder(order.id, token, { emailReviewReason: order.emailPolicyVersion === 1 ? "Order confirmation email is missing. Manual review required; no historical email was created." : "Legacy fulfilled order has no durable email record. Manual review required; no historical email was created." });
@@ -259,15 +274,16 @@ async function recoverExistingOrderEmails(order: StoreOrder, token: string): Pro
   requireEmailRecovery(await retryOrderEmails(order.id));
 }
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session, checkpoint: () => Promise<void>): Promise<void> {
   const orderId = session.metadata?.order_id || session.client_reference_id;
   if (!orderId) {
     throw new Error("Stripe Checkout Session is missing order_id metadata.");
   }
 
   await withOrderProcessing(orderId, async (order, token) => {
+    await checkpoint();
     if (order.printfulOrderId || ["printful_confirmed", "shipped", "returned"].includes(order.status)) {
-      await recoverExistingOrderEmails(order, token);
+      await recoverExistingOrderEmails(order, token, checkpoint);
       return;
     }
     if (["manual_review", "canceled", "refunded", "expired"].includes(order.status)) return;
@@ -296,7 +312,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
     if (order.status === "printful_pending") {
       // Recovery still requires the proof and identity persisted before the
       // interrupted attempt; a new paid event cannot manufacture that proof.
-      await submitClaimedOrderToPrintful(order, token);
+      await submitClaimedOrderToPrintful(order, token, checkpoint);
       return;
     }
 
@@ -306,7 +322,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
       checkoutValidation: validation.evidence
     };
     await writeClaimedOrder(order.id, token, patch);
-    await submitClaimedOrderToPrintful({ ...order, ...patch }, token);
+    await submitClaimedOrderToPrintful({ ...order, ...patch }, token, checkpoint);
   });
 }
 

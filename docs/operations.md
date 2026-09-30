@@ -200,6 +200,13 @@ sistemas y resolver ese caso manualmente, sin promesa de exactamente una llamada
 Cada evento y pedido tiene propietario y lease de 120 segundos. La posesion de
 un evento no basta para procesar dos eventos distintos del mismo pedido: todos
 comparten el lease del pedido, incluidos envios y reconciliacion financiera.
+En webhooks de pago y reembolso, las lecturas financieras paginadas renuevan y
+comprueban ambos propietarios antes y despues de cada lectura acotada. Cada
+peticion Stripe mantiene su limite de 20 segundos; la duracion acumulada puede
+superar 120 segundos mientras los leases sigan vigentes. No se revive un token
+caducado. Si el evento de reembolso ya tiene una asociacion persistida con el
+PaymentIntent, toma el pedido y guarda el bloqueo antes de esperar mas lecturas
+de Stripe; un fallo o una lista vacia posterior no borran esa observacion.
 Un propietario caducado no puede persistir recibos ni liberar el lease nuevo.
 Un registro legacy malformado se pone en cuarentena durante un lease antes de
 recuperarse. HTTP 503 con `Retry-After` significa ocupado/perdida de propietario

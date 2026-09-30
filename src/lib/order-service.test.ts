@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   createPrintfulOrder: vi.fn(), findPrintfulOrderByExternalId: vi.fn(),
   constructEvent: vi.fn(), retrieveSession: vi.fn(), createSession: vi.fn(),
   reconcileRefunds: vi.fn(), refundEvent: vi.fn(),
-  beginWebhookEventProcessing: vi.fn(), failWebhookEventProcessing: vi.fn(), finishWebhookEventProcessing: vi.fn(),
+  beginWebhookEventProcessing: vi.fn(), failWebhookEventProcessing: vi.fn(), finishWebhookEventProcessing: vi.fn(), renewWebhookEventProcessing: vi.fn(),
   claimOrderProcessing: vi.fn(), renewOrderProcessing: vi.fn(), updateClaimedOrder: vi.fn(), releaseOrderProcessing: vi.fn(), sendEmail: vi.fn(), complete: vi.fn(), jobs: [] as import("./types").EmailJob[]
 }));
 
@@ -22,6 +22,7 @@ vi.mock("./firestore", () => ({
   createOrder: mocks.createOrder,
   failWebhookEventProcessing: mocks.failWebhookEventProcessing,
   finishWebhookEventProcessing: mocks.finishWebhookEventProcessing,
+  renewWebhookEventProcessing: mocks.renewWebhookEventProcessing,
   findOrderByPrintfulExternalId: vi.fn(),
   findOrderByStripePaymentIntentId: vi.fn(),
   getCatalogProduct: mocks.getCatalogProduct,
@@ -136,6 +137,7 @@ describe("order service", () => {
     vi.resetAllMocks();
     mocks.beginWebhookEventProcessing.mockResolvedValue({ kind: "claimed", lease: { token: "event-owner", expiresAtMs: Date.now() + 120000 }, value: null });
     mocks.finishWebhookEventProcessing.mockResolvedValue(true);
+    mocks.renewWebhookEventProcessing.mockResolvedValue(true);
     mocks.failWebhookEventProcessing.mockResolvedValue(true);
     mocks.getCatalogProduct.mockResolvedValue(product);
     mocks.getShippingRates.mockResolvedValue([shippingRate]);
@@ -160,7 +162,7 @@ describe("order service", () => {
     ownedStore(validatedOrder());
     mocks.reconcileRefunds.mockResolvedValue({ status: "partial", refundCount: 1, pendingCount: 0, failedCount: 0, canceledCount: 0, fulfillmentBlocked: true, paymentIntentId: "pi_1", refundedAmount: 1000, paidAmount: 2000, currency: "eur", reconciledAt: "now" });
     await expect(submitOrderToPrintful("order1")).rejects.toMatchObject({ reason: "RefundReviewRequired" });
-    expect(mocks.reconcileRefunds).toHaveBeenCalledWith(expect.objectContaining({ id: "order1" }), "order-owner");
+    expect(mocks.reconcileRefunds).toHaveBeenCalledWith(expect.objectContaining({ id: "order1" }), "order-owner", undefined);
     expect(mocks.claimOrderProcessing).toHaveBeenCalledOnce(); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
   });
   it("fails closed before create when authoritative financial reads fail", async () => {
@@ -196,7 +198,7 @@ describe("order service", () => {
     const { handleStripeWebhook } = await import("./order-service");
     const event = { id: "evt_refund", type, data: { object: { payment_intent: "pi_1" } } };
     mocks.constructEvent.mockReturnValue(event); await handleStripeWebhook("{}", "signature");
-    expect(mocks.refundEvent).toHaveBeenCalledWith(event); expect(mocks.updateOrderStatus).not.toHaveBeenCalled();
+    expect(mocks.refundEvent).toHaveBeenCalledWith(event, expect.any(Function)); expect(mocks.updateOrderStatus).not.toHaveBeenCalled();
   });
 
   it("leaves a busy Stripe event retryable without business writes", async () => {

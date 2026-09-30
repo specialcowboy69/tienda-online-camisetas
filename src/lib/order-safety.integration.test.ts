@@ -6,7 +6,7 @@ import type { StoreOrder } from "./types";
 
 // Only the Firestore transport and Stripe SDK reads are replaced. The order,
 // lease, refund, email-job and Printful/Resend HTTP implementations stay real.
-const state = vi.hoisted(() => ({ records: new Map<string, Record<string, unknown>>(), refunds: [] as Stripe.Refund[], emailFails: true, creates: 0, emails: [] as RequestInit[], createPayloads: [] as Record<string, unknown>[], createResponse: null as Promise<Response> | null, started: null as (() => void) | null }));
+const state = vi.hoisted(() => ({ records: new Map<string, Record<string, unknown>>(), refunds: [] as Stripe.Refund[], emailFails: true, creates: 0, emails: [] as RequestInit[], createPayloads: [] as Record<string, unknown>[], createResponse: null as Promise<Response> | null, started: null as (() => void) | null, beforeRead: null as (() => Promise<void>) | null, reads: 0 }));
 vi.mock("./env", () => ({
   env: { ADMIN_SECRET: "synthetic-admin", RESEND_API_KEY: "synthetic-email", RESEND_FROM_EMAIL: "Club <orders@example.test>" },
   requiredEnv: () => "synthetic-provider", isStripeTaxEnabled: () => false,
@@ -15,10 +15,15 @@ vi.mock("./env", () => ({
 vi.mock("./firebase-admin", () => ({ getDb: () => ({ collection, runTransaction: transaction }) }));
 vi.mock("./stripe", async (original) => ({ ...await original<typeof import("./stripe")>(), getStripe: () => ({
   webhooks: { constructEvent: (body: string) => JSON.parse(body) },
-  paymentIntents: { retrieve: async () => ({ id: "pi_paid", metadata: { order_id: "order1" }, status: "succeeded", currency: "eur", amount_received: 2000 }) },
-  refunds: { list: async () => ({ data: state.refunds, has_more: false }) },
-  checkout: { sessions: { retrieve: async () => session, list: async () => ({ data: [session], has_more: false }) } }
+  paymentIntents: { retrieve: async () => { await beforeRead(); return { id: "pi_paid", metadata: { order_id: "order1" }, status: "succeeded", currency: "eur", amount_received: 2000 }; } },
+  refunds: { list: async ({ starting_after }: { starting_after?: string }) => {
+    await beforeRead(); const start = starting_after ? state.refunds.findIndex((item) => item.id === starting_after) + 1 : 0;
+    return { data: state.refunds.slice(start, start + 100), has_more: state.refunds.length > start + 100 };
+  } },
+  checkout: { sessions: { retrieve: async () => session, list: async () => { await beforeRead(); return { data: [session], has_more: false }; } } }
 }) }));
+
+async function beforeRead() { state.reads++; await state.beforeRead?.(); }
 
 function snapshot(path: string) { return { exists: state.records.has(path), data: () => structuredClone(state.records.get(path)) }; }
 function field(data: Record<string, unknown>, key: string): unknown {
@@ -72,6 +77,7 @@ describe("combined order safety with real services and synthetic transports", ()
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-30T12:00:00Z"));
     state.records.clear(); state.records.set("orders/order1", structuredClone(order) as unknown as Record<string, unknown>);
     state.refunds = []; state.emailFails = true; state.creates = 0; state.emails = []; state.createPayloads = []; state.createResponse = null; state.started = null;
+    state.beforeRead = null; state.reads = 0;
     vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
       if (url.startsWith("https://api.printful.com/orders/@")) return new Response('{"result":"Not found"}', { status: 404 });
       if (url.startsWith("https://api.printful.com/orders?")) {
@@ -86,6 +92,86 @@ describe("combined order safety with real services and synthetic transports", ()
     });
   });
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+  // Break caught: a locally observed refund waits for canonical reads before
+  // claiming the order, allowing a concurrent creator to see an empty list.
+  it("holds the mapped order before a deferred refund association read can race fulfillment", async () => {
+    const service = await import("./order-service");
+    readOrder().status = "paid";
+    await service.revalidatePaidCheckout("order1"); state.emailFails = false;
+    let resume!: () => void; let signal!: () => void;
+    const started = new Promise<void>((resolve) => { signal = resolve; });
+    const paused = new Promise<void>((resolve) => { resume = resolve; });
+    state.beforeRead = async () => { state.beforeRead = null; signal(); await paused; };
+    const observed = service.handleStripeWebhook(JSON.stringify({ id: "evt_refund_race", type: "refund.created", data: { object: refund("pending", 500) } }), "synthetic-signature");
+    await started;
+    const blockedBeforeRead = readOrder().fulfillmentBlocked;
+    const competing = await service.submitOrderToPrintful("order1").then(() => "created", (error: Error) => error.name);
+    resume(); await observed;
+    expect(blockedBeforeRead).toBe(true);
+    expect(competing).toBe("ProcessingBusyError");
+    expect(state.creates).toBe(0); expect(state.emails).toHaveLength(0);
+    expect(readOrder()).toMatchObject({ fulfillmentBlocked: true, refundSummary: { status: "none", refundCount: 0, fulfillmentBlocked: true } });
+    await expect(service.submitOrderToPrintful("order1")).rejects.toMatchObject({ reason: "RefundReviewRequired" });
+  });
+
+  // Break caught: total pagination duration outlives the event lease even
+  // though every individual SDK request is inside its 20-second bound.
+  it("acknowledges 301 canonical refunds across 133 seconds of bounded reads", async () => {
+    const service = await import("./order-service");
+    readOrder().stripePaymentIntentId = "pi_paid";
+    state.refunds = Array.from({ length: 301 }, (_, index) => ({ ...refund("succeeded", 1), id: `re_${index}` }));
+    state.beforeRead = () => new Promise((resolve) => setTimeout(resolve, 19000));
+    const body = JSON.stringify({ id: "evt_long", type: "refund.created", data: { object: state.refunds[0] } });
+    const startedAt = Date.now();
+    const task = service.handleStripeWebhook(body, "synthetic-signature").then((response) => response.status, (error: Error) => error.name);
+    await vi.advanceTimersByTimeAsync(133000);
+    expect(await task).toBe(200); expect(Date.now() - startedAt).toBe(133000); expect(state.reads).toBe(7);
+    expect(readOrder()).toMatchObject({ fulfillmentBlocked: true, refundSummary: { refundCount: 301, refundedAmount: 301, status: "partial" } });
+    expect(state.records.get("webhookEvents/stripe:evt_long")?.status).toBe("processed");
+    expect((await service.handleStripeWebhook(body, "synthetic-signature")).status).toBe(200);
+    expect(state.reads).toBe(7); expect(state.creates).toBe(0); expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("retains the paid event owner through 133 seconds of pre-fulfillment refund reads", async () => {
+    const service = await import("./order-service");
+    state.refunds = Array.from({ length: 501 }, (_, index) => ({ ...refund("failed", 1), id: `re_${index}` }));
+    state.beforeRead = () => new Promise((resolve) => setTimeout(resolve, 19000));
+    const task = service.handleStripeWebhook(webhook("evt_paid_long"), "synthetic-signature").then(() => "processed", (error: { reason?: string; name: string }) => error.reason || error.name);
+    await vi.advanceTimersByTimeAsync(133000);
+    expect(await task).toBe("RefundReviewRequired"); expect(state.reads).toBe(7);
+    expect(readOrder()).toMatchObject({ fulfillmentBlocked: true, refundSummary: { refundCount: 501, refundedAmount: 0, failedCount: 501 } });
+    expect(state.records.get("webhookEvents/stripe:evt_paid_long")?.status).toBe("failed");
+    expect(state.creates).toBe(0); expect(state.emails).toHaveLength(0); expect(vi.getTimerCount()).toBe(0);
+  });
+
+  // Break caught: continuing canonical reads/writes after the event token
+  // expired, or failing the old event over a newer processed receipt.
+  it.each(["refund", "paid"])("stops %s after a deferred read loses event ownership without regressing the replacement", async (entry) => {
+    const service = await import("./order-service"); const db = await import("./firestore");
+    readOrder().stripePaymentIntentId = "pi_paid";
+    let resume!: () => void; let signal!: () => void;
+    const started = new Promise<void>((resolve) => { signal = resolve; });
+    const paused = new Promise<void>((resolve) => { resume = resolve; });
+    state.beforeRead = async () => { state.beforeRead = null; signal(); await paused; };
+    const body = entry === "paid" ? webhook("evt_lost") : JSON.stringify({ id: "evt_lost", type: "refund.created", data: { object: refund("pending", 500) } });
+    const task = service.handleStripeWebhook(body, "synthetic-signature").then(() => "processed", (error: Error) => error.name);
+    await started;
+    // Model event ownership loss independently: the shared order lease still
+    // belongs to this worker, so it cannot mask a missing event fence.
+    const oldEvent = state.records.get("webhookEvents/stripe:evt_lost")!;
+    oldEvent.lease = { ...(oldEvent.lease as object), expiresAtMs: Date.now() };
+    const replacement = await db.beginWebhookEventProcessing("stripe", "evt_lost", {});
+    if (replacement.kind !== "claimed") throw new Error("replacement event claim failed");
+    await db.finishWebhookEventProcessing("stripe", "evt_lost", replacement.lease.token);
+    const completed = state.records.get("webhookEvents/stripe:evt_lost");
+    resume(); expect(await task).toBe("ProcessingOwnershipLostError");
+    expect(state.reads).toBe(1); expect(readOrder().refundSummary).toBeUndefined();
+    if (entry === "refund") expect(readOrder().fulfillmentBlocked).toBe(true);
+    expect(readOrder().orderProcessingLease).toBeUndefined();
+    expect(state.records.get("webhookEvents/stripe:evt_lost")).toEqual(completed);
+    expect(vi.getTimerCount()).toBe(0); expect(state.creates).toBe(0);
+  });
 
   // Break caught: email failure regresses fulfillment, or recovery creates a
   // second order/message instead of replaying the durable job.

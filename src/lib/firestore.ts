@@ -288,6 +288,19 @@ export async function finishWebhookEventProcessing(source: WebhookSource, eventI
   return changeWebhookEvent(source, eventId, token, true);
 }
 
+export async function renewWebhookEventProcessing(source: WebhookSource, eventId: string, token: string): Promise<boolean> {
+  const db = getDb();
+  const ref = db.collection(webhookEventsCollection).doc(`${source}:${eventId}`);
+  return db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    const data = existing.data();
+    const now = Date.now();
+    if (data?.status !== "processing" || !ownsProcessingLease(data?.lease, token, now)) return false;
+    transaction.set(ref, { lease: { token, expiresAtMs: now + processingLeaseMs }, updatedAt: Timestamp.fromMillis(now) }, { merge: true });
+    return true;
+  });
+}
+
 export async function failWebhookEventProcessing(source: WebhookSource, eventId: string, token: string, error: unknown): Promise<boolean> {
   return changeWebhookEvent(source, eventId, token, false, error);
 }

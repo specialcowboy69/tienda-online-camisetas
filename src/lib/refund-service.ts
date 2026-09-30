@@ -26,15 +26,24 @@ async function write(order: StoreOrder, token: string, patch: Parameters<typeof 
   if (!await updateClaimedOrder(order.id, token, patch)) throw new ProcessingOwnershipLostError();
 }
 
+type OwnershipCheckpoint = () => Promise<void>;
+const noCheckpoint: OwnershipCheckpoint = async () => {};
+async function readOwnedStripe<T>(read: (options: Stripe.RequestOptions) => PromiseLike<T>, checkpoint: OwnershipCheckpoint): Promise<T> {
+  await checkpoint();
+  const result = await readStripeWithinDeadline(read);
+  await checkpoint();
+  return result;
+}
+
 // Consumes the caller's generic order lease. It must never acquire recursively.
-export async function reconcileOrderRefunds(order: StoreOrder, token: string): Promise<RefundSummary> {
+export async function reconcileOrderRefunds(order: StoreOrder, token: string, checkpoint: OwnershipCheckpoint = noCheckpoint): Promise<RefundSummary> {
+  const renewOwnership = async () => { await checkpoint(); await renew(order, token); };
   let sawRefund = false;
   try {
-    await renew(order, token);
     const paymentIntentId = order.stripePaymentIntentId;
     if (!paymentIntentId?.startsWith("pi_")) invalid("missing persisted PaymentIntent");
     const stripe = getStripe();
-    const payment = await readStripeWithinDeadline((options) => stripe.paymentIntents.retrieve(paymentIntentId, options));
+    const payment = await readOwnedStripe((options) => stripe.paymentIntents.retrieve(paymentIntentId, options), renewOwnership);
     if (payment.id !== paymentIntentId || (payment.metadata.order_id && payment.metadata.order_id !== order.id)
       || payment.status !== "succeeded" || payment.currency !== order.totals.currency.toLowerCase()
       || !Number.isSafeInteger(payment.amount_received) || payment.amount_received <= 0) invalid("invalid captured payment");
@@ -43,8 +52,7 @@ export async function reconcileOrderRefunds(order: StoreOrder, token: string): P
     let cursor: string | undefined;
     const reconciledAt = new Date().toISOString();
     for (;;) {
-      await renew(order, token);
-      const page = await readStripeWithinDeadline((options) => stripe.refunds.list({ payment_intent: paymentIntentId, limit: 100, ...(cursor ? { starting_after: cursor } : {}) }, options));
+      const page = await readOwnedStripe((options) => stripe.refunds.list({ payment_intent: paymentIntentId, limit: 100, ...(cursor ? { starting_after: cursor } : {}) }, options), renewOwnership);
       if (!Array.isArray(page.data) || typeof page.has_more !== "boolean") invalid("incomplete refund page");
       for (const refund of page.data) {
         sawRefund = true;
@@ -70,44 +78,46 @@ export async function reconcileOrderRefunds(order: StoreOrder, token: string): P
       failedCount: values.filter((refund) => refund.status === "failed").length,
       canceledCount: values.filter((refund) => refund.status === "canceled").length,
       fulfillmentBlocked, refundCount: values.length, reconciledAt };
-    await renew(order, token);
+    await renewOwnership();
     // Mark financial state unresolved until every snapshot chunk and the final
     // summary commit succeeds. A crashed pagination/persistence cannot clear it.
     await write(order, token, { refundReviewReason: "Refund reconciliation is incomplete.", ...(fulfillmentBlocked ? { fulfillmentBlocked: true } : {}) });
     if (!await persistClaimedRefundSnapshots(order.id, token, values)) throw new ProcessingOwnershipLostError();
+    await renewOwnership();
     await write(order, token, { refundSummary: summary, refundReviewReason: FieldValue.delete() });
     return summary;
   } catch (error) {
     if (error instanceof ProcessingOwnershipLostError) throw error;
+    await renewOwnership();
     const safe = safeReadError(error);
     await write(order, token, { refundReviewReason: safe.message, ...(sawRefund && !order.printfulOrderId ? { fulfillmentBlocked: true } : {}) });
     throw safe;
   }
 }
 
-async function resolveEventOrder(event: Stripe.Event, onStoredOrder: (order: StoreOrder) => void): Promise<{ order: StoreOrder; paymentIntentId: string } | null> {
+async function resolveEventOrder(event: Stripe.Event, onStoredOrder: (order: StoreOrder) => Promise<void>, checkpoint: OwnershipCheckpoint): Promise<{ order: StoreOrder; paymentIntentId: string } | null> {
   const stripe = getStripe();
   const object = event.data.object as Stripe.Refund | Stripe.Charge;
   const references = orderReferences(object.metadata?.order_id);
   let paymentIntentId = identity(object.payment_intent);
   const chargeId = event.type === "charge.refunded" ? object.id : identity((object as Stripe.Refund).charge);
   if (!paymentIntentId && chargeId) {
-    const charge = await readStripeWithinDeadline((options) => stripe.charges.retrieve(chargeId, options));
+    const charge = await readOwnedStripe((options) => stripe.charges.retrieve(chargeId, options), checkpoint);
     if (charge.id !== chargeId) invalid("charge identity mismatch");
     paymentIntentId = identity(charge.payment_intent);
     references.push(...orderReferences(charge.metadata.order_id));
   }
   if (!paymentIntentId?.startsWith("pi_")) invalid("event has no identifiable payment");
   const stored = await findOrderByStripePaymentIntentId(paymentIntentId);
-  if (stored) { references.push(stored.id); onStoredOrder(stored); }
-  const payment = await readStripeWithinDeadline((options) => stripe.paymentIntents.retrieve(paymentIntentId!, options));
+  if (stored) { references.push(stored.id); await onStoredOrder(stored); }
+  const payment = await readOwnedStripe((options) => stripe.paymentIntents.retrieve(paymentIntentId!, options), checkpoint);
   if (payment.id !== paymentIntentId) invalid("PaymentIntent identity mismatch");
   references.push(...orderReferences(payment.metadata.order_id));
   const sessions: Stripe.Checkout.Session[] = [];
   let cursor: string | undefined;
   const cursors = new Set<string>();
   for (;;) {
-    const page = await readStripeWithinDeadline((options) => stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 100, ...(cursor ? { starting_after: cursor } : {}) }, options));
+    const page = await readOwnedStripe((options) => stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 100, ...(cursor ? { starting_after: cursor } : {}) }, options), checkpoint);
     if (!Array.isArray(page.data) || typeof page.has_more !== "boolean") invalid("incomplete Checkout page");
     for (const session of page.data) {
       if (identity(session.payment_intent) !== paymentIntentId) invalid("filtered Checkout payment mismatch");
@@ -136,46 +146,54 @@ function verifyAssociation(order: StoreOrder, paymentIntentId: string, sessions:
   if (!refs.length || refs.some((ref) => ref !== order.id)) invalid("Checkout order references mismatch");
 }
 
-export async function handleStripeRefundEvent(event: Stripe.Event): Promise<"reconciled" | "unrelated"> {
-  let knownOrder: StoreOrder | undefined;
-  let resolved: Awaited<ReturnType<typeof resolveEventOrder>>;
-  try {
-    resolved = await resolveEventOrder(event, (order) => { knownOrder = order; });
-  } catch (error) {
-    // A persisted PI mapping establishes a refund observation even if the
-    // canonical read fails. Latch it from fresh leased state before retrying.
-    // Event metadata alone must never target an arbitrary order for writes.
-    if (knownOrder) {
-      const claim = await claimOrderProcessing(knownOrder.id);
-      if (claim.kind === "busy") throw new ProcessingBusyError(claim.retryAfterSeconds);
-      if (claim.kind === "claimed") {
-        try {
-          const order = await getOrder(knownOrder.id);
-          if (!order || order.stripePaymentIntentId !== knownOrder.stripePaymentIntentId) invalid("stored association changed while claiming");
-          await write(order, claim.lease.token, {
-            refundReviewReason: "Refund event association could not be verified. Manual review required.",
-            ...(!order.printfulOrderId || ["refunded", "canceled"].includes(order.status) ? { fulfillmentBlocked: true } : {})
-          });
-        } finally {
-          if (!await releaseOrderProcessing(knownOrder.id, claim.lease.token)) throw new ProcessingOwnershipLostError();
-        }
-      }
-    }
-    throw safeReadError(error);
+export async function handleStripeRefundEvent(event: Stripe.Event, checkpoint: OwnershipCheckpoint = noCheckpoint): Promise<"reconciled" | "unrelated"> {
+  let held: { id: string; token: string } | undefined;
+  let verifiedOrder: StoreOrder | undefined;
+  const renewOwnership = async () => {
+    await checkpoint();
+    if (held && !await renewOrderProcessing(held.id, held.token)) throw new ProcessingOwnershipLostError();
+  };
+  async function claimFresh(expected: StoreOrder): Promise<StoreOrder> {
+    await checkpoint();
+    const claim = await claimOrderProcessing(expected.id);
+    if (claim.kind === "missing") invalid("order disappeared");
+    if (claim.kind === "busy") throw new ProcessingBusyError(claim.retryAfterSeconds);
+    held = { id: expected.id, token: claim.lease.token };
+    const order = await getOrder(expected.id);
+    if (!order || order.stripeSessionId !== expected.stripeSessionId || order.stripePaymentIntentId !== expected.stripePaymentIntentId) invalid("stored association changed while claiming");
+    verifiedOrder = order;
+    return order;
   }
-  if (!resolved) return "unrelated";
-  const claim = await claimOrderProcessing(resolved.order.id);
-  if (claim.kind === "missing") invalid("order disappeared");
-  if (claim.kind === "busy") throw new ProcessingBusyError(claim.retryAfterSeconds);
-  const token = claim.lease.token;
   try {
+    const resolved = await resolveEventOrder(event, async (stored) => {
+      // A persisted PI mapping is enough to record the observation. Own the
+      // order before any further provider wait can let local fulfillment race.
+      const order = await claimFresh(stored);
+      const fulfillmentBlocked = Boolean(order.fulfillmentBlocked || order.refundSummary?.fulfillmentBlocked || !order.printfulOrderId || ["refunded", "canceled"].includes(order.status));
+      await renewOwnership();
+      await write(order, held!.token, {
+        refundReviewReason: "Refund event association could not be verified. Manual review required.",
+        ...(fulfillmentBlocked ? { fulfillmentBlocked: true } : {})
+      });
+    }, renewOwnership);
+    if (!resolved) return "unrelated";
+    // Metadata-only associations acquire authority only after canonical checks.
+    if (!held) await claimFresh(resolved.order);
+    const token = held!.token;
     const order = await getOrder(resolved.order.id);
     if (!order || order.stripeSessionId !== resolved.order.stripeSessionId || (order.stripePaymentIntentId && order.stripePaymentIntentId !== resolved.paymentIntentId)) invalid("stored association changed while claiming");
     const fulfillmentBlocked = Boolean(order.fulfillmentBlocked || order.refundSummary?.fulfillmentBlocked || !order.printfulOrderId || ["refunded", "canceled"].includes(order.status));
+    await renewOwnership();
     await write(order, token, { stripePaymentIntentId: resolved.paymentIntentId, ...(fulfillmentBlocked ? { fulfillmentBlocked: true } : {}) });
-    await reconcileOrderRefunds({ ...order, stripePaymentIntentId: resolved.paymentIntentId, fulfillmentBlocked }, token);
+    await reconcileOrderRefunds({ ...order, stripePaymentIntentId: resolved.paymentIntentId, fulfillmentBlocked }, token, checkpoint);
     return "reconciled";
+  } catch (error) {
+    if (!(error instanceof ProcessingOwnershipLostError) && held && verifiedOrder) {
+      await renewOwnership();
+      await write(verifiedOrder, held.token, { refundReviewReason: safeReadError(error).message });
+    }
+    throw safeReadError(error);
   } finally {
-    if (!await releaseOrderProcessing(resolved.order.id, token)) throw new ProcessingOwnershipLostError();
+    if (held && !await releaseOrderProcessing(held.id, held.token)) throw new ProcessingOwnershipLostError();
   }
 }

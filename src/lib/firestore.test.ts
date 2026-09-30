@@ -357,6 +357,28 @@ describe("owned processing leases", () => {
     expect(records.get("webhookEvents/stripe:evt_1")?.status).toBe("processed");
   });
 
+  it("renews only a live event owner and never revives expired or replaced tokens", async () => {
+    const db = await import("./firestore");
+    expect(db).toHaveProperty("renewWebhookEventProcessing");
+    const first = await db.beginWebhookEventProcessing("stripe", "evt_renew", {});
+    if (first.kind !== "claimed") throw new Error("Expected claim");
+    vi.advanceTimersByTime(100000);
+    expect(await db.renewWebhookEventProcessing("stripe", "evt_renew", first.lease.token)).toBe(true);
+    vi.advanceTimersByTime(20000);
+    expect(await db.beginWebhookEventProcessing("stripe", "evt_renew", {})).toMatchObject({ kind: "busy" });
+    vi.advanceTimersByTime(100000);
+    expect(await db.renewWebhookEventProcessing("stripe", "evt_renew", first.lease.token)).toBe(false);
+    expect(await db.finishWebhookEventProcessing("stripe", "evt_renew", first.lease.token)).toBe(false);
+    const second = await db.beginWebhookEventProcessing("stripe", "evt_renew", {});
+    if (second.kind !== "claimed") throw new Error("Expected replacement");
+    expect(await db.renewWebhookEventProcessing("stripe", "evt_renew", first.lease.token)).toBe(false);
+    expect(await db.finishWebhookEventProcessing("stripe", "evt_renew", second.lease.token)).toBe(true);
+    const completed = records.get("webhookEvents/stripe:evt_renew");
+    expect(await db.renewWebhookEventProcessing("stripe", "evt_renew", second.lease.token)).toBe(false);
+    expect(await db.failWebhookEventProcessing("stripe", "evt_renew", first.lease.token, {})).toBe(false);
+    expect(records.get("webhookEvents/stripe:evt_renew")).toEqual(completed);
+  });
+
   it("recovers an owned failed event with a new token", async () => {
     const db = await import("./firestore");
     const claim = await db.beginWebhookEventProcessing("printful", "evt_1", {});
