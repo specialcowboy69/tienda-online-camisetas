@@ -3,10 +3,13 @@ import type Stripe from "stripe";
 import type { StoreOrder } from "./types";
 import { FieldValue } from "firebase-admin/firestore";
 import * as service from "./refund-service";
+import { getPrintfulSubmissionEligibility } from "./checkout-validation";
 
-const mocks = vi.hoisted(() => ({ pi: vi.fn(), refunds: vi.fn(), sessions: vi.fn(), charge: vi.fn(), claim: vi.fn(), renew: vi.fn(), release: vi.fn(), update: vi.fn(), snapshots: vi.fn(), get: vi.fn(), find: vi.fn(), refundCreate: vi.fn(), cancel: vi.fn() }));
-vi.mock("./stripe", async (original) => ({ ...await original<typeof import("./stripe")>(), getStripe: () => ({ paymentIntents: { retrieve: mocks.pi, cancel: mocks.cancel }, refunds: { list: mocks.refunds, create: mocks.refundCreate }, charges: { retrieve: mocks.charge }, checkout: { sessions: { list: mocks.sessions } } }) }));
+const mocks = vi.hoisted(() => ({ pi: vi.fn(), refunds: vi.fn(), sessions: vi.fn(), retrieveSession: vi.fn(), charge: vi.fn(), claim: vi.fn(), renew: vi.fn(), release: vi.fn(), update: vi.fn(), snapshots: vi.fn(), get: vi.fn(), find: vi.fn(), refundCreate: vi.fn(), cancel: vi.fn(), createPrintful: vi.fn(), findPrintful: vi.fn() }));
+vi.mock("./stripe", async (original) => ({ ...await original<typeof import("./stripe")>(), getStripe: () => ({ paymentIntents: { retrieve: mocks.pi, cancel: mocks.cancel }, refunds: { list: mocks.refunds, create: mocks.refundCreate }, charges: { retrieve: mocks.charge }, checkout: { sessions: { list: mocks.sessions, retrieve: mocks.retrieveSession } } }) }));
 vi.mock("./firestore", () => ({ claimOrderProcessing: mocks.claim, renewOrderProcessing: mocks.renew, releaseOrderProcessing: mocks.release, updateClaimedOrder: mocks.update, persistClaimedRefundSnapshots: mocks.snapshots, getOrder: mocks.get, findOrderByStripePaymentIntentId: mocks.find }));
+vi.mock("./printful", async (original) => ({ ...await original<typeof import("./printful")>(), createPrintfulOrder: mocks.createPrintful, findPrintfulOrderByExternalId: mocks.findPrintful }));
+vi.mock("./env", async (original) => ({ ...await original<typeof import("./env")>(), isStripeTaxEnabled: () => false }));
 
 const base = { id: "order1", status: "paid", stripeSessionId: "cs_1", stripePaymentIntentId: "pi_1", totals: { total: 2000, currency: "eur" } } as StoreOrder;
 const pi = { id: "pi_1", status: "succeeded", currency: "eur", amount: 2200, amount_received: 2200, metadata: { order_id: "order1" } };
@@ -79,6 +82,40 @@ describe("authoritative refund reconciliation", () => {
     mocks.pi.mockRejectedValue(new Error("sensitive provider body"));
     await expect(handle()).rejects.toThrow("could not be verified");
     expect(current.refundReviewReason).toBeTruthy(); expect(current.refundReviewReason).not.toContain("sensitive");
+  });
+  it.each(["PaymentIntent", "Checkout"])("keeps observed refunds blocked after a %s read failure, empty-list revalidation and fulfillment retry", async (failure) => {
+    const { revalidatePaidCheckout, submitOrderToPrintful } = await import("./order-service");
+    current = { ...current, recipient: { name: "Ada", email: "ada@example.test", address1: "1 Main St", city: "Madrid", countryCode: "ES", zip: "28001" }, items: [], shippingRate: { id: "STANDARD", name: "Standard", rate: "0", currency: "eur" }, totals: { subtotal: 2000, shipping: 0, total: 2000, currency: "eur" }, createdAt: "2026-09-30", updatedAt: "2026-09-30" };
+    mocks.retrieveSession.mockResolvedValue({ ...session, status: "complete", payment_status: "paid", amount_total: 2000, currency: "eur", total_details: { amount_tax: 0 }, shipping_details: { address: { line1: "1 Main St", city: "Madrid", country: "ES", postal_code: "28001" } } });
+    (failure === "PaymentIntent" ? mocks.pi : mocks.sessions).mockRejectedValueOnce(new Error("read unavailable"));
+    await expect(handle()).rejects.toThrow("could not be verified");
+    expect(current.refundReviewReason).toBeTruthy();
+    // Exercise both real services: successful current reads clear the transient
+    // diagnostic, but must not erase the earlier observed refund attempt.
+    const revalidated = await revalidatePaidCheckout("order1");
+    expect(revalidated.refundReviewReason).toBeUndefined();
+    expect(revalidated.refundSummary).toMatchObject({ status: "none", refundCount: 0, fulfillmentBlocked: true });
+    expect(current.fulfillmentBlocked).toBe(true);
+    expect(getPrintfulSubmissionEligibility(revalidated)).toMatchObject({ allowed: false, reason: "RefundReviewRequired" });
+    await expect(submitOrderToPrintful("order1")).rejects.toMatchObject({ reason: "RefundReviewRequired" });
+    expect(mocks.findPrintful).not.toHaveBeenCalled(); expect(mocks.createPrintful).not.toHaveBeenCalled();
+  });
+  it("uses fresh leased fulfillment state when a known mapping's association read fails", async () => {
+    mocks.find.mockResolvedValue({ ...base, printfulOrderId: 123 });
+    mocks.pi.mockRejectedValueOnce(new Error("read unavailable"));
+    await expect(handle()).rejects.toThrow("could not be verified");
+    expect(current.fulfillmentBlocked).toBe(true);
+  });
+  it("does not add a new hold when fresh leased state already has a remote receipt", async () => {
+    mocks.find.mockResolvedValue({ ...base }); current = { ...current, printfulOrderId: 123, status: "shipped" };
+    mocks.pi.mockRejectedValueOnce(new Error("read unavailable"));
+    await expect(handle()).rejects.toThrow("could not be verified");
+    expect(current.fulfillmentBlocked).toBeUndefined(); expect(current.status).toBe("shipped"); expect(current.refundReviewReason).toBeTruthy();
+  });
+  it("never writes a hold based only on unverified event metadata", async () => {
+    mocks.find.mockResolvedValue(null); mocks.pi.mockRejectedValueOnce(new Error("read unavailable"));
+    await expect(handle(event(refund("re_1", 2200, "pending", { metadata: { order_id: "order1" } })))).rejects.toThrow();
+    expect(mocks.claim).not.toHaveBeenCalled(); expect(mocks.update).not.toHaveBeenCalled();
   });
   it("rejects incomplete list pagination rather than claiming no refunds", async () => {
     mocks.refunds.mockResolvedValue({ data: [] }); await expect(reconcile()).rejects.toThrow(); expect(current.refundReviewReason).toBeTruthy();

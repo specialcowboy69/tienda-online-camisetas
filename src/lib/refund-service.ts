@@ -142,14 +142,20 @@ export async function handleStripeRefundEvent(event: Stripe.Event): Promise<"rec
   try {
     resolved = await resolveEventOrder(event, (order) => { knownOrder = order; });
   } catch (error) {
-    // Only a persisted PI mapping authorizes a diagnostic on failed association.
+    // A persisted PI mapping establishes a refund observation even if the
+    // canonical read fails. Latch it from fresh leased state before retrying.
     // Event metadata alone must never target an arbitrary order for writes.
     if (knownOrder) {
       const claim = await claimOrderProcessing(knownOrder.id);
       if (claim.kind === "busy") throw new ProcessingBusyError(claim.retryAfterSeconds);
       if (claim.kind === "claimed") {
         try {
-          await write(knownOrder, claim.lease.token, { refundReviewReason: "Refund event association could not be verified. Manual review required." });
+          const order = await getOrder(knownOrder.id);
+          if (!order || order.stripePaymentIntentId !== knownOrder.stripePaymentIntentId) invalid("stored association changed while claiming");
+          await write(order, claim.lease.token, {
+            refundReviewReason: "Refund event association could not be verified. Manual review required.",
+            ...(!order.printfulOrderId || ["refunded", "canceled"].includes(order.status) ? { fulfillmentBlocked: true } : {})
+          });
         } finally {
           if (!await releaseOrderProcessing(knownOrder.id, claim.lease.token)) throw new ProcessingOwnershipLostError();
         }
