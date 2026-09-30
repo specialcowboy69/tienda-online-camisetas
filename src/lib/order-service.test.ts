@@ -9,14 +9,15 @@ const mocks = vi.hoisted(() => ({
   createStripeCheckoutSession: vi.fn(),
   getOrder: vi.fn(), updateOrder: vi.fn(), updateOrderStatus: vi.fn(),
   createPrintfulOrder: vi.fn(), findPrintfulOrderByExternalId: vi.fn(),
-  constructEvent: vi.fn(), retrieveSession: vi.fn(), createSession: vi.fn()
+  constructEvent: vi.fn(), retrieveSession: vi.fn(), createSession: vi.fn(),
+  beginWebhookEventProcessing: vi.fn(), failWebhookEventProcessing: vi.fn(), finishWebhookEventProcessing: vi.fn()
 }));
 
 vi.mock("./firestore", () => ({
-  beginWebhookEventProcessing: vi.fn().mockResolvedValue(true),
+  beginWebhookEventProcessing: mocks.beginWebhookEventProcessing,
   createOrder: mocks.createOrder,
-  failWebhookEventProcessing: vi.fn(),
-  finishWebhookEventProcessing: vi.fn(),
+  failWebhookEventProcessing: mocks.failWebhookEventProcessing,
+  finishWebhookEventProcessing: mocks.finishWebhookEventProcessing,
   findOrderByPrintfulExternalId: vi.fn(),
   findOrderByStripePaymentIntentId: vi.fn(),
   getCatalogProduct: mocks.getCatalogProduct,
@@ -93,10 +94,49 @@ const shippingRate: ShippingRate = {
 describe("order service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.beginWebhookEventProcessing.mockResolvedValue({ kind: "claimed", lease: { token: "event-owner", expiresAtMs: Date.now() + 120000 }, value: null });
+    mocks.finishWebhookEventProcessing.mockResolvedValue(true);
+    mocks.failWebhookEventProcessing.mockResolvedValue(true);
     mocks.getCatalogProduct.mockResolvedValue(product);
     mocks.getShippingRates.mockResolvedValue([shippingRate]);
     mocks.createStripeCheckoutSession.mockResolvedValue({ id: "cs_test", url: "https://checkout.stripe.test" });
     mocks.createPrintfulOrder.mockResolvedValue({ id: 123, status: "draft" });
+  });
+
+  it("leaves a busy Stripe event retryable without business writes", async () => {
+    const { handleStripeWebhook } = await import("./order-service");
+    mocks.beginWebhookEventProcessing.mockResolvedValue({ kind: "busy", retryAfterSeconds: 17 });
+    mocks.constructEvent.mockReturnValue({ id: "evt_busy", type: "checkout.session.expired", data: { object: paidSession } });
+    await expect(handleStripeWebhook("{}", "signature")).rejects.toMatchObject({ retryAfterSeconds: 17 });
+    expect(mocks.updateOrderStatus).not.toHaveBeenCalled();
+    expect(mocks.finishWebhookEventProcessing).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges only completed Stripe duplicates", async () => {
+    const { handleStripeWebhook } = await import("./order-service");
+    mocks.beginWebhookEventProcessing.mockResolvedValue({ kind: "processed" });
+    mocks.constructEvent.mockReturnValue({ id: "evt_done", type: "checkout.session.expired", data: { object: paidSession } });
+    const response = await handleStripeWebhook("{}", "signature");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ received: true, duplicate: true });
+    expect(mocks.updateOrderStatus).not.toHaveBeenCalled();
+  });
+
+  it("passes the owner token to Stripe completion and rejects lost ownership", async () => {
+    const { handleStripeWebhook } = await import("./order-service");
+    mocks.constructEvent.mockReturnValue({ id: "evt_other", type: "unhandled", data: { object: {} } });
+    mocks.finishWebhookEventProcessing.mockResolvedValue(false);
+    await expect(handleStripeWebhook("{}", "signature")).rejects.toMatchObject({ name: "ProcessingOwnershipLostError" });
+    expect(mocks.finishWebhookEventProcessing).toHaveBeenCalledWith("stripe", "evt_other", "event-owner");
+    expect(mocks.failWebhookEventProcessing).toHaveBeenCalledWith("stripe", "evt_other", "event-owner", expect.anything());
+  });
+
+  it("reports lost ownership when a Stripe failure cannot be recorded", async () => {
+    const { handleStripeWebhook } = await import("./order-service");
+    mocks.constructEvent.mockReturnValue({ id: "evt_failed", type: "checkout.session.completed", data: { object: paidSession } });
+    mocks.getOrder.mockRejectedValueOnce(new Error("processing failed"));
+    mocks.failWebhookEventProcessing.mockResolvedValue(false);
+    await expect(handleStripeWebhook("{}", "signature")).rejects.toMatchObject({ name: "ProcessingOwnershipLostError" });
   });
 
   it("blocks unsafe fulfillment retries before any writes or provider calls", async () => {

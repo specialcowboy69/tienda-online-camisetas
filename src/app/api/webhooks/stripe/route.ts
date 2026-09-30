@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { jsonError } from "@/lib/http";
 import { handleStripeWebhook } from "@/lib/order-service";
+import { processingErrorResponse } from "@/lib/processing-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,6 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text();
     return await handleStripeWebhook(rawBody, request.headers.get("stripe-signature"));
   } catch (error) {
-    return jsonError(error, 500);
+    return processingErrorResponse(error) || jsonError(error, 500);
   }
 }

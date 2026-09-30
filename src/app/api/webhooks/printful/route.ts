@@ -14,6 +14,7 @@ import { sendShipmentEmail } from "@/lib/email";
 import { fetchPrintfulCatalog } from "@/lib/printful";
 import { isPrintfulWebhookSecretValid, parsePrintfulWebhookPayload, type PrintfulWebhookPayload } from "@/lib/printful-webhook";
 import { jsonError, summarizeError } from "@/lib/http";
+import { ProcessingBusyError, ProcessingOwnershipLostError, processingErrorResponse } from "@/lib/processing-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -31,21 +32,22 @@ export async function POST(request: NextRequest) {
     }
 
     const eventId = buildPrintfulEventId(payload);
-    const shouldProcess = await beginWebhookEventProcessing("printful", eventId, payload);
-    if (!shouldProcess) {
+    const claim = await beginWebhookEventProcessing("printful", eventId, payload);
+    if (claim.kind === "processed") {
       return NextResponse.json({ received: true, duplicate: true });
     }
+    if (claim.kind === "busy") throw new ProcessingBusyError(claim.retryAfterSeconds);
 
     try {
       await applyPrintfulEvent(payload);
-      await finishWebhookEventProcessing("printful", eventId);
+      if (!await finishWebhookEventProcessing("printful", eventId, claim.lease.token)) throw new ProcessingOwnershipLostError();
       return NextResponse.json({ received: true });
     } catch (error) {
-      await failWebhookEventProcessing("printful", eventId, summarizeError(error));
+      if (!await failWebhookEventProcessing("printful", eventId, claim.lease.token, summarizeError(error))) throw new ProcessingOwnershipLostError();
       throw error;
     }
   } catch (error) {
-    return jsonError(error);
+    return processingErrorResponse(error) || jsonError(error);
   }
 }
 

@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   beginWebhookEventProcessing: vi.fn(),
+  finishWebhookEventProcessing: vi.fn(), failWebhookEventProcessing: vi.fn(), markCatalogProductDeleted: vi.fn(),
   configurePrintfulWebhook: vi.fn(),
   isAdminRequest: vi.fn(),
   listCatalogProducts: vi.fn(),
@@ -28,20 +29,16 @@ vi.mock("@/lib/email", () => ({
 
 vi.mock("@/lib/firestore", () => ({
   beginWebhookEventProcessing: mocks.beginWebhookEventProcessing,
-  failWebhookEventProcessing: vi.fn(),
-  finishWebhookEventProcessing: vi.fn(),
+  failWebhookEventProcessing: mocks.failWebhookEventProcessing,
+  finishWebhookEventProcessing: mocks.finishWebhookEventProcessing,
   findOrderByPrintfulExternalId: vi.fn(),
   getOrder: vi.fn(),
   listCatalogProducts: mocks.listCatalogProducts,
-  markCatalogProductDeleted: vi.fn(),
+  markCatalogProductDeleted: mocks.markCatalogProductDeleted,
   saveCatalogProducts: vi.fn(),
   updateOrderStatus: vi.fn()
 }));
 
-vi.mock("@/lib/http", () => ({
-  jsonError: vi.fn(),
-  summarizeError: vi.fn()
-}));
 
 vi.mock("@/lib/printful", () => ({
   appendWebhookSecret: (url: string, secret?: string) => {
@@ -68,6 +65,8 @@ describe("Printful webhook routes", () => {
     vi.clearAllMocks();
     vi.stubEnv("PRINTFUL_WEBHOOK_SECRET", "strong-test-secret");
     mocks.webhookSecret = "strong-test-secret";
+    mocks.finishWebhookEventProcessing.mockResolvedValue(true);
+    mocks.failWebhookEventProcessing.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -88,7 +87,7 @@ describe("Printful webhook routes", () => {
   });
 
   it("accepts a valid webhook secret from the query parameter", async () => {
-    mocks.beginWebhookEventProcessing.mockResolvedValue(false);
+    mocks.beginWebhookEventProcessing.mockResolvedValue({ kind: "processed" });
     const { POST } = await import("../app/api/webhooks/printful/route");
     const request = new NextRequest("https://store.example/api/webhooks/printful?secret=strong-test-secret", {
       method: "POST",
@@ -102,7 +101,7 @@ describe("Printful webhook routes", () => {
   });
 
   it("accepts a valid webhook secret from the request header", async () => {
-    mocks.beginWebhookEventProcessing.mockResolvedValue(false);
+    mocks.beginWebhookEventProcessing.mockResolvedValue({ kind: "processed" });
     const { POST } = await import("../app/api/webhooks/printful/route");
     const request = new NextRequest("https://store.example/api/webhooks/printful", {
       method: "POST",
@@ -133,6 +132,35 @@ describe("Printful webhook routes", () => {
       "https://store.example/api/webhooks/printful?secret=strong-test-secret",
       [123]
     );
+  });
+
+  it("returns 503 and Retry-After for a busy Printful event", async () => {
+    mocks.beginWebhookEventProcessing.mockResolvedValue({ kind: "busy", retryAfterSeconds: 23 });
+    const { POST } = await import("../app/api/webhooks/printful/route");
+    const response = await POST(new NextRequest("https://store.example/api/webhooks/printful?secret=strong-test-secret", {
+      method: "POST", body: JSON.stringify({ type: "product_deleted", created: 123, store: 1, data: { sync_product: { id: 7 } } })
+    }));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("23");
+    expect(mocks.markCatalogProductDeleted).not.toHaveBeenCalled();
+    expect(mocks.finishWebhookEventProcessing).not.toHaveBeenCalled();
+  });
+
+  it.each(["finish", "fail"])("returns retryable 503 after lost Printful %s ownership", async (operation) => {
+    mocks.beginWebhookEventProcessing.mockResolvedValue({ kind: "claimed", value: null, lease: { token: "printful-owner", expiresAtMs: Date.now() + 120000 } });
+    if (operation === "finish") mocks.finishWebhookEventProcessing.mockResolvedValue(false);
+    else {
+      mocks.markCatalogProductDeleted.mockRejectedValueOnce(new Error("work failed"));
+      mocks.failWebhookEventProcessing.mockResolvedValue(false);
+    }
+    const { POST } = await import("../app/api/webhooks/printful/route");
+    const response = await POST(new NextRequest("https://store.example/api/webhooks/printful?secret=strong-test-secret", {
+      method: "POST", body: JSON.stringify({ type: "product_deleted", created: 123, store: 1, data: { sync_product: { id: 7 } } })
+    }));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("1");
+    if (operation === "finish") expect(mocks.finishWebhookEventProcessing).toHaveBeenCalledWith("printful", "product_deleted:123:1:7", "printful-owner");
+    expect(mocks.failWebhookEventProcessing).toHaveBeenCalledWith("printful", "product_deleted:123:1:7", "printful-owner", expect.anything());
   });
 
   it("refuses webhook registration when the signing secret is missing", async () => {

@@ -114,6 +114,7 @@ export type StoreOrder = {
   stripeAmountTotal?: number;
   stripeTaxAmount?: number;
   checkoutValidation?: CheckoutValidationEvidence;
+  orderProcessingLease?: ProcessingLease;
   printfulOrderId?: number;
   printfulExternalId?: string;
   printfulStatus?: string;
@@ -134,3 +135,8 @@ export type StoreOrder = {
 };
 
 export type WebhookSource = "stripe" | "printful";
+
+export type ProcessingLease = { token: string; expiresAtMs: number };
+export type ClaimResult<T> =
+  | { kind: "claimed"; lease: ProcessingLease; value: T }
+  | { kind: "busy"; retryAfterSeconds: number };

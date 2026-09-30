@@ -21,6 +21,7 @@ import { assertAllowedCountry } from "./validation";
 import { sendOrderConfirmationEmail } from "./email";
 import { isStripeTaxEnabled, requiredEnv } from "./env";
 import { CartItemInput, Recipient, ShippingRate, StoreOrder } from "./types";
+import { ProcessingBusyError, ProcessingOwnershipLostError } from "./processing-errors";
 
 export async function quoteShipping(input: { recipient: Recipient; items: CartItemInput[] }): Promise<ShippingRate[]> {
   assertAllowedCountry(input.recipient.countryCode);
@@ -88,10 +89,11 @@ export async function handleStripeWebhook(rawBody: string, signature: string | n
     return jsonError(error, 400);
   }
 
-  const shouldProcess = await beginWebhookEventProcessing("stripe", event.id, event);
-  if (!shouldProcess) {
+  const claim = await beginWebhookEventProcessing("stripe", event.id, event);
+  if (claim.kind === "processed") {
     return Response.json({ received: true, duplicate: true });
   }
+  if (claim.kind === "busy") throw new ProcessingBusyError(claim.retryAfterSeconds);
 
   try {
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
@@ -124,10 +126,10 @@ export async function handleStripeWebhook(rawBody: string, signature: string | n
       await handleRefundEvent(event);
     }
 
-    await finishWebhookEventProcessing("stripe", event.id);
+    if (!await finishWebhookEventProcessing("stripe", event.id, claim.lease.token)) throw new ProcessingOwnershipLostError();
     return Response.json({ received: true });
   } catch (error) {
-    await failWebhookEventProcessing("stripe", event.id, summarizeError(error));
+    if (!await failWebhookEventProcessing("stripe", event.id, claim.lease.token, summarizeError(error))) throw new ProcessingOwnershipLostError();
     throw error;
   }
 }
