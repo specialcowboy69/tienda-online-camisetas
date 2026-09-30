@@ -1,8 +1,8 @@
 import React, { type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductPurchasePanel } from "./product-purchase-panel";
-import type { CatalogProduct, Recipient } from "@/lib/types";
+import type { CatalogProduct } from "@/lib/types";
 
 const hooks = vi.hoisted(() => ({ values: [] as unknown[], index: 0 }));
 vi.mock("react", async (importOriginal) => {
@@ -19,40 +19,41 @@ function renderPanel() {
   hooks.index = 0;
   return ProductPurchasePanel({ product, allowedCountries: ["US"], defaultCountry: "US" });
 }
-type ElementProps = { children?: ReactNode; value?: unknown; required?: boolean; onChange?: (event: { target: { value: string } }) => void };
+type ElementProps = { children?: ReactNode; value?: unknown; required?: boolean; disabled?: boolean; onChange?: (event: { target: { value: string } }) => void; onClick?: () => void; onSubmit?: (event: { preventDefault: () => void }) => Promise<void> };
 function elements(node: ReactNode): ReactElement<ElementProps>[] {
   if (Array.isArray(node)) return node.flatMap(elements);
   if (!React.isValidElement<ElementProps>(node)) return [];
   return [node, ...elements(node.props.children)];
 }
-describe("ProductPurchasePanel recipient wiring", () => {
+function labelInput(label: string) {
+  const element = elements(renderPanel()).find((entry) => entry.type === "label" && React.Children.toArray(entry.props.children).includes(label));
+  return elements(element).find((entry) => entry.type === "input")!;
+}
+function button(text: string) { return elements(renderPanel()).find((entry) => entry.type === "button" && renderToStaticMarkup(entry).includes(text))!; }
+async function quote() { await elements(renderPanel()).find((entry) => entry.type === "form")!.props.onSubmit!({ preventDefault() {} }); }
+
+describe("ProductPurchasePanel recipient wiring through real rendered handlers", () => {
   beforeEach(() => {
     vi.stubGlobal("React", React);
     hooks.values = []; hooks.index = 0;
-    renderPanel();
-    hooks.values[2] = [{ productId: product.id, syncVariantId: 1, quantity: 1 }];
-    hooks.values[4] = [{ id: "STANDARD", name: "Standard", rate: "0", currency: "usd" }];
-    hooks.values[5] = "STANDARD";
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(JSON.stringify({ rates: [{ id: "STANDARD", name: "Standard", rate: "0", currency: "usd" }] }))));
+    button("Add to bag").props.onClick!();
   });
-  it("renders optional Address 2 and saves apartment edits while clearing the shipping quote", () => {
-    const tree = renderPanel();
-    const html = renderToStaticMarkup(tree);
-    expect(html).toContain("Address 2");
-    const label = elements(tree).find((element) => element.type === "label" && React.Children.toArray(element.props.children).includes("Address 2"));
-    expect(label).toBeDefined();
-    const input = elements(label).find((element) => element.type === "input")!;
+  afterEach(() => { vi.unstubAllGlobals(); });
+  it("saves optional apartment edits and removes the old payable shipping quote", async () => {
+    await quote();
+    expect(button("Pay with Stripe").props.disabled).toBe(false);
+    const input = labelInput("Address 2");
     expect(input.props.required).not.toBe(true);
     input.props.onChange!({ target: { value: "Apt 42" } });
-    expect((hooks.values[3] as Recipient).address2).toBe("Apt 42");
-    expect(hooks.values[4]).toEqual([]);
-    expect(hooks.values[5]).toBe("");
-    expect(renderToStaticMarkup(renderPanel())).toContain('value="Apt 42"');
+    expect(labelInput("Address 2").props.value).toBe("Apt 42");
+    expect(renderToStaticMarkup(renderPanel())).not.toContain("Pay with Stripe");
+    await quote();
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[1][1]!.body as string).recipient.address2).toBe("Apt 42");
   });
-  it("clears rates and selection after other recipient edits", () => {
-    const input = elements(renderPanel()).find((element) => element.type === "input" && element.props.required === true)!;
-    input.props.onChange!({ target: { value: "Ada" } });
-    expect((hooks.values[3] as Recipient).name).toBe("Ada");
-    expect(hooks.values[4]).toEqual([]);
-    expect(hooks.values[5]).toBe("");
+  it("removes the payable quote after other delivery details change", async () => {
+    await quote(); labelInput("Name").props.onChange!({ target: { value: "Ada" } });
+    expect(labelInput("Name").props.value).toBe("Ada");
+    expect(renderToStaticMarkup(renderPanel())).not.toContain("Pay with Stripe");
   });
 });

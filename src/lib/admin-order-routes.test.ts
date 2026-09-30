@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StoreOrder } from "./types";
+import { evaluatePaidCheckout } from "./checkout-validation";
+import type Stripe from "stripe";
 
 const mocks = vi.hoisted(() => ({ retryEmails: vi.fn(), getOrder: vi.fn(), listOrders: vi.fn(), updateOrder: vi.fn(), updateOrderStatus: vi.fn(), createPrintfulOrder: vi.fn(), retrieve: vi.fn(), claim: vi.fn(), renew: vi.fn(), updateClaimed: vi.fn(), release: vi.fn() }));
 vi.mock("./email-jobs", async (importOriginal) => ({ ...await importOriginal<typeof import("./email-jobs")>(), retryOrderEmails: mocks.retryEmails }));
@@ -46,6 +48,16 @@ describe("authenticated order safety routes", () => {
     const { GET } = await import("../app/api/admin/orders/route");
     const response = await GET(request(""));
     expect(await response.json()).toMatchObject({ orders: [{ id: "order1", printfulSubmissionEligibility: { allowed: false, reason: "CheckoutValidationRequired" } }] });
+  });
+  it.each(["missing", "valid", "invalid"])("projects %s checkout proof separately from fulfillment eligibility", async (status) => {
+    const payment = { id: "cs_1", mode: "payment", status: "complete", payment_status: "paid", payment_intent: "pi_1", metadata: { order_id: "order1" }, amount_total: 2000, currency: "eur", shipping_details: { address: { line1: "Main St", city: "Madrid", country: "ES", postal_code: "28001" } } } as unknown as Stripe.Checkout.Session;
+    const validation = evaluatePaidCheckout(order, payment, { source: "stripe_webhook", stripeTaxEnabled: false, validatedAt: "2026-09-30T12:00:00Z" });
+    if (!validation.valid) throw new Error("Invalid fixture");
+    const stored = { ...order, status: "manual_review", stripePaymentIntentId: "pi_1", ...(status === "missing" ? {} : { checkoutValidation: validation.evidence }), ...(status === "invalid" ? { recipient: { ...order.recipient, address2: "Edited apartment" } } : {}) };
+    mocks.listOrders.mockResolvedValue([stored]);
+    const { GET } = await import("../app/api/admin/orders/route");
+    const response = await GET(request(""));
+    expect(await response.json()).toMatchObject({ orders: [{ checkoutValidationStatus: status, printfulSubmissionEligibility: { allowed: false } }] });
   });
   it.each(["retry-printful", "revalidate-checkout"])("returns retryable 503 when %s meets a held order lease", async (path) => {
     mocks.claim.mockResolvedValue({ kind: "busy", retryAfterSeconds: 77 });

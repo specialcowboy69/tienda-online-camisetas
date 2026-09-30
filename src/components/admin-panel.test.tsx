@@ -27,6 +27,11 @@ describe("AdminPanel email recovery", () => {
     hooks.values[1] = [{ id: "order1", status: "shipped", updatedAt: "today", emailJobs: [{ id: "job1", kind: "order_confirmation", status: "pending", attempts: 1 }, { id: "job2", kind: "shipment", status: "pending", attempts: 1 }] }];
   });
   afterEach(() => { vi.unstubAllGlobals(); });
+  it.each([["valid", "Valid paid checkout"], ["invalid", "Checkout proof no longer matches"], ["missing", "No checkout proof"]])("shows %s payment validation independently from the refund hold and accepted email", (status, label) => {
+    hooks.values[1] = [{ id: "order1", status: "shipped", updatedAt: "today", checkoutValidationStatus: status, fulfillmentBlocked: true, printfulSubmissionEligibility: { allowed: false, reason: "RefundReviewRequired", message: "Refund activity requires review" }, emailJobs: [{ id: "job1", kind: "order_confirmation", status: "accepted", attempts: 1, providerEmailId: "provider1" }] }];
+    const html = renderToStaticMarkup(panel());
+    expect(html).toContain(label); expect(html).toContain("Refund activity requires review"); expect(html).toContain("Fulfillment blocked"); expect(html).toContain("Provider accepted: provider1"); expect(html).toContain("shipped");
+  });
   it("displays financial status separately from shipment and keeps the refund hold visible", () => {
     hooks.values[1] = [{ id: "order1", status: "shipped", updatedAt: "today", fulfillmentBlocked: true, refundReviewReason: "Manual review needed", refundSummary: { status: "partial", refundedAmount: 1100, paidAmount: 2200, currency: "eur", pendingCount: 1, failedCount: 2, canceledCount: 3 } }];
     const html = renderToStaticMarkup(panel());

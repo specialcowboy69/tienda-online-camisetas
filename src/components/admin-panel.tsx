@@ -10,6 +10,7 @@ type AdminOrder = {
   status: string;
   updatedAt: string;
   error?: { message?: string };
+  checkoutValidationStatus?: "missing" | "valid" | "invalid";
   printfulSubmissionEligibility?: PrintfulSubmissionEligibility;
   emailReviewReason?: string;
   refundSummary?: RefundSummary;
@@ -110,11 +111,13 @@ export function AdminPanel() {
       {message ? <p className="success">{message}</p> : null}
       {error ? <p className="error">{error}</p> : null}
 
+      <div role="region" aria-label="Review orders" tabIndex={0} style={{ maxWidth: "100%", overflowX: "auto" }}>
       <table className="table">
         <thead>
           <tr>
             <th>Order</th>
             <th>Status</th>
+            <th>Payment validation</th>
             <th>Refunds</th>
             <th>Error</th>
             <th>Email recovery</th>
@@ -126,6 +129,7 @@ export function AdminPanel() {
             <tr key={order.id}>
               <td>{order.id}</td>
               <td>{order.status}</td>
+              <td>{order.checkoutValidationStatus === "valid" ? "Valid paid checkout" : order.checkoutValidationStatus === "invalid" ? "Checkout proof no longer matches" : "No checkout proof"}</td>
               <td>
                 {order.refundSummary ? <p>{order.refundSummary.status}: {order.refundSummary.refundedAmount} / {order.refundSummary.paidAmount} {order.refundSummary.currency} (minor units); {order.refundSummary.pendingCount} pending; {order.refundSummary.failedCount} failed; {order.refundSummary.canceledCount} canceled</p> : <p>Not reconciled</p>}
                 {order.fulfillmentBlocked || order.refundSummary?.fulfillmentBlocked ? <p>Fulfillment blocked</p> : null}
@@ -148,6 +152,7 @@ export function AdminPanel() {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }
