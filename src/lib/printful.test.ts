@@ -8,6 +8,7 @@ describe("Printful order recovery", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -43,6 +44,44 @@ describe("Printful order recovery", () => {
 
     const { findPrintfulOrderByExternalId } = await import("./printful");
     await expect(findPrintfulOrderByExternalId("missing-order")).resolves.toBeNull();
+  });
+
+  it.each([429, 500, 503])("propagates unavailable lookup HTTP %s instead of permitting creation", async (status) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: "Unavailable" } }), { status })));
+    const { findPrintfulOrderByExternalId } = await import("./printful");
+    await expect(findPrintfulOrderByExternalId("order1")).rejects.toMatchObject({ status });
+  });
+
+  it.each([{}, { result: null }, { result: { id: "123", status: "draft" } }, { result: { id: 123 } }])("never treats malformed successful lookup as not-found %#", async (payload) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(payload), { status: 200 })));
+    const { findPrintfulOrderByExternalId } = await import("./printful");
+    await expect(findPrintfulOrderByExternalId("order1")).rejects.toMatchObject({ name: "PrintfulApiError", status: 502 });
+  });
+
+  it("recognizes structured HTTP400 external-ID conflicts without making all validation errors temporary", async () => {
+    const { PrintfulApiError } = await import("./printful");
+    const duplicate = new PrintfulApiError("Rejected", 400, { error: { reason: "EXTERNAL_ID_IN_USE", code: "OR-13" } });
+    expect(duplicate.isDuplicateExternalId).toBe(true);
+    expect(new PrintfulApiError("Rejected", 400, { error: { code: "OR-1", message: "Invalid address" } }).isDuplicateExternalId).toBe(false);
+  });
+
+  it.each(["headers", "body"])("aborts Printful after 20 seconds while waiting for %s", async (phase) => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((_url, init) => {
+      signal = init.signal;
+      const pending = () => new Promise((_resolve, reject) => signal?.addEventListener("abort", () => reject(new DOMException("Timed out", "AbortError"))));
+      return phase === "headers" ? pending() : Promise.resolve({ ok: true, status: 200, json: pending });
+    }));
+    const { findPrintfulOrderByExternalId } = await import("./printful");
+    let failure: unknown;
+    const request = findPrintfulOrderByExternalId("order1").catch((error) => { failure = error; });
+    await vi.advanceTimersByTimeAsync(19999);
+    expect(failure).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signal?.aborted).toBe(true);
+    expect(failure).toMatchObject({ name: "AbortError" });
+    await request;
   });
 
   it("normalizes legacy UUID order IDs before sending them to Printful", async () => {

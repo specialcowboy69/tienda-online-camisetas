@@ -296,6 +296,10 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
             Address
             <input value={recipient.address1} onChange={(event) => updateRecipient("address1", event.target.value)} required />
           </label>
+          <label className="ncc-form-wide">
+            Address 2
+            <input value={recipient.address2 || ""} onChange={(event) => updateRecipient("address2", event.target.value)} />
+          </label>
           <label>
             City
             <input value={recipient.city} onChange={(event) => updateRecipient("city", event.target.value)} required />

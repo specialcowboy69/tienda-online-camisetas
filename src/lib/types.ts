@@ -89,6 +89,19 @@ export type OrderTotals = {
   currency: string;
 };
 
+export type CheckoutValidationEvidence = {
+  version: 1;
+  validatedAt: string;
+  source: "stripe_webhook" | "admin_revalidation";
+  stripeSessionId: string;
+  stripePaymentIntentId: string;
+  paidAmount: number;
+  currency: string;
+  taxAmount: number;
+  stripeTaxEnabled: boolean;
+  orderSnapshotHash: string;
+};
+
 export type StoreOrder = {
   id: string;
   status: OrderStatus;
@@ -100,6 +113,13 @@ export type StoreOrder = {
   stripePaymentIntentId?: string;
   stripeAmountTotal?: number;
   stripeTaxAmount?: number;
+  checkoutValidation?: CheckoutValidationEvidence;
+  refundSummary?: RefundSummary;
+  fulfillmentBlocked?: boolean;
+  refundReviewReason?: string;
+  orderProcessingLease?: ProcessingLease;
+  emailPolicyVersion?: 1;
+  emailReviewReason?: string;
   printfulOrderId?: number;
   printfulExternalId?: string;
   printfulStatus?: string;
@@ -120,3 +140,29 @@ export type StoreOrder = {
 };
 
 export type WebhookSource = "stripe" | "printful";
+
+export type RefundSnapshot = {
+  id: string; amount: number; currency: string;
+  status: "pending" | "requires_action" | "succeeded" | "failed" | "canceled";
+  paymentIntentId: string; reconciledAt: string;
+};
+export type RefundSummary = {
+  paymentIntentId: string; paidAmount: number; currency: string;
+  refundedAmount: number; status: "none" | "partial" | "full";
+  pendingCount: number; failedCount: number; canceledCount: number;
+  fulfillmentBlocked: boolean; refundCount: number; reconciledAt: string;
+};
+
+export type EmailMessage = { from?: string; to: string; subject: string; text: string; html: string; tags: Array<{ name: string; value: string }> };
+export type EmailJob = {
+  id: string; orderId: string; kind: "order_confirmation" | "shipment";
+  message: EmailMessage; idempotencyKey: string;
+  status: "pending" | "processing" | "blocked" | "accepted" | "manual_review";
+  attempts: number; firstDispatchAtMs?: number; providerEmailId?: string;
+  lease?: ProcessingLease; lastError?: string; createdAt: string; updatedAt: string;
+};
+
+export type ProcessingLease = { token: string; expiresAtMs: number };
+export type ClaimResult<T> =
+  | { kind: "claimed"; lease: ProcessingLease; value: T }
+  | { kind: "busy"; retryAfterSeconds: number };

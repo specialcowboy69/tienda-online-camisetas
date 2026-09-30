@@ -110,7 +110,17 @@ La direccion de marca y storefront vive en [`docs/BRAND_STOREFRONT.md`](BRAND_ST
 
 ### Reintentar Pedidos En Revision
 
-Desde `/admin`, pulsar `Load review orders` y luego `Retry` en el pedido.
+Desde `/admin`, pulsar `Load review orders`. Revisar por separado el estado
+operativo, `Payment validation`, motivo de elegibilidad, reembolsos y emails.
+`Retry` solo esta habilitado cuando el servidor autoriza fulfillment. Un pago
+validado no elimina un bloqueo financiero ni autoriza un estado terminal.
+
+`Revalidate checkout` consulta la sesion Stripe guardada y valida pago completo,
+importe, moneda y direccion completa (incluido apartamento y estado). Guarda
+evidencia del snapshot y, con el mismo lease, actualiza los reembolsos canonicos.
+Puede eliminar una razon transitoria de fallo de lectura financiera despues de
+una reconciliacion completa; nunca elimina el bloqueo por actividad de reembolso
+ni cambia un estado operativo bloqueado. No fabrica, envia emails ni reembolsa.
 
 Un `Status: 200` en Vercel significa que el endpoint admin respondio bien. Para saber si Printful acepto el pedido hay que mirar el documento en Firestore:
 
@@ -129,7 +139,13 @@ orders/<orderId>/error.status
 orders/<orderId>/error.details
 ```
 
-El error `Invalid External ID specified` se resolvio normalizando IDs legacy con guiones antes de enviarlos a Printful. Los webhooks de Printful se resuelven de vuelta al pedido interno mediante `printfulExternalId`.
+El ID externo estable se guarda antes de contactar a Printful. Cada recuperacion
+busca ese mismo ID antes de crear; un lookup indisponible no autoriza creacion.
+Un timeout, fallo de red, 5xx o conflicto puede significar que Printful acepto el
+pedido aunque no se guardase el recibo. No cambiar el ID ni crear un reemplazo.
+Un pedido remoto cancelado/fallido conserva sus IDs y pasa a revision manual.
+`printful_pending` con evidencia valida e ID persistido puede recuperarse; no es
+un permiso general para fabricar pedidos sin prueba de pago.
 
 ## Stripe
 
@@ -142,10 +158,61 @@ checkout.session.async_payment_succeeded
 checkout.session.async_payment_failed
 checkout.session.expired
 charge.refunded
+refund.created
 refund.updated
+refund.failed
 ```
 
-No dejar `stripe listen` local reenviando eventos al mismo tiempo que el webhook publico de Stripe hacia Vercel, porque puede provocar dobles intentos del mismo evento.
+Confirmar esas ocho suscripciones primero en Stripe test y, con revision y
+autorizacion de despliegue, en el endpoint del entorno correspondiente. La
+implementacion local no configura suscripciones. Evitar reenviar eventos de
+prueba a produccion mediante `stripe listen`.
+
+### Reembolsos manuales y cancelacion de fabricacion
+
+1. Identificar el pedido, su Checkout/PaymentIntent persistido y el importe
+   capturado en Stripe. Consultar pagos, reembolsos y estado Printful actuales.
+2. Si se acuerda un reembolso, ejecutarlo manualmente en Stripe Dashboard con
+   el importe y moneda correctos. La app no expone un endpoint para crearlo.
+3. Comprobar que el webhook se procesa y que Firestore conserva las instantaneas
+   en `orders/<id>/refunds` y el resumen canonico. Los importes son unidades
+   menores enteras: `500 eur` representa EUR 5.00. `status` none/partial/full
+   depende solo de la suma de reembolsos succeeded respecto a amount_received;
+   pending/requires_action se cuentan aparte, igual que failed/canceled.
+4. Un evento o cualquier actividad observada antes de tener recibo Printful
+   deja `fulfillmentBlocked` latched, incluso si luego la lista esta vacia o
+   el reembolso falla/se cancela. No usar `Revalidate checkout` para desbloquearlo.
+5. Si existe pedido Printful, consultar su estado y gestionar su cancelacion
+   manual por separado cuando sea posible. Reembolsar dinero no detiene la
+   fabricacion; cancelar fabricacion no devuelve dinero. Documentar ambos
+   resultados y verificar con cada proveedor.
+
+No editar flags en Firestore para forzar `Retry`, ni cambiar estado o identidad
+para sortear la revision. No existe una accion automatica de resolucion de estos
+bloqueos: revisar recibos, asociaciones, historial financiero y estado de
+fabricacion, y preparar una resolucion especifica revisada antes de escribir.
+Un reembolso desde Dashboard puede competir con una llamada Printful ya iniciada;
+el lease local no serializa acciones dentro de los proveedores. Consultar ambos
+sistemas y resolver ese caso manualmente, sin promesa de exactamente una llamada.
+
+### Propiedad de procesamiento y HTTP 503
+
+Cada evento y pedido tiene propietario y lease de 120 segundos. La posesion de
+un evento no basta para procesar dos eventos distintos del mismo pedido: todos
+comparten el lease del pedido, incluidos envios y reconciliacion financiera.
+En webhooks de pago y reembolso, las lecturas financieras paginadas renuevan y
+comprueban ambos propietarios antes y despues de cada lectura acotada. Cada
+peticion Stripe mantiene su limite de 20 segundos; la duracion acumulada puede
+superar 120 segundos mientras los leases sigan vigentes. No se revive un token
+caducado. Si el evento de reembolso ya tiene una asociacion persistida con el
+PaymentIntent, toma el pedido y guarda el bloqueo antes de esperar mas lecturas
+de Stripe; un fallo o una lista vacia posterior no borran esa observacion.
+Un propietario caducado no puede persistir recibos ni liberar el lease nuevo.
+Un registro legacy malformado se pone en cuarentena durante un lease antes de
+recuperarse. HTTP 503 con `Retry-After` significa ocupado/perdida de propietario
+o recuperacion de email pendiente; respetar el plazo y reintentar el mismo evento
+o accion, sin cambiar identidad. HTTP 409 con razon de elegibilidad requiere
+revalidacion o revision; no es un fallo transitorio para reintentar sin inspeccion.
 
 ## Resend
 
@@ -167,7 +234,26 @@ Resend permite enviar desde una direccion del dominio verificado, pero no crea a
 - Confirmacion de pedido cuando Stripe pago y Printful acepto el pedido.
 - Envio con tracking cuando Printful manda `package_shipped`.
 
-Si `RESEND_API_KEY` o `RESEND_FROM_EMAIL` falta, la app omite el envio del email y el flujo del pedido continua.
+La app guarda un job durable por confirmacion/envio junto al resultado operativo
+en una transaccion. Si falta configuracion, el job queda `blocked`, sin empezar
+el reloj de envio. El pedido Printful aceptado no vuelve a failed por un email.
+
+`Retry emails only` procesa los jobs existentes sin fabricar ni crear emails
+historicos. Revisa cada resultado; puede haber accepted y retry a la vez, con
+HTTP 503 y actualizacion de la lista. `Provider accepted` significa que Resend
+devolvio un ID: no prueba entrega en bandeja, lectura ni ausencia de rebote.
+
+El mensaje, remitente y clave de idempotencia quedan congelados al primer envio.
+Los reintentos usan esa misma identidad. Desde 23 horas despues de ese primer
+intento (no desde la creacion), una aceptacion desconocida pasa a `manual_review`
+y no vuelve a enviarse automaticamente. No rotar la clave ni clonar el job para
+sortear el limite; investigar el recibo en Resend. Los jobs accepted no se envian
+otra vez. No hay scheduler de reintentos de email en esta implementacion: usar
+replay de webhook o recuperacion admin dentro de la ventana segura.
+
+Pedidos ya cumplidos legacy sin job y confirmaciones faltantes quedan visibles
+para revision, sin backfill ni spam historico. Solo una primera fabricacion
+actual validada crea su job y enrolla individualmente emailPolicyVersion 1.
 
 ## Firestore
 
@@ -177,12 +263,20 @@ Colecciones principales:
 - `orders`: pedidos internos y estados de Stripe/Printful.
 - `webhookEvents`: idempotencia y trazabilidad de eventos.
 - `syncRuns`: historico de sincronizaciones.
+- `emailJobs`: mensajes durables y aceptacion de Resend, con lease propio.
+- `orders/<id>/refunds`: instantaneas canonicas de reembolsos Stripe.
 
 Para diagnosticar un pedido:
 
 1. Abrir `orders/<orderId>`.
 2. Revisar `status`, `printfulOrderId`, `printfulExternalId`, `printfulStatus`.
 3. Si hay fallo, revisar `error.status` y `error.details`.
+
+Tratar registros de pedidos/jobs/payloads como sensibles: contienen informacion
+necesaria de destinatario. No copiar direcciones, cuerpos de email, tokens ni
+respuestas arbitrarias de proveedores a logs, capturas o tickets. Los nuevos
+diagnosticos de email y lectura de reembolsos son genericos; los registros y
+errores operativos existentes requieren acceso restringido.
 
 ## Checklist Antes De Venta Real
 

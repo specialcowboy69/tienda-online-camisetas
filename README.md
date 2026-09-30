@@ -32,7 +32,9 @@ checkout.session.async_payment_succeeded
 checkout.session.async_payment_failed
 checkout.session.expired
 charge.refunded
+refund.created
 refund.updated
+refund.failed
 ```
 
 7. Start locally:
@@ -52,7 +54,7 @@ verified dependency audit and remaining findings.
 - `/api/catalog/sync` syncs Printful products into Firestore. It requires `x-admin-secret` or `Authorization: Bearer CRON_SECRET`.
 - `/api/shipping/rates` quotes live Printful shipping rates for a recipient and cart.
 - `/api/checkout` creates the internal Firestore order and Stripe Checkout Session.
-- `/api/webhooks/stripe` verifies Stripe signatures and creates the Printful order after payment.
+- `/api/webhooks/stripe` verifies Stripe signatures, validates the persisted paid checkout and reconciles refunds before new fulfillment under an owned order lease.
 - `/api/webhooks/printful` receives fulfillment updates and tracking.
 - `/admin` provides a small private operations panel using `ADMIN_SECRET`.
 
@@ -105,7 +107,37 @@ RESEND_API_KEY=re_xxx
 RESEND_FROM_EMAIL=No Context Club <orders@your-domain.com>
 ```
 
-Configure and verify the sending domain in Resend before using a production sender address. If either variable is missing, email sending is skipped and the order flow continues.
+Configure and verify the sending domain in Resend before using a production
+sender address. Fulfillment and shipment receipts atomically create durable
+email jobs. Missing configuration leaves jobs blocked without starting the
+dispatch clock; it does not undo fulfillment. Admin can retry existing emails
+independently. An accepted Resend ID proves API acceptance, not inbox delivery.
+The message, sender and idempotency key stay frozen; unknown acceptance after
+23 hours from first dispatch requires manual review. There is no new automatic
+email retry scheduler or historical email backfill.
+
+## Order Safety and Refund Operations
+
+Admin shows server-checked checkout validation, fulfillment eligibility, refund
+money and email acceptance separately. Revalidate checkout refreshes the paid
+session evidence and canonical refund state under one lease; it never submits
+fabrication, sends email, creates refunds or clears observed refund holds.
+Before a Printful retry, the app looks up the same persisted external ID. HTTP
+503 with Retry-After means ownership/recovery is retryable; blocked eligibility
+requires review. A remote timeout can leave an accepted provider order, so do
+not replace its identity or claim exactly-once external calls.
+
+Refunds are manual in Stripe Dashboard. Manufacturing cancellation is a separate
+Printful operation. Observed refunds before a fulfillment receipt latch a hold,
+including pending, failed or canceled attempts; payment revalidation never
+automatically unblocks that hold. See [the operating runbook](docs/operations.md)
+for reconciliation and manual-review boundaries.
+
+Launch remains **NO-GO**. Local tests and a synthetic browser fixture do not
+establish deployed provider behavior, sandbox purchases, live refunds or email
+delivery. Deployment requires explicit review, draining older unfenced workers,
+confirming all eight Stripe subscriptions in test first, and no bulk migration.
+See [deployment safety](docs/DEPLOYMENT.md) and [launch gates](docs/LAUNCH_CHECKLIST.md).
 
 ## Tests
 
@@ -113,7 +145,12 @@ Configure and verify the sending domain in Resend before using a production send
 npm test
 ```
 
-The current tests cover money conversion, cart-to-order mapping, ignored catalog products, catalog image priority, availability rejection, shipping pricing rules, order creation, totals, address mismatch detection, clean cart payload serialization, customer-facing language signals, Printful webhook handling, public API rate limits, body-size limits, validation, and transactional email behavior.
+Tests cover catalog/cart/pricing, complete delivery address validation, immutable
+paid-checkout proof, authenticated recovery, event/order/email lease contention
+and expiry, lookup-before-create and ambiguous Printful responses, canonical
+refund pagination/holds, durable email identity/cutoff and combined payment ->
+fulfillment -> email recovery regressions. Provider HTTP and persistence doubles
+are synthetic; these tests do not contact live services or prove delivery.
 
 ## Project Documentation
 

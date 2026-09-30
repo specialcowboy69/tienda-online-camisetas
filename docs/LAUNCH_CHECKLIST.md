@@ -5,7 +5,35 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision:** 29 de septiembre de 2026
+**Ultima revision:** 30 de septiembre de 2026
+
+## Seguridad de pedidos: alcance de esta revision
+
+Prueba local en `codex/order-safety-and-refunds`: validacion de pago/direccion,
+propiedad de eventos y pedidos, recuperacion Printful con identidad estable,
+email durable y reconciliacion canonica de reembolsos. Las regresiones combinadas
+usan servicios reales del codigo y transportes sinteticos. La comprobacion visual
+local usa componentes reales y APIs interceptadas en escritorio/movil.
+Esto no confirma aceptacion/entrega real de proveedores ni cambia el NO-GO.
+
+- [ ] Revision independiente de la rama completa y sus interfaces.
+- [ ] Integrar solo el SHA revisado tras inventario AGENTS; autorizar despliegue.
+- [ ] Parar y drenar workers anteriores sin fencing antes del despliegue/reanudacion.
+- [ ] Confirmar los ocho eventos Stripe primero en test, sin backfill masivo.
+- [ ] Prueba sandbox del flujo completo, eventos concurrentes/repetidos,
+  reembolso parcial y pending, recuperacion de emails y lease busy 503.
+- [ ] Verificar entrega de email/rebotes por separado de aceptacion Resend.
+- [ ] Revisar legacy sin jobs, confirmaciones faltantes y cutoff de 23 horas,
+  sin mensajes historicos automaticos; asignar responsable de recuperacion.
+- [ ] Revisar procedimiento de reembolso manual Stripe y cancelacion Printful
+  por separado; no desbloquear latches ni estados terminales mediante Retry.
+- [ ] Resolver o aceptar advisories pendientes antes de GO; audit local sigue
+  documentando 7 hallazgos baseline (4 moderate, 3 high), sin upgrades ni --force.
+- [ ] Compra real controlada y autorizada, monitorizacion y rollback verificados.
+
+Detalles operativos en [operations.md](operations.md) y despliegue seguro en
+[DEPLOYMENT.md](DEPLOYMENT.md). No marcar compras, webhooks remotos ni entrega de
+correo como realizadas basandose en mocks, capturas locales o build.
 
 ## Como actualizar esta lista
 
@@ -159,7 +187,9 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
   - [ ] `checkout.session.async_payment_failed`
   - [ ] `checkout.session.expired`
   - [ ] `charge.refunded`
+  - [ ] `refund.created`
   - [ ] `refund.updated`
+  - [ ] `refund.failed`
 - [ ] Confirmar que el secreto del webhook live coincide con el configurado en
   Vercel.
 
@@ -180,7 +210,8 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
   no ignorados.
 - [ ] Confirmar que precios, moneda, variantes, tallas e imagenes coinciden con
   Printful y el storefront.
-- [ ] Confirmar trazabilidad en `orders`, `webhookEvents` y `syncRuns`.
+- [ ] Confirmar trazabilidad en `orders`, `webhookEvents`, `syncRuns`,
+  `emailJobs` y `orders/<id>/refunds`.
 
 ### Email
 
