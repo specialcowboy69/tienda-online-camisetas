@@ -85,14 +85,19 @@ export function addressesMateriallyMatch(saved: Recipient, stripeAddress?: {
   postal_code?: string | null;
 } | null): boolean {
   if (!stripeAddress) {
-    return true;
+    return false;
   }
 
-  const normalize = (value?: string | null) => (value || "").trim().toLowerCase();
+  const normalize = (value?: string | null) => (value || "").trim().replace(/\s+/g, " ").toLowerCase();
+  if (![saved.address1, saved.city, saved.countryCode, saved.zip, stripeAddress.line1, stripeAddress.city, stripeAddress.country, stripeAddress.postal_code].every((value) => normalize(value))) {
+    return false;
+  }
 
   return (
     normalize(saved.address1) === normalize(stripeAddress.line1) &&
+    normalize(saved.address2) === normalize(stripeAddress.line2) &&
     normalize(saved.city) === normalize(stripeAddress.city) &&
+    normalize(saved.stateCode) === normalize(stripeAddress.state) &&
     normalize(saved.countryCode) === normalize(stripeAddress.country) &&
     normalize(saved.zip) === normalize(stripeAddress.postal_code)
   );

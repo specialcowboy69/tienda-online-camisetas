@@ -37,6 +37,30 @@ const shippingRate: ShippingRate = {
 };
 
 describe("checkout calculator", () => {
+  const savedAddress = { name: "Ada", email: "ada@example.com", address1: "1 Main St", address2: "Apt 2", city: "New York", stateCode: "NY", countryCode: "US", zip: "10001" };
+  const finalAddress = { line1: "1 Main St", line2: "Apt 2", city: "New York", state: "NY", country: "US", postal_code: "10001" };
+
+  it("rejects missing Stripe shipping addresses", () => {
+    expect(addressesMateriallyMatch(savedAddress, null)).toBe(false);
+  });
+
+  it.each(["line1", "city", "country", "postal_code"] as const)("rejects missing required address field %s", (field) => {
+    expect(addressesMateriallyMatch(savedAddress, { ...finalAddress, [field]: "" })).toBe(false);
+  });
+
+  it.each(["line2", "state"] as const)("rejects changed or removed optional address field %s", (field) => {
+    expect(addressesMateriallyMatch(savedAddress, { ...finalAddress, [field]: "Changed" })).toBe(false);
+    expect(addressesMateriallyMatch(savedAddress, { ...finalAddress, [field]: null })).toBe(false);
+  });
+
+  it("rejects apartment and state additions", () => {
+    expect(addressesMateriallyMatch({ ...savedAddress, address2: undefined }, finalAddress)).toBe(false);
+    expect(addressesMateriallyMatch({ ...savedAddress, stateCode: undefined }, finalAddress)).toBe(false);
+  });
+
+  it("normalizes case, whitespace and absent optional fields", () => {
+    expect(addressesMateriallyMatch({ ...savedAddress, address2: "", stateCode: undefined }, { ...finalAddress, line1: " 1 MAIN   ST ", line2: null, state: "" })).toBe(true);
+  });
   it("builds order items from synced Printful variants", () => {
     const cart: CartItemInput[] = [{ productId: "101", syncVariantId: 201, quantity: 2 }];
     const items = buildOrderItems(cart, [product]);

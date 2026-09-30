@@ -89,6 +89,19 @@ export type OrderTotals = {
   currency: string;
 };
 
+export type CheckoutValidationEvidence = {
+  version: 1;
+  validatedAt: string;
+  source: "stripe_webhook" | "admin_revalidation";
+  stripeSessionId: string;
+  stripePaymentIntentId: string;
+  paidAmount: number;
+  currency: string;
+  taxAmount: number;
+  stripeTaxEnabled: boolean;
+  orderSnapshotHash: string;
+};
+
 export type StoreOrder = {
   id: string;
   status: OrderStatus;
@@ -100,6 +113,7 @@ export type StoreOrder = {
   stripePaymentIntentId?: string;
   stripeAmountTotal?: number;
   stripeTaxAmount?: number;
+  checkoutValidation?: CheckoutValidationEvidence;
   printfulOrderId?: number;
   printfulExternalId?: string;
   printfulStatus?: string;

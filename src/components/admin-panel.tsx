@@ -2,12 +2,14 @@
 
 import { RefreshCcw, RotateCw, Webhook } from "lucide-react";
 import { useState } from "react";
+import type { PrintfulSubmissionEligibility } from "@/lib/checkout-validation";
 
 type AdminOrder = {
   id: string;
   status: string;
   updatedAt: string;
   error?: { message?: string };
+  printfulSubmissionEligibility?: PrintfulSubmissionEligibility;
 };
 
 export function AdminPanel() {
@@ -64,6 +66,11 @@ export function AdminPanel() {
     await loadReviewOrders();
   }
 
+  async function revalidateCheckout(orderId: string) {
+    await callAdmin(`/api/admin/orders/${orderId}/revalidate-checkout`, { method: "POST" });
+    await loadReviewOrders();
+  }
+
   return (
     <section className="panel">
       <h1>Admin</h1>
@@ -103,9 +110,11 @@ export function AdminPanel() {
               <td>{order.status}</td>
               <td>{order.error?.message || ""}</td>
               <td>
-                <button onClick={() => retryPrintful(order.id)} disabled={loading}>
+                <button onClick={() => retryPrintful(order.id)} disabled={loading || !order.printfulSubmissionEligibility?.allowed}>
                   Retry
                 </button>
+                {order.printfulSubmissionEligibility && !order.printfulSubmissionEligibility.allowed ? <p>{order.printfulSubmissionEligibility.message}</p> : null}
+                <button onClick={() => revalidateCheckout(order.id)} disabled={loading}>Revalidate checkout</button>
               </td>
             </tr>
           ))}

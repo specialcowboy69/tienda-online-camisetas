@@ -32,6 +32,9 @@ export async function createStripeCheckoutSession(order: StoreOrder): Promise<St
     metadata: {
       order_id: order.id
     },
+    payment_intent_data: {
+      metadata: { order_id: order.id }
+    },
     line_items: [
       ...order.items.map((item) => ({
         quantity: item.quantity,

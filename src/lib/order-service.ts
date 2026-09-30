@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { FieldValue } from "firebase-admin/firestore";
-import { addressesMateriallyMatch, buildOrderItems, calculateTotals, createDraftOrder, priceCustomerShippingRate } from "./checkout-calculator";
+import { buildOrderItems, calculateTotals, createDraftOrder, priceCustomerShippingRate } from "./checkout-calculator";
+import { CheckoutValidationError, evaluatePaidCheckout, getPrintfulSubmissionEligibility } from "./checkout-validation";
 import {
   beginWebhookEventProcessing,
   createOrder,
@@ -141,6 +142,11 @@ export async function submitOrderToPrintful(orderId: string): Promise<StoreOrder
     return order;
   }
 
+  const eligibility = getPrintfulSubmissionEligibility(order);
+  if (!eligibility.allowed) {
+    throw new CheckoutValidationError(eligibility.reason, eligibility.message);
+  }
+
   await updateOrderStatus(order.id, "printful_pending");
 
   try {
@@ -197,62 +203,55 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
     throw new Error(`Order ${orderId} does not exist.`);
   }
 
-  if (order.printfulOrderId || order.status === "printful_confirmed" || order.status === "shipped") {
+  if (order.printfulOrderId || ["printful_confirmed", "shipped", "returned", "manual_review", "canceled", "refunded", "expired"].includes(order.status)) {
     return;
   }
 
-  if (session.payment_status !== "paid") {
-    await updateOrder(order.id, {
-      stripeSessionId: session.id,
-      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : undefined
-    });
-    return;
-  }
-
-  const paidTotal = session.amount_total;
-  const paidCurrency = session.currency?.toLowerCase();
-  const stripeTaxAmount = session.total_details?.amount_tax || 0;
-  const expectedStripeTotal = order.totals.total + (isStripeTaxEnabled() ? stripeTaxAmount : 0);
-
-  if (paidTotal !== expectedStripeTotal || paidCurrency !== order.totals.currency.toLowerCase()) {
+  const validation = evaluatePaidCheckout(order, session, { source: "stripe_webhook", stripeTaxEnabled: isStripeTaxEnabled(), validatedAt: new Date().toISOString() });
+  const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+  const correlation = {
+    stripeSessionId: session.id,
+    stripePaymentIntentId: order.stripePaymentIntentId || paymentIntentId,
+    stripeAmountTotal: session.amount_total ?? undefined,
+    stripeTaxAmount: session.total_details?.amount_tax ?? 0
+  };
+  if (!validation.valid) {
+    if (validation.reason === "PaymentNotCompleted" && session.payment_status !== "paid") {
+      await updateOrder(order.id, correlation);
+      return;
+    }
     await updateOrderStatus(order.id, "manual_review", {
-      stripeSessionId: session.id,
-      stripeAmountTotal: paidTotal || undefined,
-      stripeTaxAmount,
-      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : undefined,
-      error: {
-        type: "PaymentMismatch",
-        message: "Stripe paid amount or currency does not match the stored order snapshot.",
-        details: {
-          paidTotal,
-          expectedTotal: expectedStripeTotal,
-          paidCurrency,
-          expectedCurrency: order.totals.currency
-        }
-      }
-    });
-    return;
-  }
-
-  if (!addressesMateriallyMatch(order.recipient, session.shipping_details?.address)) {
-    await updateOrderStatus(order.id, "manual_review", {
-      stripeSessionId: session.id,
-      error: {
-        type: "ShippingAddressChanged",
-        message: "Stripe shipping address differs from the address used to quote Printful shipping."
-      }
+      ...(validation.reason === "SessionMismatch" ? {} : correlation),
+      error: { type: validation.reason, message: validation.message }
     });
     return;
   }
 
   await updateOrderStatus(order.id, "paid", {
-    stripeSessionId: session.id,
-    stripeAmountTotal: paidTotal || undefined,
-    stripeTaxAmount,
-    stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : undefined
+    ...correlation,
+    checkoutValidation: validation.evidence
   });
 
   await submitOrderToPrintful(order.id);
+}
+
+export async function revalidatePaidCheckout(orderId: string): Promise<StoreOrder> {
+  const order = await getOrder(orderId);
+  if (!order) throw new Error(`Order ${orderId} not found.`);
+  if (!order.stripeSessionId) {
+    throw new CheckoutValidationError("SessionMismatch", "The order has no persisted Stripe Checkout session to revalidate.");
+  }
+  const session = await getStripe().checkout.sessions.retrieve(order.stripeSessionId);
+  const validation = evaluatePaidCheckout(order, session, { source: "admin_revalidation", stripeTaxEnabled: isStripeTaxEnabled(), validatedAt: new Date().toISOString() });
+  if (!validation.valid) throw new CheckoutValidationError(validation.reason, validation.message);
+  const patch = {
+    checkoutValidation: validation.evidence,
+    stripePaymentIntentId: validation.evidence.stripePaymentIntentId,
+    stripeAmountTotal: validation.evidence.paidAmount,
+    stripeTaxAmount: validation.evidence.taxAmount
+  };
+  await updateOrder(order.id, patch);
+  return { ...order, ...patch };
 }
 
 async function handleRefundEvent(event: Stripe.Event): Promise<void> {
