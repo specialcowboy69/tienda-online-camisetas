@@ -9,7 +9,7 @@ La aplicacion es una tienda online de camisetas con frontend y backend dentro de
 - Base de datos: Firebase Firestore.
 - Pagos: Stripe Checkout y webhook de Stripe.
 - Produccion/fulfillment: Printful API y webhook de Printful.
-- Emails: Resend, opcional segun variables de entorno.
+- Emails: jobs durables en Firestore y transporte Resend segun configuracion.
 - Despliegue previsto: Vercel, deducido por `vercel.json` y cron configurado.
 
 ## Estructura principal
@@ -57,8 +57,13 @@ Colecciones implicadas:
 1. Stripe llama a `/api/webhooks/stripe`.
 2. La ruta lee el cuerpo crudo y valida `stripe-signature` con `STRIPE_WEBHOOK_SECRET`.
 3. `handleStripeWebhook()` evita duplicados con `webhookEvents`.
-4. Si el pago esta confirmado, comprueba importe, moneda y direccion.
-5. Si todo cuadra, marca el pedido como `paid` y lo envia a Printful.
+4. Con lease generico del pedido, valida la sesion persistida, modo payment,
+   estado complete/paid, PaymentIntent, referencias, importe, moneda y direccion
+   completa (linea 2 y estado incluidos). Guarda evidencia versionada del snapshot.
+5. Si todo cuadra, marca `paid`, guarda ID externo estable y busca el pedido en
+   Printful. Solo un lookup 404 permite considerar creacion; antes consulta el
+   PaymentIntent y todas las paginas de reembolsos Stripe bajo el mismo lease.
+   Actividad financiera o lecturas no verificables vetan nueva fabricacion.
 6. Si algo no cuadra, manda el pedido a `manual_review`.
 
 Eventos escuchados:
@@ -68,7 +73,9 @@ Eventos escuchados:
 - `checkout.session.async_payment_failed`
 - `checkout.session.expired`
 - `charge.refunded`
+- `refund.created`
 - `refund.updated`
+- `refund.failed`
 
 ## Flujo de Printful
 
@@ -77,7 +84,9 @@ Eventos escuchados:
 3. Valida que el evento pertenezca al `PRINTFUL_STORE_ID` esperado, si esta configurado.
 4. Usa `webhookEvents` para evitar procesar duplicados.
 5. Actualiza pedidos o catalogo segun el tipo de evento.
-6. En envios, actualiza tracking y dispara email de envio via Resend si esta configurado.
+6. En envios, obtiene el lease del pedido y guarda tracking/job durable en una
+   transaccion. La identidad del envio permite replay sin duplicar email. Un
+   replay tardio no degrada returned/canceled ni el estado financiero.
 
 Eventos relevantes:
 
@@ -131,6 +140,12 @@ Las imagenes de producto se resuelven con `getCatalogProductImage()`: primero `s
 - ids de Stripe y Printful
 - tracking
 - error operativo si requiere revision
+- evidencia `checkoutValidation` del snapshot inmutable (sin leases, tracking,
+  refunds, estados operativos ni emails en el hash)
+- `orderProcessingLease` con token y expiracion, compartido por fulfillment,
+  envios, revalidacion y reconciliacion financiera
+- `refundSummary`, bloqueo latched `fulfillmentBlocked` y `refundReviewReason`
+- politica y diagnostico de email (`emailPolicyVersion`, `emailReviewReason`)
 
 `webhookEvents` evita duplicados de Stripe y Printful:
 
@@ -139,6 +154,22 @@ Las imagenes de producto se resuelven con `getCatalogProductImage()`: primero `s
 - payload
 - estado `processing`, `processed` o `failed`
 - intentos y error si aplica
+- lease de evento con token y expiracion; finalizar/fallar requiere propiedad
+
+`orders/<id>/refunds` guarda instantaneas por refund ID. `refundSummary` usa
+unidades menores enteras, suma solo succeeded y clasifica none/partial/full
+respecto al PaymentIntent.amount_received. Pending/requires_action, failed y
+canceled se cuentan aparte. Observacion antes de recibo Printful deja un veto
+persistente aunque el proveedor luego devuelva lista vacia. Un reembolso no
+sobrescribe shipped/returned ni cancela fabricacion.
+
+`emailJobs` guarda ID determinista, orderId, tipo, mensaje congelado, clave de
+idempotencia, estado, intentos, primer dispatch y recibo Resend. La creacion del
+job y el recibo fulfillment/tracking son atomicos; el dispatcher tiene lease
+propio. Accepted es aceptacion de API, no entrega. Falta de configuracion deja
+blocked sin iniciar reloj; aceptacion ambigua tras 23 horas requiere revision.
+La recuperacion solo usa jobs existentes. Legacy ya cumplido sin registros y
+confirmaciones faltantes requieren revision sin backfill de email.
 
 `syncRuns` registra resultados de sincronizacion de catalogo.
 
@@ -168,6 +199,23 @@ Los estados actuales estan definidos en `src/lib/types.ts`:
 - Endpoints publicos: rate limit en memoria, limite de cuerpo JSON, validacion estricta y contrato de carrito sin campos visuales.
 
 Limitacion importante: el rate limit en memoria es por instancia de runtime. En produccion con multiples instancias, conviene pasar a un almacenamiento compartido.
+
+## Limites de recuperacion
+
+Leases de 120 segundos y comprobacion transaccional de token/expiracion impiden
+escrituras tardias del propietario anterior. HTTP 503 con Retry-After conserva
+el reintento cuando esta ocupado o pierde propiedad. Registros legacy con lease
+malformado se ponen en cuarentena un lease. Transportes remotos tienen deadline
+de 20 segundos; un read SDK que termina tarde no autoriza una escritura.
+
+El fence cubre persistencia local. Una llamada externa iniciada por un worker
+anterior o un reembolso Dashboard pueden competir con otra operacion del
+proveedor; no hay garantia de exactamente una llamada ni transaccion distribuida.
+Recuperar siempre por la identidad Printful original y recibos canonicos.
+Revalidate checkout renueva prueba de pago y resumen financiero sin fabricar,
+reembolsar o enviar emails; no elimina latches ni estados operativos bloqueados.
+El panel recibe `checkoutValidationStatus` calculado en servidor con las
+comprobaciones completas del snapshot, separado de elegibilidad/refunds/email.
 
 ## Reglas comerciales en codigo
 

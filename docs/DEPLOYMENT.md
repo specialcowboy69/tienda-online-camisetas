@@ -79,7 +79,9 @@ Eventos:
 - `checkout.session.async_payment_failed`
 - `checkout.session.expired`
 - `charge.refunded`
+- `refund.created`
 - `refund.updated`
+- `refund.failed`
 
 Printful:
 
@@ -131,3 +133,42 @@ Si algo falla tras desplegar:
 - Mantener `ORDER_CONFIRM_PRINTFUL=false` mientras se investiga.
 - Revisar eventos en Stripe, Printful y Firestore.
 - No reintentar pedidos manualmente sin comprobar duplicados por `printfulExternalId`.
+
+## Despliegue de seguridad de pedidos y reembolsos
+
+Estado: implementacion y pruebas locales; lanzamiento sigue `NO-GO`. No se han
+cambiado suscripciones, credenciales, datos remotos ni configuracion productiva
+durante este trabajo. El build local y APIs interceptadas no prueban un deployment
+ni compras, reembolsos o entrega de email en sandbox/produccion.
+
+Antes de desplegar, con revision explicita y autorizacion operativa:
+
+1. Ejecutar tests, lint, TypeScript, build y audit sobre el SHA final revisado;
+   completar inventario de PRs/ramas/worktrees de AGENTS.md. Resolver o aceptar
+   explicitamente advisories pendientes; no usar npm audit fix --force.
+2. Preparar rollback y una ventana controlada. Pausar procesamiento/entrada de
+   eventos y drenar workers viejos sin fencing antes de habilitar los nuevos.
+   No basta esperar 120 segundos si siguen invocaciones antiguas: confirmar que
+   ya no pueden iniciar ni completar llamadas externas. Documentar como se
+   preservan y reenvian eventos pendientes sin perderlos.
+3. Confirmar en Stripe test las ocho suscripciones anteriores, su endpoint y
+   firma. Desplegar primero al entorno de prueba revisado con
+   ORDER_CONFIRM_PRINTFUL=false; probar pago completo, eventos repetidos y
+   concurrentes, reembolsos parciales/pending y reintentos 503 con Retry-After.
+4. No ejecutar migracion ni backfill masivo de checkoutValidation, latches o
+   emailJobs. Pedidos legacy deben revalidarse individualmente cuando proceda;
+   los cumplidos sin job permanecen en revision sin correo historico. Ningun
+   script borra bloqueos financieros o estados terminales para habilitar Retry.
+5. Confirmar recuperacion del mismo ID Printful, jobs durables y aceptacion
+   Resend dentro de 23h. Comprobar entrega/rebotes por separado y revisar
+   manual_review/blocked. No existe cron nuevo para reintentos de email.
+6. Solo con pruebas y revision completadas, confirmar suscripciones del entorno
+   final y el SHA desplegado, retirar la pausa y vigilar webhooks fallidos,
+   printful_pending, leases, latches y jobs pendientes. La compra real controlada
+   y ORDER_CONFIRM_PRINTFUL=true requieren autorizacion aparte.
+
+Rollback a un worker sin fencing tambien exige parar/drenar los nuevos y revisar
+eventos, recibos Printful y emails aceptados antes de reanudar. Cambiar deployment
+no revierte dinero, fabricacion ni emails ya aceptados; no borrar esos recibos.
+El procedimiento manual y los limites de desbloqueo viven en
+[operations.md](operations.md).
