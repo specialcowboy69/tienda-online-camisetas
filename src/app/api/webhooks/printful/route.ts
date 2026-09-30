@@ -94,11 +94,16 @@ async function applyOrderEvent(orderId: string, payload: PrintfulWebhookPayload)
         tracking: Object.fromEntries(Object.entries({ carrier: payload.data?.shipment?.carrier, service: payload.data?.shipment?.service, trackingNumber: payload.data?.shipment?.tracking_number, trackingUrl: payload.data?.shipment?.tracking_url }).filter(([, value]) => value !== undefined))
       };
       const candidate = buildEmailJob({ ...order, ...patch }, "shipment", identity);
-      const existing = (await listOrderEmailJobs(orderId)).find((job) => job.id === candidate.id);
+      const jobs = await listOrderEmailJobs(orderId);
+      const existing = jobs.find((job) => job.id === candidate.id);
       const job = existing || (order.emailPolicyVersion === 1 ? candidate : undefined);
       if (!job) patch.emailReviewReason = "Legacy fulfilled order has no durable shipment email record. Manual review required; no historical email was created.";
       // A replay of an already recorded shipment must not overwrite newer tracking.
-      if (!await applyClaimedShipment(orderId, token, existing ? {} : patch, job)) throw new ProcessingOwnershipLostError();
+      const shipmentUpdate: Partial<StoreOrder> = existing ? {} : patch;
+      if (order.emailPolicyVersion === 1 && !jobs.some((item) => item.kind === "order_confirmation")) {
+        shipmentUpdate.emailReviewReason = "Order confirmation email is missing. Manual review required; no historical email was created.";
+      }
+      if (!await applyClaimedShipment(orderId, token, shipmentUpdate, job)) throw new ProcessingOwnershipLostError();
       if (job) requireEmailRecovery([{ result: await processEmailJob(job.id) }]);
       return;
     }

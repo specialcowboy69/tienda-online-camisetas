@@ -250,8 +250,9 @@ async function finishPrintfulOrder(
 
 async function recoverExistingOrderEmails(order: StoreOrder, token: string): Promise<void> {
   const jobs = await listOrderEmailJobs(order.id);
-  if (jobs.length === 0 && !["canceled", "failed"].includes(order.printfulStatus || "")) {
-    await writeClaimedOrder(order.id, token, { emailReviewReason: order.emailPolicyVersion === 1 ? "Expected email job is missing. Manual review required." : "Legacy fulfilled order has no durable email record. Manual review required; no historical email was created." });
+  const missingConfirmation = order.emailPolicyVersion === 1 ? !jobs.some((job) => job.kind === "order_confirmation") : jobs.length === 0;
+  if (missingConfirmation && !["canceled", "failed"].includes(order.printfulStatus || "")) {
+    await writeClaimedOrder(order.id, token, { emailReviewReason: order.emailPolicyVersion === 1 ? "Order confirmation email is missing. Manual review required; no historical email was created." : "Legacy fulfilled order has no durable email record. Manual review required; no historical email was created." });
   }
   requireEmailRecovery(await retryOrderEmails(order.id));
 }

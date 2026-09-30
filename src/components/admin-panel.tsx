@@ -21,7 +21,7 @@ export function AdminPanel() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function callAdmin(path: string, init: RequestInit = {}) {
+  async function callAdmin(path: string, init: RequestInit = {}, acceptEmailRetryResults = false) {
     setLoading(true);
     setError("");
     setMessage("");
@@ -35,7 +35,7 @@ export function AdminPanel() {
         }
       });
       const data = await response.json();
-      if (!response.ok) {
+      if (!response.ok && !(acceptEmailRetryResults && response.status === 503 && Array.isArray(data.results))) {
         throw new Error(data.error || "Admin request failed.");
       }
       return data;
@@ -74,8 +74,13 @@ export function AdminPanel() {
   }
 
   async function retryEmails(orderId: string) {
-    await callAdmin(`/api/admin/orders/${orderId}/retry-email`, { method: "POST" });
-    await loadReviewOrders();
+    const data = await callAdmin(`/api/admin/orders/${orderId}/retry-email`, { method: "POST" }, true);
+    const results = data.results as Array<{ jobId: string; result: string }>;
+    try {
+      await loadReviewOrders();
+    } finally {
+      setMessage(results.length ? `Email recovery: ${results.map(({ jobId, result }) => `${jobId}: ${result}`).join("; ")}.` : "No existing email jobs to retry.");
+    }
   }
 
   return (

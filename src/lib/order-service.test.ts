@@ -448,6 +448,34 @@ describe("order service", () => {
     expect(mocks.createOrder.mock.calls[0][0].emailPolicyVersion).toBe(1);
   });
 
+  it("keeps a missing confirmation visible when a shipment overtakes failed receipt persistence", async () => {
+    const service = await import("./order-service");
+    const { POST } = await import("../app/api/webhooks/printful/route");
+    const store = ownedStore({ ...validatedOrder(), emailPolicyVersion: 1 });
+    mocks.complete.mockRejectedValueOnce(new Error("receipt commit failed"));
+    await expect(service.submitOrderToPrintful("order1")).rejects.toThrow("receipt commit failed");
+    expect(store.read().status).toBe("printful_pending"); expect(mocks.jobs).toEqual([]);
+    mocks.sendEmail.mockImplementation(async (id) => { mocks.jobs.find((job) => job.id === id)!.status = "accepted"; return "accepted"; });
+    const response = await POST(new NextRequest("http://localhost/api/webhooks/printful", { method: "POST", headers: { "x-printful-webhook-secret": "synthetic-test-secret" }, body: JSON.stringify({ type: "package_shipped", created: 123, retries: 0, store: 1, data: { order: { id: 123, external_id: "order1", status: "fulfilled" }, shipment: { id: 101, tracking_number: "track1" } } }) }));
+    expect(response.status).toBe(200);
+    expect(store.read()).toMatchObject({ status: "shipped", printfulOrderId: 123, emailReviewReason: expect.stringContaining("confirmation") });
+    expect(mocks.jobs.map(({ kind, status }) => ({ kind, status }))).toEqual([{ kind: "shipment", status: "accepted" }]);
+    mocks.constructEvent.mockReturnValue({ id: "evt_replay", type: "checkout.session.completed", data: { object: paidSession } });
+    expect((await service.handleStripeWebhook("{}", "signature")).status).toBe(200);
+    expect(store.read().emailReviewReason).toContain("confirmation");
+    expect(mocks.jobs).toHaveLength(1); expect(mocks.createPrintfulOrder).toHaveBeenCalledTimes(1); expect(mocks.findPrintfulOrderByExternalId).toHaveBeenCalledTimes(1);
+  });
+
+  it("flags missing confirmation by kind even when an accepted shipment already exists", async () => {
+    const service = await import("./order-service");
+    const store = ownedStore({ ...validatedOrder(), emailPolicyVersion: 1, status: "shipped", printfulOrderId: 123 });
+    const { buildEmailJob } = await import("./email-jobs");
+    mocks.jobs = [{ ...buildEmailJob(store.read(), "shipment", "id:101"), status: "accepted" }];
+    await service.submitOrderToPrintful("order1");
+    expect(store.read().emailReviewReason).toContain("confirmation");
+    expect(mocks.jobs).toHaveLength(1); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
+  });
+
   it.each(["checkout.session.expired", "checkout.session.async_payment_failed"])("ignores late %s after fulfilled state", async (type) => {
     const service = await import("./order-service");
     const store = ownedStore({ ...validatedOrder(), status: "shipped", printfulOrderId: 123 });

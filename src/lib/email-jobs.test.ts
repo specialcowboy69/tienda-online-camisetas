@@ -149,4 +149,10 @@ describe("durable email jobs with real persistence and transport boundaries", ()
     expect(list[0]).toMatchObject({ emailJobs: [{ id: "job1", status: "pending" }] });
     expect(state.queries.every((query) => query.limit > 0 && query.limit <= 100)).toBe(true);
   });
+  it("keeps a shipped order with a missing confirmation visible after all existing email jobs are accepted", async () => {
+    const db = await import("./firestore");
+    state.records.set("orders/order1", { ...order, status: "shipped", emailPolicyVersion: 1, emailReviewReason: "Order confirmation email is missing. Manual review required.", updatedAt: "2026-09-30" });
+    state.records.set("emailJobs/job1", { ...job, kind: "shipment", status: "accepted", providerEmailId: "provider1" });
+    expect(await db.listOrdersForReview()).toMatchObject([{ id: "order1", emailReviewReason: expect.stringContaining("confirmation"), emailJobs: [{ status: "accepted" }] }]);
+  });
 });
