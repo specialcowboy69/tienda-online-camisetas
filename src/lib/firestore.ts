@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getDb } from "./firebase-admin";
-import { CatalogProduct, ClaimResult, EmailJob, OrderStatus, ProcessingLease, StoreOrder, WebhookSource } from "./types";
+import { CatalogProduct, ClaimResult, EmailJob, OrderStatus, ProcessingLease, RefundSnapshot, StoreOrder, WebhookSource } from "./types";
 import { ProcessingBusyError } from "./processing-errors";
 
 const productsCollection = "products";
@@ -27,6 +27,26 @@ export async function completeClaimedFulfillment(orderId: string, token: string,
 }
 
 export const applyClaimedShipment = completeClaimedFulfillment;
+
+export async function persistClaimedRefundSnapshots(orderId: string, token: string, snapshots: RefundSnapshot[]): Promise<boolean> {
+  const db = getDb();
+  const orderRef = db.collection(ordersCollection).doc(orderId);
+  // Keep well below transaction write limits for arbitrarily many refund pages.
+  // Each chunk checks and renews the same lease; the caller commits the summary last.
+  for (let index = 0; index < snapshots.length; index += 100) {
+    const chunk = snapshots.slice(index, index + 100);
+    const saved = await db.runTransaction(async (transaction) => {
+      const order = await transaction.get(orderRef);
+      const now = Date.now();
+      if (!ownsProcessingLease(order.data()?.orderProcessingLease, token, now)) return false;
+      for (const snapshot of chunk) transaction.set(db.collection(`${ordersCollection}/${orderId}/refunds`).doc(snapshot.id), snapshot);
+      transaction.set(orderRef, { orderProcessingLease: { token, expiresAtMs: now + processingLeaseMs } }, { merge: true });
+      return true;
+    });
+    if (!saved) return false;
+  }
+  return true;
+}
 
 export async function listOrderEmailJobs(orderId: string): Promise<EmailJob[]> {
   const snapshot = await getDb().collection("emailJobs").where("orderId", "==", orderId).limit(100).get();
@@ -72,8 +92,9 @@ export async function finishEmailJob(jobId: string, token: string, status: "pend
   });
 }
 
-type StoreOrderUpdate = Partial<Omit<StoreOrder, "error">> & {
+type StoreOrderUpdate = Partial<Omit<StoreOrder, "error" | "refundReviewReason">> & {
   error?: StoreOrder["error"] | FieldValue;
+  refundReviewReason?: string | FieldValue;
 };
 
 export async function listCatalogProducts(): Promise<CatalogProduct[]> {
@@ -138,9 +159,10 @@ export async function findOrderByStripePaymentIntentId(paymentIntentId: string):
   const snapshot = await getDb()
     .collection(ordersCollection)
     .where("stripePaymentIntentId", "==", paymentIntentId)
-    .limit(1)
+    .limit(2)
     .get();
 
+  if (snapshot.docs.length > 1) throw new Error("Multiple orders reference the same Stripe PaymentIntent; manual review required.");
   return snapshot.empty ? null : (snapshot.docs[0].data() as StoreOrder);
 }
 
@@ -170,13 +192,16 @@ export async function listOrdersForReview(limit = 50): Promise<ReviewOrder[]> {
   const bound = Math.max(1, Math.min(100, Math.floor(limit) || 50));
   const db = getDb();
   // Each query has one filter and a limit: no composite index deployment needed.
-  const [orders, reviews, jobs] = await Promise.all([
+  const [orders, reviews, jobs, refundHolds, refundReviews, refundedOrders] = await Promise.all([
     db.collection(ordersCollection).where("status", "in", ["failed", "manual_review", "printful_pending"]).limit(bound).get(),
     db.collection(ordersCollection).where("emailReviewReason", ">", "").limit(bound).get(),
-    db.collection("emailJobs").where("status", "in", ["pending", "processing", "blocked", "manual_review"]).limit(bound).get()
+    db.collection("emailJobs").where("status", "in", ["pending", "processing", "blocked", "manual_review"]).limit(bound).get(),
+    db.collection(ordersCollection).where("fulfillmentBlocked", "==", true).limit(bound).get(),
+    db.collection(ordersCollection).where("refundReviewReason", ">", "").limit(bound).get(),
+    db.collection(ordersCollection).where("refundSummary.refundCount", ">", 0).limit(bound).get()
   ]);
   const selected = new Map<string, StoreOrder>();
-  for (const doc of [...orders.docs, ...reviews.docs]) { const order = doc.data() as StoreOrder; selected.set(order.id, order); }
+  for (const doc of [...orders.docs, ...reviews.docs, ...refundHolds.docs, ...refundReviews.docs, ...refundedOrders.docs]) { const order = doc.data() as StoreOrder; selected.set(order.id, order); }
   const missingIds = [...new Set(jobs.docs.map((doc) => (doc.data() as EmailJob).orderId))].filter((id) => !selected.has(id));
   for (const order of await Promise.all(missingIds.map(getOrder))) if (order) selected.set(order.id, order);
   return Promise.all([...selected.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, bound).map(async (order) => ({

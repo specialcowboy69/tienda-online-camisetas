@@ -3,6 +3,7 @@
 import { RefreshCcw, RotateCw, Webhook } from "lucide-react";
 import { useState } from "react";
 import type { PrintfulSubmissionEligibility } from "@/lib/checkout-validation";
+import type { RefundSummary } from "@/lib/types";
 
 type AdminOrder = {
   id: string;
@@ -11,6 +12,9 @@ type AdminOrder = {
   error?: { message?: string };
   printfulSubmissionEligibility?: PrintfulSubmissionEligibility;
   emailReviewReason?: string;
+  refundSummary?: RefundSummary;
+  fulfillmentBlocked?: boolean;
+  refundReviewReason?: string;
   emailJobs?: Array<{ id: string; kind: string; status: string; attempts: number; providerEmailId?: string; lastError?: string }>;
 };
 
@@ -111,6 +115,7 @@ export function AdminPanel() {
           <tr>
             <th>Order</th>
             <th>Status</th>
+            <th>Refunds</th>
             <th>Error</th>
             <th>Email recovery</th>
             <th>Action</th>
@@ -121,6 +126,11 @@ export function AdminPanel() {
             <tr key={order.id}>
               <td>{order.id}</td>
               <td>{order.status}</td>
+              <td>
+                {order.refundSummary ? <p>{order.refundSummary.status}: {order.refundSummary.refundedAmount} / {order.refundSummary.paidAmount} {order.refundSummary.currency} (minor units); {order.refundSummary.pendingCount} pending; {order.refundSummary.failedCount} failed; {order.refundSummary.canceledCount} canceled</p> : <p>Not reconciled</p>}
+                {order.fulfillmentBlocked || order.refundSummary?.fulfillmentBlocked ? <p>Fulfillment blocked</p> : null}
+                {order.refundReviewReason ? <p>{order.refundReviewReason}</p> : null}
+              </td>
               <td>{order.error?.message || ""}</td>
               <td>
                 {order.emailReviewReason ? <p>{order.emailReviewReason}</p> : null}

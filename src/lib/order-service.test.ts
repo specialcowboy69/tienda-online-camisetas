@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   getOrder: vi.fn(), updateOrder: vi.fn(), updateOrderStatus: vi.fn(),
   createPrintfulOrder: vi.fn(), findPrintfulOrderByExternalId: vi.fn(),
   constructEvent: vi.fn(), retrieveSession: vi.fn(), createSession: vi.fn(),
+  reconcileRefunds: vi.fn(), refundEvent: vi.fn(),
   beginWebhookEventProcessing: vi.fn(), failWebhookEventProcessing: vi.fn(), finishWebhookEventProcessing: vi.fn(),
   claimOrderProcessing: vi.fn(), renewOrderProcessing: vi.fn(), updateClaimedOrder: vi.fn(), releaseOrderProcessing: vi.fn(), sendEmail: vi.fn(), complete: vi.fn(), jobs: [] as import("./types").EmailJob[]
 }));
@@ -51,6 +52,7 @@ vi.mock("./stripe", () => ({
   createStripeCheckoutSession: mocks.createStripeCheckoutSession,
   getStripe: () => ({ webhooks: { constructEvent: mocks.constructEvent }, checkout: { sessions: { retrieve: mocks.retrieveSession } } })
 }));
+vi.mock("./refund-service", () => ({ reconcileOrderRefunds: mocks.reconcileRefunds, handleStripeRefundEvent: mocks.refundEvent }));
 
 vi.mock("./env", () => ({ env: { PRINTFUL_WEBHOOK_SECRET: "synthetic-test-secret" }, isStripeTaxEnabled: () => false, requiredEnv: () => "synthetic-test-secret", getAllowedShippingCountries: () => ["US", "ES"], getBaseUrl: () => "http://localhost:3000" }));
 vi.mock("stripe", () => ({ default: class {
@@ -145,11 +147,56 @@ describe("order service", () => {
     mocks.updateClaimedOrder.mockResolvedValue(true);
     mocks.releaseOrderProcessing.mockResolvedValue(true);
     mocks.jobs = []; mocks.sendEmail.mockResolvedValue("accepted");
+    mocks.reconcileRefunds.mockResolvedValue({ status: "none", refundCount: 0, pendingCount: 0, failedCount: 0, canceledCount: 0, fulfillmentBlocked: false, paymentIntentId: "pi_1", refundedAmount: 0, paidAmount: 2000, currency: "eur", reconciledAt: "now" });
     mocks.complete.mockImplementation(async (id, token, patch, job) => {
       if (!await mocks.updateClaimedOrder(id, token, patch)) return false;
       if (job && !mocks.jobs.some((item) => item.id === job.id)) mocks.jobs.push(job);
       return true;
     });
+  });
+
+  it("vetoes fresh creation using the newly returned refund summary under the same lease", async () => {
+    const { submitOrderToPrintful } = await import("./order-service");
+    ownedStore(validatedOrder());
+    mocks.reconcileRefunds.mockResolvedValue({ status: "partial", refundCount: 1, pendingCount: 0, failedCount: 0, canceledCount: 0, fulfillmentBlocked: true, paymentIntentId: "pi_1", refundedAmount: 1000, paidAmount: 2000, currency: "eur", reconciledAt: "now" });
+    await expect(submitOrderToPrintful("order1")).rejects.toMatchObject({ reason: "RefundReviewRequired" });
+    expect(mocks.reconcileRefunds).toHaveBeenCalledWith(expect.objectContaining({ id: "order1" }), "order-owner");
+    expect(mocks.claimOrderProcessing).toHaveBeenCalledOnce(); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
+  });
+  it("fails closed before create when authoritative financial reads fail", async () => {
+    const { submitOrderToPrintful } = await import("./order-service"); ownedStore(validatedOrder());
+    mocks.reconcileRefunds.mockRejectedValue(new Error("Stripe unavailable"));
+    await expect(submitOrderToPrintful("order1")).rejects.toThrow("Stripe unavailable"); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
+  });
+  it("never submits a refunded legacy order on retry", async () => {
+    const { submitOrderToPrintful } = await import("./order-service"); ownedStore({ ...validatedOrder(), status: "refunded" });
+    await expect(submitOrderToPrintful("order1")).rejects.toMatchObject({ reason: "OrderStatusBlocked" });
+    expect(mocks.createPrintfulOrder).not.toHaveBeenCalled(); expect(mocks.findPrintfulOrderByExternalId).not.toHaveBeenCalled();
+  });
+  it("revalidates financial state under the held lease to recover a transient outage", async () => {
+    const { revalidatePaidCheckout } = await import("./order-service");
+    ownedStore({ ...validatedOrder(), refundReviewReason: "Stripe unavailable" }); mocks.retrieveSession.mockResolvedValue(paidSession);
+    const result = await revalidatePaidCheckout("order1");
+    expect(result.refundSummary).toMatchObject({ status: "none", fulfillmentBlocked: false }); expect(result.refundReviewReason).toBeUndefined();
+    expect(mocks.reconcileRefunds).toHaveBeenCalledWith(expect.objectContaining({ id: "order1" }), "order-owner"); expect(mocks.claimOrderProcessing).toHaveBeenCalledOnce();
+    expect(mocks.createPrintfulOrder).not.toHaveBeenCalled(); expect(mocks.sendEmail).not.toHaveBeenCalled(); expect(result.status).toBe("paid");
+  });
+  it("retains the fulfillment latch while revalidating a failed refund", async () => {
+    const { revalidatePaidCheckout } = await import("./order-service");
+    ownedStore({ ...validatedOrder(), fulfillmentBlocked: true }); mocks.retrieveSession.mockResolvedValue(paidSession);
+    mocks.reconcileRefunds.mockResolvedValue({ status: "none", refundCount: 1, pendingCount: 0, failedCount: 1, canceledCount: 0, fulfillmentBlocked: true, paymentIntentId: "pi_1", refundedAmount: 0, paidAmount: 2000, currency: "eur", reconciledAt: "now" });
+    const result = await revalidatePaidCheckout("order1"); expect(result.fulfillmentBlocked).toBe(true); expect(result.refundSummary?.fulfillmentBlocked).toBe(true); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
+  });
+  it("rejects a newly returned summary latch even with zero canonical refunds", async () => {
+    const { submitOrderToPrintful } = await import("./order-service"); ownedStore(validatedOrder());
+    mocks.reconcileRefunds.mockResolvedValue({ status: "none", refundCount: 0, pendingCount: 0, failedCount: 0, canceledCount: 0, fulfillmentBlocked: true, paymentIntentId: "pi_1", refundedAmount: 0, paidAmount: 2000, currency: "eur", reconciledAt: "now" });
+    await expect(submitOrderToPrintful("order1")).rejects.toMatchObject({ reason: "RefundReviewRequired" }); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
+  });
+  it.each(["refund.created", "refund.updated", "refund.failed", "charge.refunded"])("routes %s to financial reconciliation", async (type) => {
+    const { handleStripeWebhook } = await import("./order-service");
+    const event = { id: "evt_refund", type, data: { object: { payment_intent: "pi_1" } } };
+    mocks.constructEvent.mockReturnValue(event); await handleStripeWebhook("{}", "signature");
+    expect(mocks.refundEvent).toHaveBeenCalledWith(event); expect(mocks.updateOrderStatus).not.toHaveBeenCalled();
   });
 
   it("leaves a busy Stripe event retryable without business writes", async () => {

@@ -286,6 +286,44 @@ describe("owned processing leases", () => {
   });
   afterEach(() => vi.useRealTimers());
 
+  it("persists paginated refund snapshots under the order and fences stale writes", async () => {
+    const db = await import("./firestore");
+    expect(db).toHaveProperty("persistClaimedRefundSnapshots");
+    records.set("orders/order_1", { id: "order_1", status: "shipped" });
+    const claim = await db.claimOrderProcessing("order_1");
+    if (claim.kind !== "claimed") throw new Error("Expected claim");
+    const refunds = Array.from({ length: 501 }, (_, index) => ({ id: `re_${index}`, amount: 1, currency: "eur", status: "succeeded" as const, paymentIntentId: "pi_1", reconciledAt: "now" }));
+    expect(await db.persistClaimedRefundSnapshots("order_1", claim.lease.token, refunds)).toBe(true);
+    expect(records.get("orders/order_1/refunds/re_500")).toMatchObject({ amount: 1 });
+    expect(records.get("orders/order_1")?.status).toBe("shipped");
+    vi.advanceTimersByTime(120000);
+    expect(await db.persistClaimedRefundSnapshots("order_1", claim.lease.token, [{ ...refunds[0], amount: 2 }])).toBe(false);
+    expect(records.get("orders/order_1/refunds/re_0")?.amount).toBe(1);
+  });
+  it("preserves independent refund data when a later shipment receipt updates fulfillment", async () => {
+    const db = await import("./firestore");
+    const refundSummary = { status: "full", refundedAmount: 2200, paidAmount: 2200, fulfillmentBlocked: true };
+    records.set("orders/order_1", { id: "order_1", status: "printful_confirmed", refundSummary, fulfillmentBlocked: true });
+    const claim = await db.claimOrderProcessing("order_1"); if (claim.kind !== "claimed") throw new Error("Expected claim");
+    expect(await db.applyClaimedShipment("order_1", claim.lease.token, { status: "shipped", tracking: { carrier: "Carrier" } })).toBe(true);
+    expect(records.get("orders/order_1")).toMatchObject({ status: "shipped", refundSummary, fulfillmentBlocked: true });
+  });
+
+  it("surfaces held and unresolved orders even when their fulfillment status is shipped", async () => {
+    const db = await import("./firestore");
+    const held = { id: "held", status: "paid", fulfillmentBlocked: true, updatedAt: "2026-09-30" };
+    const unknown = { id: "unknown", status: "shipped", refundReviewReason: "Read failed", updatedAt: "2026-09-29" };
+    const refunded = { id: "refunded", status: "shipped", refundSummary: { refundCount: 1 }, updatedAt: "2026-09-28" };
+    mocks.collection.mockImplementation((name: string) => ({ where: (field: string) => ({ limit: () => ({ get: async () => ({ docs: name === "orders" && field === "fulfillmentBlocked" ? [{ data: () => held }] : name === "orders" && field === "refundReviewReason" ? [{ data: () => unknown }] : name === "orders" && field === "refundSummary.refundCount" ? [{ data: () => refunded }] : [] }) }) }) }));
+    expect((await db.listOrdersForReview()).map((order) => order.id)).toEqual(["held", "unknown", "refunded"]);
+  });
+  it("refuses an ambiguous persisted PaymentIntent association", async () => {
+    const db = await import("./firestore");
+    let limit = 0;
+    mocks.collection.mockImplementation(() => ({ where: () => ({ limit: (value: number) => { limit = value; return { get: async () => ({ empty: false, docs: [{ data: () => ({ id: "one" }) }, { data: () => ({ id: "two" }) }].slice(0, value) }) }; } }) }));
+    await expect(db.findOrderByStripePaymentIntentId("pi_1")).rejects.toThrow("Multiple orders"); expect(limit).toBe(2);
+  });
+
   it("denies a second event worker and admits a different owner at expiry", async () => {
     const db = await import("./firestore");
     const first = await db.beginWebhookEventProcessing("stripe", "evt_1", {});

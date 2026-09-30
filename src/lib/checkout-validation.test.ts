@@ -25,6 +25,9 @@ function validatedOrder(): StoreOrder {
 }
 
 describe("paid checkout validation", () => {
+  it("vetoes a latched refund hold even after its financial total returns to zero", () => {
+    expect(getPrintfulSubmissionEligibility({ ...validatedOrder(), fulfillmentBlocked: true })).toMatchObject({ allowed: false, reason: "RefundReviewRequired" });
+  });
   it("records versioned payment evidence for the immutable snapshot", () => {
     const result = evaluatePaidCheckout(order, session, options);
     expect(result).toMatchObject({ valid: true, evidence: { version: 1, source: "stripe_webhook", stripeSessionId: "cs_1", stripePaymentIntentId: "pi_1", paidAmount: 2000, currency: "usd", taxAmount: 0, stripeTaxEnabled: false } });

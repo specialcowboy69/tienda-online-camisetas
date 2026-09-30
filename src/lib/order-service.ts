@@ -9,15 +9,13 @@ import {
   createOrder,
   failWebhookEventProcessing,
   finishWebhookEventProcessing,
-  findOrderByStripePaymentIntentId,
   getCatalogProduct,
   getOrder,
   listOrderEmailJobs,
   releaseOrderProcessing,
   renewOrderProcessing,
   updateClaimedOrder,
-  updateOrder,
-  updateOrderStatus
+  updateOrder
 } from "./firestore";
 import { jsonError, summarizeError } from "./http";
 import { assertSameCurrency } from "./money";
@@ -28,6 +26,7 @@ import { buildEmailJob, processEmailJob, requireEmailRecovery, retryOrderEmails 
 import { isStripeTaxEnabled, requiredEnv } from "./env";
 import { CartItemInput, Recipient, ShippingRate, StoreOrder } from "./types";
 import { ProcessingBusyError, ProcessingOwnershipLostError } from "./processing-errors";
+import { handleStripeRefundEvent, reconcileOrderRefunds } from "./refund-service";
 
 export async function quoteShipping(input: { recipient: Recipient; items: CartItemInput[] }): Promise<ShippingRate[]> {
   assertAllowedCountry(input.recipient.countryCode);
@@ -117,8 +116,8 @@ export async function handleStripeWebhook(rawBody: string, signature: string | n
       await handleCheckoutUnpaid(session, "expired");
     }
 
-    if (event.type === "charge.refunded" || event.type === "refund.updated") {
-      await handleRefundEvent(event);
+    if (["charge.refunded", "refund.created", "refund.updated", "refund.failed"].includes(event.type)) {
+      await handleStripeRefundEvent(event);
     }
 
     if (!await finishWebhookEventProcessing("stripe", event.id, claim.lease.token)) throw new ProcessingOwnershipLostError();
@@ -186,10 +185,13 @@ async function submitClaimedOrderToPrintful(order: StoreOrder, token: string): P
     throw error;
   }
   if (!remote) {
+    const refundSummary = await reconcileOrderRefunds(pending, token);
+    const financialEligibility = getPrintfulSubmissionEligibility({ ...pending, refundSummary, refundReviewReason: undefined });
+    if (!financialEligibility.allowed) throw new CheckoutValidationError(financialEligibility.reason, financialEligibility.message);
     await renewOrderOwnership(order.id, token);
     try {
-      // Task5 adds authoritative refund reconciliation and the eligibility veto
-      // here, under this same held lease, immediately before fresh creation.
+      // A Dashboard refund can still race this remote request; the shared local
+      // lease serializes our workers, not Stripe/Printful provider operations.
       remote = await createPrintfulOrder(pending);
     } catch (error) {
       // HTTP400 can be OR-13/EXTERNAL_ID_IN_USE. Read-only reconciliation is
@@ -338,7 +340,8 @@ export async function revalidatePaidCheckout(orderId: string): Promise<StoreOrde
       stripeTaxAmount: validation.evidence.taxAmount
     };
     await writeClaimedOrder(order.id, token, patch);
-    return { ...order, ...patch };
+    const refundSummary = await reconcileOrderRefunds({ ...order, ...patch }, token);
+    return { ...order, ...patch, refundSummary, fulfillmentBlocked: Boolean(order.fulfillmentBlocked || refundSummary.fulfillmentBlocked), refundReviewReason: undefined };
   });
 }
 
@@ -360,20 +363,6 @@ async function retrieveCheckoutWithinDeadline(sessionId: string): Promise<Stripe
     ]);
   } finally {
     clearTimeout(timer);
-  }
-}
-
-async function handleRefundEvent(event: Stripe.Event): Promise<void> {
-  const stripeObject = event.data.object as { metadata?: { order_id?: string }; payment_intent?: string };
-  let orderId = stripeObject.metadata?.order_id;
-
-  if (!orderId && stripeObject.payment_intent) {
-    const order = await findOrderByStripePaymentIntentId(stripeObject.payment_intent);
-    orderId = order?.id;
-  }
-
-  if (orderId) {
-    await updateOrderStatus(orderId, "refunded");
   }
 }
 

@@ -4,6 +4,21 @@ import { StoreOrder } from "./types";
 
 let stripeClient: Stripe | undefined;
 
+export async function readStripeWithinDeadline<T>(read: (options: Stripe.RequestOptions) => PromiseLike<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error("Stripe read exceeded its deadline.");
+      error.name = "StripeReadDeadlineExceeded";
+      reject(error);
+    }, 20000);
+  });
+  try {
+    // Bounds this caller, not the SDK transport. No late read resumes this caller.
+    return await Promise.race([read({ timeout: 20000, maxNetworkRetries: 0 }), deadline]);
+  } finally { clearTimeout(timer); }
+}
+
 export function getStripe(): Stripe {
   if (!stripeClient) {
     stripeClient = new Stripe(requiredEnv("STRIPE_SECRET_KEY"));

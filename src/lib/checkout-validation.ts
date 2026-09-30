@@ -75,6 +75,9 @@ export function hasValidCheckoutValidation(order: StoreOrder): boolean {
 }
 
 export function getPrintfulSubmissionEligibility(order: StoreOrder): PrintfulSubmissionEligibility {
+  if (order.fulfillmentBlocked || order.refundReviewReason || (order.refundSummary && (order.refundSummary.fulfillmentBlocked || order.refundSummary.refundCount > 0 || order.refundSummary.status !== "none" || order.refundSummary.pendingCount > 0))) {
+    return { allowed: false, reason: "RefundReviewRequired", message: "Refund activity or unresolved financial state requires manual review before fulfillment." };
+  }
   if (!order.checkoutValidation) {
     return { allowed: false, reason: "CheckoutValidationRequired", message: "Validate the paid Stripe Checkout session before retrying fulfillment." };
   }

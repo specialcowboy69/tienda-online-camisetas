@@ -114,6 +114,9 @@ export type StoreOrder = {
   stripeAmountTotal?: number;
   stripeTaxAmount?: number;
   checkoutValidation?: CheckoutValidationEvidence;
+  refundSummary?: RefundSummary;
+  fulfillmentBlocked?: boolean;
+  refundReviewReason?: string;
   orderProcessingLease?: ProcessingLease;
   emailPolicyVersion?: 1;
   emailReviewReason?: string;
@@ -137,6 +140,18 @@ export type StoreOrder = {
 };
 
 export type WebhookSource = "stripe" | "printful";
+
+export type RefundSnapshot = {
+  id: string; amount: number; currency: string;
+  status: "pending" | "requires_action" | "succeeded" | "failed" | "canceled";
+  paymentIntentId: string; reconciledAt: string;
+};
+export type RefundSummary = {
+  paymentIntentId: string; paidAmount: number; currency: string;
+  refundedAmount: number; status: "none" | "partial" | "full";
+  pendingCount: number; failedCount: number; canceledCount: number;
+  fulfillmentBlocked: boolean; refundCount: number; reconciledAt: string;
+};
 
 export type EmailMessage = { from?: string; to: string; subject: string; text: string; html: string; tags: Array<{ name: string; value: string }> };
 export type EmailJob = {

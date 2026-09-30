@@ -27,6 +27,11 @@ describe("AdminPanel email recovery", () => {
     hooks.values[1] = [{ id: "order1", status: "shipped", updatedAt: "today", emailJobs: [{ id: "job1", kind: "order_confirmation", status: "pending", attempts: 1 }, { id: "job2", kind: "shipment", status: "pending", attempts: 1 }] }];
   });
   afterEach(() => { vi.unstubAllGlobals(); });
+  it("displays financial status separately from shipment and keeps the refund hold visible", () => {
+    hooks.values[1] = [{ id: "order1", status: "shipped", updatedAt: "today", fulfillmentBlocked: true, refundReviewReason: "Manual review needed", refundSummary: { status: "partial", refundedAmount: 1100, paidAmount: 2200, currency: "eur", pendingCount: 1, failedCount: 2, canceledCount: 3 } }];
+    const html = renderToStaticMarkup(panel());
+    expect(html).toContain("shipped"); expect(html).toContain("partial"); expect(html).toContain("1100 / 2200 eur"); expect(html).toContain("Fulfillment blocked"); expect(html).toContain("Manual review needed"); expect(html).toContain("2 failed"); expect(html).toContain("3 canceled");
+  });
   it("retains per-job outcomes and refreshes orders after a retryable partial result", async () => {
     const http = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ results: [{ jobId: "job1", result: "accepted" }, { jobId: "job2", result: "retry" }] }), { status: 503 }))
