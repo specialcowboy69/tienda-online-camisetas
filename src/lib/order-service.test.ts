@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type Stripe from "stripe";
+import { NextRequest } from "next/server";
 import { CatalogProduct, ShippingRate, StoreOrder } from "./types";
 import { evaluatePaidCheckout } from "./checkout-validation";
 
@@ -12,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   createPrintfulOrder: vi.fn(), findPrintfulOrderByExternalId: vi.fn(),
   constructEvent: vi.fn(), retrieveSession: vi.fn(), createSession: vi.fn(),
   beginWebhookEventProcessing: vi.fn(), failWebhookEventProcessing: vi.fn(), finishWebhookEventProcessing: vi.fn(),
-  claimOrderProcessing: vi.fn(), renewOrderProcessing: vi.fn(), updateClaimedOrder: vi.fn(), releaseOrderProcessing: vi.fn(), sendEmail: vi.fn()
+  claimOrderProcessing: vi.fn(), renewOrderProcessing: vi.fn(), updateClaimedOrder: vi.fn(), releaseOrderProcessing: vi.fn(), sendEmail: vi.fn(), complete: vi.fn(), jobs: [] as import("./types").EmailJob[]
 }));
 
 vi.mock("./firestore", () => ({
@@ -28,6 +29,7 @@ vi.mock("./firestore", () => ({
   updateOrderStatus: mocks.updateOrderStatus,
   claimOrderProcessing: mocks.claimOrderProcessing, renewOrderProcessing: mocks.renewOrderProcessing,
   updateClaimedOrder: mocks.updateClaimedOrder, releaseOrderProcessing: mocks.releaseOrderProcessing
+  , completeClaimedFulfillment: mocks.complete, applyClaimedShipment: mocks.complete, listOrderEmailJobs: async () => mocks.jobs
 }));
 
 vi.mock("./printful", () => ({
@@ -50,7 +52,7 @@ vi.mock("./stripe", () => ({
   getStripe: () => ({ webhooks: { constructEvent: mocks.constructEvent }, checkout: { sessions: { retrieve: mocks.retrieveSession } } })
 }));
 
-vi.mock("./env", () => ({ isStripeTaxEnabled: () => false, requiredEnv: () => "synthetic-test-secret", getAllowedShippingCountries: () => ["US", "ES"], getBaseUrl: () => "http://localhost:3000" }));
+vi.mock("./env", () => ({ env: { PRINTFUL_WEBHOOK_SECRET: "synthetic-test-secret" }, isStripeTaxEnabled: () => false, requiredEnv: () => "synthetic-test-secret", getAllowedShippingCountries: () => ["US", "ES"], getBaseUrl: () => "http://localhost:3000" }));
 vi.mock("stripe", () => ({ default: class {
   checkout = { sessions: { create: mocks.createSession } };
 } }));
@@ -67,9 +69,7 @@ const paidSession = {
   shipping_details: { address: { line1: "1 Main St", line2: "Apt 2", city: "Madrid", country: "ES", postal_code: "28001" } }
 } as unknown as Stripe.Checkout.Session;
 
-vi.mock("./email", () => ({
-  sendOrderConfirmationEmail: mocks.sendEmail
-}));
+vi.mock("./email-jobs", async (importOriginal) => ({ ...await importOriginal<typeof import("./email-jobs")>(), processEmailJob: mocks.sendEmail, retryOrderEmails: async () => Promise.all(mocks.jobs.map(async (job) => ({ jobId: job.id, result: await mocks.sendEmail(job.id) }))) }));
 
 const product: CatalogProduct = {
   id: "101",
@@ -144,6 +144,12 @@ describe("order service", () => {
     mocks.renewOrderProcessing.mockResolvedValue(true);
     mocks.updateClaimedOrder.mockResolvedValue(true);
     mocks.releaseOrderProcessing.mockResolvedValue(true);
+    mocks.jobs = []; mocks.sendEmail.mockResolvedValue("accepted");
+    mocks.complete.mockImplementation(async (id, token, patch, job) => {
+      if (!await mocks.updateClaimedOrder(id, token, patch)) return false;
+      if (job && !mocks.jobs.some((item) => item.id === job.id)) mocks.jobs.push(job);
+      return true;
+    });
   });
 
   it("leaves a busy Stripe event retryable without business writes", async () => {
@@ -394,9 +400,52 @@ describe("order service", () => {
   it("does not reclassify email failure as failed fulfillment", async () => {
     const service = await import("./order-service");
     const store = ownedStore(validatedOrder());
-    mocks.sendEmail.mockRejectedValue(new Error("email unavailable"));
-    await expect(service.submitOrderToPrintful("order1")).rejects.toThrow("email unavailable");
+    mocks.sendEmail.mockResolvedValue("retry");
+    await expect(service.submitOrderToPrintful("order1")).rejects.toMatchObject({ name: "ProcessingBusyError" });
     expect(store.read()).toMatchObject({ status: "printful_confirmed", printfulOrderId: 123 });
+  });
+
+  it("recovers the persisted confirmation on webhook replay without Printful lookup or creation", async () => {
+    const service = await import("./order-service"); const store = ownedStore({ ...validatedOrder(), emailPolicyVersion: 1 });
+    mocks.sendEmail.mockResolvedValueOnce("retry").mockResolvedValue("accepted");
+    await expect(service.submitOrderToPrintful("order1")).rejects.toMatchObject({ name: "ProcessingBusyError" });
+    expect(mocks.jobs).toHaveLength(1); const frozen = structuredClone(mocks.jobs[0]);
+    mocks.constructEvent.mockReturnValue({ id: "evt_recovery", type: "checkout.session.completed", data: { object: paidSession } });
+    expect((await service.handleStripeWebhook("{}", "signature")).status).toBe(200);
+    expect(mocks.createPrintfulOrder).toHaveBeenCalledTimes(1); expect(mocks.findPrintfulOrderByExternalId).toHaveBeenCalledTimes(1);
+    expect(mocks.jobs).toEqual([frozen]); expect(mocks.sendEmail).toHaveBeenCalledTimes(2);
+    expect(store.read().status).toBe("printful_confirmed");
+  });
+
+  it("flags legacy fulfilled orders without enqueuing or sending historical email", async () => {
+    const service = await import("./order-service"); const store = ownedStore({ ...paidOrder, status: "shipped", printfulOrderId: 123 });
+    await service.submitOrderToPrintful("order1");
+    expect(store.read().emailReviewReason).toContain("Legacy"); expect(store.read().status).toBe("shipped");
+    expect(store.read().emailPolicyVersion).toBeUndefined();
+    expect(mocks.jobs).toHaveLength(0); expect(mocks.sendEmail).not.toHaveBeenCalled(); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
+  });
+
+  it("enrolls a freshly fulfilled legacy paid order and records its later shipment exactly once", async () => {
+    const service = await import("./order-service");
+    const { POST } = await import("../app/api/webhooks/printful/route");
+    const store = ownedStore(validatedOrder());
+    expect(store.read().emailPolicyVersion).toBeUndefined();
+    await service.submitOrderToPrintful("order1");
+    expect(store.read()).toMatchObject({ status: "printful_confirmed", printfulOrderId: 123, emailPolicyVersion: 1 });
+    expect(mocks.complete).toHaveBeenCalledWith("order1", "order-owner", expect.objectContaining({ emailPolicyVersion: 1 }), expect.objectContaining({ kind: "order_confirmation" }));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await POST(new NextRequest("http://localhost/api/webhooks/printful", { method: "POST", headers: { "x-printful-webhook-secret": "synthetic-test-secret" }, body: JSON.stringify({ type: "package_shipped", created: 123, retries: attempt, store: 1, data: { order: { id: 123, external_id: "order1", status: "fulfilled" }, shipment: { id: 101, tracking_number: "track1" } } }) }));
+      expect(response.status).toBe(200);
+    }
+    expect(store.read().status).toBe("shipped");
+    expect(mocks.jobs.map((job) => job.kind)).toEqual(["order_confirmation", "shipment"]);
+    expect(mocks.createPrintfulOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks new checkout orders for durable emails", async () => {
+    const { createCheckout } = await import("./order-service");
+    await createCheckout({ recipient: paidOrder.recipient, items: [{ productId: "101", syncVariantId: 201, quantity: 1 }], shippingRateId: "STANDARD" });
+    expect(mocks.createOrder.mock.calls[0][0].emailPolicyVersion).toBe(1);
   });
 
   it.each(["checkout.session.expired", "checkout.session.async_payment_failed"])("ignores late %s after fulfilled state", async (type) => {

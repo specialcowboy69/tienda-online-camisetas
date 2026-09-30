@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { env } from "./env";
 
 const trackingUrlSchema = z
@@ -47,6 +48,13 @@ export const printfulWebhookPayloadSchema = z.object({
 });
 
 export type PrintfulWebhookPayload = z.infer<typeof printfulWebhookPayloadSchema>;
+
+export function shipmentIdentity(payload: PrintfulWebhookPayload): string | null {
+  const shipment = payload.data?.shipment;
+  if (shipment?.id !== undefined) return `id:${shipment.id}`;
+  const tracking = shipment?.tracking_number?.trim() || shipment?.tracking_url?.trim();
+  return tracking ? `tracking:${createHash("sha256").update(tracking).digest("hex")}` : null;
+}
 
 export function isPrintfulWebhookSecretValid(value: string | null): boolean {
   return Boolean(env.PRINTFUL_WEBHOOK_SECRET && value === env.PRINTFUL_WEBHOOK_SECRET);

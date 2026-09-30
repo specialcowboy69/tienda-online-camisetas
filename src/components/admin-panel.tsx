@@ -10,6 +10,8 @@ type AdminOrder = {
   updatedAt: string;
   error?: { message?: string };
   printfulSubmissionEligibility?: PrintfulSubmissionEligibility;
+  emailReviewReason?: string;
+  emailJobs?: Array<{ id: string; kind: string; status: string; attempts: number; providerEmailId?: string; lastError?: string }>;
 };
 
 export function AdminPanel() {
@@ -71,6 +73,11 @@ export function AdminPanel() {
     await loadReviewOrders();
   }
 
+  async function retryEmails(orderId: string) {
+    await callAdmin(`/api/admin/orders/${orderId}/retry-email`, { method: "POST" });
+    await loadReviewOrders();
+  }
+
   return (
     <section className="panel">
       <h1>Admin</h1>
@@ -100,6 +107,7 @@ export function AdminPanel() {
             <th>Order</th>
             <th>Status</th>
             <th>Error</th>
+            <th>Email recovery</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -109,6 +117,11 @@ export function AdminPanel() {
               <td>{order.id}</td>
               <td>{order.status}</td>
               <td>{order.error?.message || ""}</td>
+              <td>
+                {order.emailReviewReason ? <p>{order.emailReviewReason}</p> : null}
+                {order.emailJobs?.map((job) => <p key={job.id}>{job.kind}: {job.status} ({job.attempts} attempts){job.providerEmailId ? ` — Provider accepted: ${job.providerEmailId}` : ""}{job.lastError ? ` — ${job.lastError}` : ""}</p>)}
+                {order.emailJobs?.some((job) => ["pending", "processing", "blocked"].includes(job.status)) ? <button onClick={() => retryEmails(order.id)} disabled={loading}>Retry emails only</button> : null}
+              </td>
               <td>
                 <button onClick={() => retryPrintful(order.id)} disabled={loading || !order.printfulSubmissionEligibility?.allowed}>
                   Retry

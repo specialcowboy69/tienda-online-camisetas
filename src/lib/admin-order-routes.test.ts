@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StoreOrder } from "./types";
 
-const mocks = vi.hoisted(() => ({ getOrder: vi.fn(), listOrders: vi.fn(), updateOrder: vi.fn(), updateOrderStatus: vi.fn(), createPrintfulOrder: vi.fn(), retrieve: vi.fn(), claim: vi.fn(), renew: vi.fn(), updateClaimed: vi.fn(), release: vi.fn() }));
+const mocks = vi.hoisted(() => ({ retryEmails: vi.fn(), getOrder: vi.fn(), listOrders: vi.fn(), updateOrder: vi.fn(), updateOrderStatus: vi.fn(), createPrintfulOrder: vi.fn(), retrieve: vi.fn(), claim: vi.fn(), renew: vi.fn(), updateClaimed: vi.fn(), release: vi.fn() }));
+vi.mock("./email-jobs", async (importOriginal) => ({ ...await importOriginal<typeof import("./email-jobs")>(), retryOrderEmails: mocks.retryEmails }));
 vi.mock("./env", () => ({ env: { ADMIN_SECRET: "synthetic-admin-secret" }, isStripeTaxEnabled: () => false }));
 vi.mock("./firestore", () => ({ getOrder: mocks.getOrder, listOrdersForReview: mocks.listOrders, updateOrder: mocks.updateOrder, updateOrderStatus: mocks.updateOrderStatus, claimOrderProcessing: mocks.claim, renewOrderProcessing: mocks.renew, updateClaimedOrder: mocks.updateClaimed, releaseOrderProcessing: mocks.release }));
 vi.mock("./stripe", () => ({ getStripe: () => ({ checkout: { sessions: { retrieve: mocks.retrieve } } }) }));
@@ -59,6 +60,24 @@ describe("authenticated order safety routes", () => {
     mocks.updateClaimed.mockResolvedValue(false);
     const { POST } = await import("../app/api/admin/orders/[orderId]/revalidate-checkout/route");
     const response = await POST(request("order1/revalidate-checkout"), context);
+    expect(response.status).toBe(503); expect(response.headers.get("Retry-After")).toBe("1");
+  });
+  it("rejects unauthenticated email recovery before any work", async () => {
+    const { POST } = await import("../app/api/admin/orders/[orderId]/retry-email/route");
+    expect((await POST(request("order1/retry-email", false), context)).status).toBe(401);
+    expect(mocks.retryEmails).not.toHaveBeenCalled(); expect(mocks.getOrder).not.toHaveBeenCalled();
+  });
+  it("retries email independently of fulfillment and reports acceptance accurately", async () => {
+    mocks.retryEmails.mockResolvedValue([{ jobId: "job1", result: "accepted" }]);
+    const { POST } = await import("../app/api/admin/orders/[orderId]/retry-email/route");
+    const response = await POST(request("order1/retry-email"), context);
+    expect(response.status).toBe(200); expect(await response.json()).toEqual({ results: [{ jobId: "job1", result: "accepted" }] });
+    expect(mocks.retryEmails).toHaveBeenCalledWith("order1"); expect(mocks.createPrintfulOrder).not.toHaveBeenCalled(); expect(mocks.claim).not.toHaveBeenCalled();
+  });
+  it.each(["retry", "busy"])("keeps %s email recovery retryable", async (result) => {
+    mocks.retryEmails.mockResolvedValue([{ jobId: "job1", result }]);
+    const { POST } = await import("../app/api/admin/orders/[orderId]/retry-email/route");
+    const response = await POST(request("order1/retry-email"), context);
     expect(response.status).toBe(503); expect(response.headers.get("Retry-After")).toBe("1");
   });
 });

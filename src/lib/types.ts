@@ -115,6 +115,8 @@ export type StoreOrder = {
   stripeTaxAmount?: number;
   checkoutValidation?: CheckoutValidationEvidence;
   orderProcessingLease?: ProcessingLease;
+  emailPolicyVersion?: 1;
+  emailReviewReason?: string;
   printfulOrderId?: number;
   printfulExternalId?: string;
   printfulStatus?: string;
@@ -135,6 +137,15 @@ export type StoreOrder = {
 };
 
 export type WebhookSource = "stripe" | "printful";
+
+export type EmailMessage = { from?: string; to: string; subject: string; text: string; html: string; tags: Array<{ name: string; value: string }> };
+export type EmailJob = {
+  id: string; orderId: string; kind: "order_confirmation" | "shipment";
+  message: EmailMessage; idempotencyKey: string;
+  status: "pending" | "processing" | "blocked" | "accepted" | "manual_review";
+  attempts: number; firstDispatchAtMs?: number; providerEmailId?: string;
+  lease?: ProcessingLease; lastError?: string; createdAt: string; updatedAt: string;
+};
 
 export type ProcessingLease = { token: string; expiresAtMs: number };
 export type ClaimResult<T> =

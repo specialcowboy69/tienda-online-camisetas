@@ -47,8 +47,8 @@ describe("transactional emails", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "email-id" }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const { sendOrderConfirmationEmail } = await import("./email");
-    await sendOrderConfirmationEmail(order);
+    const { sendEmail, renderOrderConfirmationEmail } = await import("./email");
+    await expect(sendEmail({ ...renderOrderConfirmationEmail(order), from: "No Context Club <orders@example.com>" }, `order-confirmation-${order.id}`)).resolves.toEqual({ kind: "accepted", providerEmailId: "email-id" });
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.resend.com/emails",
@@ -71,5 +71,32 @@ describe("transactional emails", () => {
     expect(body.text).toContain("We've received your payment");
     expect(body.text).toContain("Total: $29.28");
     expect(body.html).toContain("Order confirmed");
+  });
+
+  it("requires a provider receipt and never persists raw provider errors", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status: 200 })));
+    const email = await import("./email");
+    await expect(email.sendEmail({ ...email.renderOrderConfirmationEmail(order), from: "orders@example.com" }, "key")).rejects.toThrow("receipt");
+  });
+
+  it("reports missing configuration as blocked without making HTTP calls", async () => {
+    vi.stubEnv("RESEND_API_KEY", "");
+    const http = vi.fn(); vi.stubGlobal("fetch", http);
+    const email = await import("./email");
+    expect(await email.sendEmail(email.renderOrderConfirmationEmail(order), "key")).toEqual({ kind: "blocked", reason: "missing_configuration" });
+    expect(http).not.toHaveBeenCalled();
+  });
+  it("aborts the request at 20 seconds including response body consumption", async () => {
+    vi.useFakeTimers();
+    try {
+      const http = vi.fn().mockImplementation(async (_url, init) => ({ ok: true, json: () => new Promise((_resolve, reject) => init.signal.addEventListener("abort", () => reject(new Error("timeout")))) }));
+      vi.stubGlobal("fetch", http);
+      const { sendEmail, renderOrderConfirmationEmail } = await import("./email");
+      const result = sendEmail({ ...renderOrderConfirmationEmail(order), from: "frozen@example.com" }, "key");
+      const rejected = expect(result).rejects.toThrow("receipt");
+      await vi.advanceTimersByTimeAsync(19999); expect(http.mock.calls[0][1].signal.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1); await rejected;
+      expect(http.mock.calls[0][1].signal.aborted).toBe(true);
+    } finally { vi.useRealTimers(); }
   });
 });

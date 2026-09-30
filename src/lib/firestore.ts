@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getDb } from "./firebase-admin";
-import { CatalogProduct, ClaimResult, OrderStatus, ProcessingLease, StoreOrder, WebhookSource } from "./types";
+import { CatalogProduct, ClaimResult, EmailJob, OrderStatus, ProcessingLease, StoreOrder, WebhookSource } from "./types";
 import { ProcessingBusyError } from "./processing-errors";
 
 const productsCollection = "products";
@@ -9,6 +9,68 @@ const ordersCollection = "orders";
 const webhookEventsCollection = "webhookEvents";
 const syncRunsCollection = "syncRuns";
 const processingLeaseMs = 120000;
+
+export async function completeClaimedFulfillment(orderId: string, token: string, update: StoreOrderUpdate, job?: EmailJob): Promise<boolean> {
+  const db = getDb();
+  const ref = db.collection(ordersCollection).doc(orderId);
+  if (job && job.orderId !== orderId) throw new Error("Email job belongs to another order.");
+  const jobRef = job ? db.collection("emailJobs").doc(job.id) : null;
+  return db.runTransaction(async (transaction) => {
+    const order = await transaction.get(ref);
+    const existingJob = jobRef ? await transaction.get(jobRef) : null;
+    const now = Date.now();
+    if (!ownsProcessingLease(order.data()?.orderProcessingLease, token, now)) return false;
+    transaction.set(ref, { ...update, updatedAt: new Date(now).toISOString() }, { merge: true });
+    if (jobRef && !existingJob?.exists) transaction.set(jobRef, job!);
+    return true;
+  });
+}
+
+export const applyClaimedShipment = completeClaimedFulfillment;
+
+export async function listOrderEmailJobs(orderId: string): Promise<EmailJob[]> {
+  const snapshot = await getDb().collection("emailJobs").where("orderId", "==", orderId).limit(100).get();
+  return snapshot.docs.map((doc) => doc.data() as EmailJob);
+}
+
+export async function claimEmailJob(jobId: string): Promise<ClaimResult<EmailJob> | { kind: "accepted" | "manual_review" | "missing" }> {
+  const db = getDb(); const ref = db.collection("emailJobs").doc(jobId); const token = randomUUID();
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return { kind: "missing" };
+    const job = snapshot.data() as EmailJob;
+    if (job.status === "accepted" || job.status === "manual_review") return { kind: job.status };
+    const now = Date.now(); const lease = readProcessingLease(job.lease);
+    if (lease && lease.expiresAtMs > now) return busyClaim(lease.expiresAtMs, now);
+    const claimedLease = { token, expiresAtMs: now + processingLeaseMs };
+    transaction.set(ref, { status: "processing", lease: claimedLease, updatedAt: new Date(now).toISOString() }, { merge: true });
+    return { kind: "claimed", lease: claimedLease, value: { ...job, lease: claimedLease } };
+  });
+}
+
+// The only permitted payload change is filling the sender before first dispatch.
+// Persist the clock before HTTP so a crash cannot reopen the provider window.
+export async function prepareEmailDispatch(jobId: string, token: string, sender: string): Promise<EmailJob | null> {
+  const db = getDb(); const ref = db.collection("emailJobs").doc(jobId);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref); const job = snapshot.data() as EmailJob | undefined; const now = Date.now();
+    if (!job || job.status !== "processing" || !ownsProcessingLease(job.lease, token, now)) return null;
+    if (job.firstDispatchAtMs !== undefined && (now - job.firstDispatchAtMs >= 82800000 || !job.message.from)) return null;
+    const updated = { ...job, message: { ...job.message, from: job.message.from || sender }, firstDispatchAtMs: job.firstDispatchAtMs ?? now, attempts: job.attempts + 1, updatedAt: new Date(now).toISOString() };
+    transaction.set(ref, updated);
+    return updated;
+  });
+}
+
+export async function finishEmailJob(jobId: string, token: string, status: "pending" | "blocked" | "accepted" | "manual_review", details: { providerEmailId?: string; lastError?: string } = {}): Promise<boolean> {
+  const db = getDb(); const ref = db.collection("emailJobs").doc(jobId);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref); const job = snapshot.data() as EmailJob | undefined;
+    if (!job || job.status !== "processing" || !ownsProcessingLease(job.lease, token, Date.now())) return false;
+    transaction.set(ref, { status, ...details, lease: FieldValue.delete(), updatedAt: new Date().toISOString(), ...(status === "accepted" ? { lastError: FieldValue.delete() } : {}) }, { merge: true });
+    return true;
+  });
+}
 
 type StoreOrderUpdate = Partial<Omit<StoreOrder, "error">> & {
   error?: StoreOrder["error"] | FieldValue;
@@ -103,16 +165,24 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, up
   await updateOrder(orderId, { ...update, status });
 }
 
-export async function listOrdersForReview(limit = 50): Promise<StoreOrder[]> {
-  const snapshot = await getDb()
-    .collection(ordersCollection)
-    .where("status", "in", ["failed", "manual_review"])
-    .limit(limit)
-    .get();
-
-  return snapshot.docs
-    .map((doc) => doc.data() as StoreOrder)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+export type ReviewOrder = StoreOrder & { emailJobs: Array<Pick<EmailJob, "id" | "kind" | "status" | "attempts" | "providerEmailId" | "lastError">> };
+export async function listOrdersForReview(limit = 50): Promise<ReviewOrder[]> {
+  const bound = Math.max(1, Math.min(100, Math.floor(limit) || 50));
+  const db = getDb();
+  // Each query has one filter and a limit: no composite index deployment needed.
+  const [orders, reviews, jobs] = await Promise.all([
+    db.collection(ordersCollection).where("status", "in", ["failed", "manual_review", "printful_pending"]).limit(bound).get(),
+    db.collection(ordersCollection).where("emailReviewReason", ">", "").limit(bound).get(),
+    db.collection("emailJobs").where("status", "in", ["pending", "processing", "blocked", "manual_review"]).limit(bound).get()
+  ]);
+  const selected = new Map<string, StoreOrder>();
+  for (const doc of [...orders.docs, ...reviews.docs]) { const order = doc.data() as StoreOrder; selected.set(order.id, order); }
+  const missingIds = [...new Set(jobs.docs.map((doc) => (doc.data() as EmailJob).orderId))].filter((id) => !selected.has(id));
+  for (const order of await Promise.all(missingIds.map(getOrder))) if (order) selected.set(order.id, order);
+  return Promise.all([...selected.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, bound).map(async (order) => ({
+    ...order,
+    emailJobs: (await listOrderEmailJobs(order.id)).map(({ id, kind, status, attempts, providerEmailId, lastError }) => ({ id, kind, status, attempts, ...(providerEmailId ? { providerEmailId } : {}), ...(lastError ? { lastError } : {}) }))
+  })));
 }
 
 export async function recordWebhookEventOnce(source: WebhookSource, eventId: string, payload: unknown): Promise<boolean> {

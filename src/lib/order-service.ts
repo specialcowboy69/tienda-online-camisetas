@@ -5,12 +5,14 @@ import { CheckoutValidationError, evaluatePaidCheckout, getPrintfulSubmissionEli
 import {
   beginWebhookEventProcessing,
   claimOrderProcessing,
+  completeClaimedFulfillment,
   createOrder,
   failWebhookEventProcessing,
   finishWebhookEventProcessing,
   findOrderByStripePaymentIntentId,
   getCatalogProduct,
   getOrder,
+  listOrderEmailJobs,
   releaseOrderProcessing,
   renewOrderProcessing,
   updateClaimedOrder,
@@ -22,7 +24,7 @@ import { assertSameCurrency } from "./money";
 import { createPrintfulOrder, findPrintfulOrderByExternalId, getPrintfulExternalId, getShippingRates, PrintfulApiError } from "./printful";
 import { createStripeCheckoutSession, getStripe } from "./stripe";
 import { assertAllowedCountry } from "./validation";
-import { sendOrderConfirmationEmail } from "./email";
+import { buildEmailJob, processEmailJob, requireEmailRecovery, retryOrderEmails } from "./email-jobs";
 import { isStripeTaxEnabled, requiredEnv } from "./env";
 import { CartItemInput, Recipient, ShippingRate, StoreOrder } from "./types";
 import { ProcessingBusyError, ProcessingOwnershipLostError } from "./processing-errors";
@@ -155,7 +157,10 @@ async function writeClaimedOrder(orderId: string, token: string, patch: Paramete
 }
 
 async function submitClaimedOrderToPrintful(order: StoreOrder, token: string): Promise<StoreOrder> {
-  if (order.printfulOrderId) return order;
+  if (order.printfulOrderId) {
+    await recoverExistingOrderEmails(order, token);
+    return order;
+  }
   const eligibility = getPrintfulSubmissionEligibility(order);
   if (!eligibility.allowed) {
     throw new CheckoutValidationError(eligibility.reason, eligibility.message);
@@ -223,25 +228,32 @@ async function finishPrintfulOrder(
   }
   const needsReview = ["canceled", "failed"].includes(printfulOrder.status);
   const status = needsReview ? "manual_review" : "printful_confirmed";
-  await writeClaimedOrder(order.id, token, {
+  const patch = {
     status,
+    ...(!needsReview ? { emailPolicyVersion: 1 as const } : {}),
     error: needsReview ? { type: "PrintfulRemoteStatusReview", message: `Printful reports this order as ${printfulOrder.status}. Review fulfillment before continuing.` } : FieldValue.delete(),
     printfulOrderId: printfulOrder.id,
     printfulExternalId: order.printfulExternalId,
     printfulStatus: printfulOrder.status
-  });
+  } satisfies Parameters<typeof updateClaimedOrder>[2];
+  const job = needsReview ? undefined : buildEmailJob({ ...order, status, printfulOrderId: printfulOrder.id, printfulStatus: printfulOrder.status }, "order_confirmation");
+  if (!await completeClaimedFulfillment(order.id, token, patch, job)) throw new ProcessingOwnershipLostError();
+  if (job) requireEmailRecovery([{ result: await processEmailJob(job.id) }]);
 
   const updated = await getOrder(order.id);
   if (updated) {
-    if (!needsReview) {
-      await renewOrderOwnership(order.id, token);
-      // Task4 replaces this non-durable dispatch with an atomic email job.
-      await sendOrderConfirmationEmail(updated);
-    }
     return updated;
   }
 
   return order;
+}
+
+async function recoverExistingOrderEmails(order: StoreOrder, token: string): Promise<void> {
+  const jobs = await listOrderEmailJobs(order.id);
+  if (jobs.length === 0 && !["canceled", "failed"].includes(order.printfulStatus || "")) {
+    await writeClaimedOrder(order.id, token, { emailReviewReason: order.emailPolicyVersion === 1 ? "Expected email job is missing. Manual review required." : "Legacy fulfilled order has no durable email record. Manual review required; no historical email was created." });
+  }
+  requireEmailRecovery(await retryOrderEmails(order.id));
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
@@ -251,7 +263,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   }
 
   await withOrderProcessing(orderId, async (order, token) => {
-    if (order.printfulOrderId || ["printful_confirmed", "shipped", "returned", "manual_review", "canceled", "refunded", "expired"].includes(order.status)) return;
+    if (order.printfulOrderId || ["printful_confirmed", "shipped", "returned"].includes(order.status)) {
+      await recoverExistingOrderEmails(order, token);
+      return;
+    }
+    if (["manual_review", "canceled", "refunded", "expired"].includes(order.status)) return;
     if (order.status === "failed" && !getPrintfulSubmissionEligibility(order).allowed) return;
     const validation = evaluatePaidCheckout(order, session, { source: "stripe_webhook", stripeTaxEnabled: isStripeTaxEnabled(), validatedAt: new Date().toISOString() });
     const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;

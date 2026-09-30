@@ -67,6 +67,7 @@ export function createDraftOrder(input: {
   return {
     id: randomUUID().replaceAll("-", ""),
     status: "draft",
+    emailPolicyVersion: 1,
     recipient: input.recipient,
     items: input.items,
     shippingRate: input.shippingRate,
