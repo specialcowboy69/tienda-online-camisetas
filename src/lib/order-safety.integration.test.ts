@@ -66,7 +66,7 @@ const order: StoreOrder = {
   shippingRate: { id: "STANDARD", name: "Standard", rate: "0", currency: "eur" },
   totals: { subtotal: 2000, shipping: 0, total: 2000, currency: "eur" }, createdAt: "2026-09-30T12:00:00Z", updatedAt: "2026-09-30T12:00:00Z"
 };
-const session = { id: "cs_paid", mode: "payment", status: "complete", payment_status: "paid", payment_intent: "pi_paid", metadata: { order_id: "order1" }, client_reference_id: "order1", amount_total: 2000, currency: "eur", total_details: { amount_tax: 0 }, shipping_details: { address: { line1: "1 Test Street", line2: "Apt 42", city: "Madrid", postal_code: "28001", country: "ES" } } } as unknown as Stripe.Checkout.Session;
+const session = { id: "cs_paid", mode: "payment", status: "complete", payment_status: "paid", payment_intent: "pi_paid", metadata: { order_id: "order1" }, client_reference_id: "order1", amount_total: 2000, currency: "eur", total_details: { amount_tax: 0 }, collected_information: { shipping_details: { name: "Synthetic Customer", address: { line1: "1 Test Street", line2: "Apt 42", city: "Madrid", postal_code: "28001", country: "ES" } } } } as unknown as Stripe.Checkout.Session;
 function webhook(id: string) { return JSON.stringify({ id, type: "checkout.session.completed", data: { object: session } }); }
 function readOrder() { return state.records.get("orders/order1")!; }
 function jobs() { return [...state.records.entries()].filter(([path]) => path.startsWith("emailJobs/")); }
