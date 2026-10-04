@@ -10,10 +10,16 @@ const order: StoreOrder = {
   shippingRate: { id: "STANDARD", name: "Standard", rate: "0.00", currency: "usd" },
   totals: { subtotal: 2000, shipping: 0, total: 2000, currency: "usd" }, createdAt: "2026-09-30T00:00:00Z", updatedAt: "2026-09-30T00:00:00Z"
 };
+const shippingAddress = { line1: "1 Main St", line2: "Apt 2", city: "New York", state: "NY", country: "US", postal_code: "10001" };
 const session = {
   id: "cs_1", mode: "payment", status: "complete", payment_status: "paid", payment_intent: "pi_1",
   client_reference_id: "order1", metadata: { order_id: "order1" }, amount_total: 2000, currency: "USD", total_details: { amount_tax: 0 },
-  shipping_details: { address: { line1: "1 Main St", line2: "Apt 2", city: "New York", state: "NY", country: "US", postal_code: "10001" } }
+  shipping_details: { name: "Ada", address: shippingAddress }
+} as unknown as Stripe.Checkout.Session;
+const currentSession = {
+  ...session,
+  shipping_details: null,
+  collected_information: { shipping_details: { name: "Ada", address: shippingAddress } }
 } as unknown as Stripe.Checkout.Session;
 const options = { source: "stripe_webhook" as const, stripeTaxEnabled: false, validatedAt: "2026-09-30T00:00:00Z" };
 
@@ -31,6 +37,40 @@ describe("paid checkout validation", () => {
   it("records versioned payment evidence for the immutable snapshot", () => {
     const result = evaluatePaidCheckout(order, session, options);
     expect(result).toMatchObject({ valid: true, evidence: { version: 1, source: "stripe_webhook", stripeSessionId: "cs_1", stripePaymentIntentId: "pi_1", paidAmount: 2000, currency: "usd", taxAmount: 0, stripeTaxEnabled: false } });
+  });
+  it("accepts current Checkout shipping details without the legacy field", () => {
+    expect(evaluatePaidCheckout(order, currentSession, options)).toMatchObject({ valid: true, evidence: { stripeSessionId: "cs_1", stripePaymentIntentId: "pi_1" } });
+  });
+  it.each([
+    ["collected information is omitted", undefined],
+    ["collected information is null", null]
+  ])("falls back to legacy shipping when %s", (_name, collected_information) => {
+    expect(evaluatePaidCheckout(order, { ...session, collected_information } as Stripe.Checkout.Session, options).valid).toBe(true);
+  });
+  it.each([
+    ["nested shipping details are omitted", {}],
+    ["nested shipping details are null", { shipping_details: null }],
+    ["the nested address is omitted", { shipping_details: { name: "Ada" } }],
+    ["the nested address is null", { shipping_details: { name: "Ada", address: null } }]
+  ])("does not fall back to legacy shipping when the current schema is present but %s", (_name, collected_information) => {
+    expect(evaluatePaidCheckout(order, { ...session, collected_information } as unknown as Stripe.Checkout.Session, options)).toMatchObject({ valid: false, reason: "ShippingAddressMissing" });
+  });
+  it("does not let a complete legacy address hide an incomplete current address", () => {
+    const currentAddress = { ...shippingAddress, city: " " };
+    const value = { ...session, collected_information: { shipping_details: { name: "Ada", address: currentAddress } } } as unknown as Stripe.Checkout.Session;
+    expect(evaluatePaidCheckout(order, value, options)).toMatchObject({ valid: false, reason: "ShippingAddressMissing" });
+  });
+  it("does not let a matching legacy address hide a changed current apartment", () => {
+    const currentAddress = { ...shippingAddress, line2: "Apt 3" };
+    const value = { ...session, collected_information: { shipping_details: { name: "Ada", address: currentAddress } } } as unknown as Stripe.Checkout.Session;
+    expect(evaluatePaidCheckout(order, value, options)).toMatchObject({ valid: false, reason: "ShippingAddressChanged" });
+  });
+  it("prefers a matching current address over a stale legacy address", () => {
+    const value = { ...currentSession, shipping_details: { name: "Ada", address: { ...shippingAddress, line2: "Apt 3" } } } as unknown as Stripe.Checkout.Session;
+    expect(evaluatePaidCheckout(order, value, options).valid).toBe(true);
+  });
+  it("accepts matching current and legacy addresses", () => {
+    expect(evaluatePaidCheckout(order, { ...session, collected_information: { shipping_details: { name: "Ada", address: shippingAddress } } } as unknown as Stripe.Checkout.Session, options).valid).toBe(true);
   });
   it.each([
     ["wrong session", { id: "cs_other" }, "SessionMismatch"],

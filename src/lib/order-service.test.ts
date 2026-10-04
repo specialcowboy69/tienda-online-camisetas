@@ -71,6 +71,11 @@ const paidSession = {
   amount_total: 2000, currency: "eur", total_details: { amount_tax: 0 },
   shipping_details: { address: { line1: "1 Main St", line2: "Apt 2", city: "Madrid", country: "ES", postal_code: "28001" } }
 } as unknown as Stripe.Checkout.Session;
+const currentPaidSession = {
+  ...paidSession,
+  shipping_details: null,
+  collected_information: { shipping_details: { name: "Ada", address: paidSession.shipping_details!.address } }
+} as unknown as Stripe.Checkout.Session;
 
 vi.mock("./email-jobs", async (importOriginal) => ({ ...await importOriginal<typeof import("./email-jobs")>(), processEmailJob: mocks.sendEmail, retryOrderEmails: async () => Promise.all(mocks.jobs.map(async (job) => ({ jobId: job.id, result: await mocks.sendEmail(job.id) }))) }));
 
@@ -270,6 +275,32 @@ describe("order service", () => {
     await handleStripeWebhook("{}", "synthetic-signature");
     expect(mocks.updateOrderStatus).not.toHaveBeenCalled();
     expect(mocks.updateClaimedOrder).not.toHaveBeenCalled();
+    expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
+  });
+
+  it("processes current Stripe shipping details without manual review", async () => {
+    const { handleStripeWebhook } = await import("./order-service");
+    const store = ownedStore({ ...paidOrder, status: "checkout_created" });
+    mocks.constructEvent.mockReturnValue({ id: "evt_current_address", type: "checkout.session.completed", data: { object: currentPaidSession } });
+
+    const response = await handleStripeWebhook("{}", "synthetic-signature");
+
+    expect(response.status).toBe(200);
+    expect(store.read()).toMatchObject({ status: "printful_confirmed", checkoutValidation: { stripeSessionId: "cs_1", stripePaymentIntentId: "pi_1" } });
+    expect(mocks.createPrintfulOrder).toHaveBeenCalledTimes(1);
+    expect(mocks.createPrintfulOrder).toHaveBeenCalledWith(expect.objectContaining({ recipient: expect.objectContaining({ address2: "Apt 2" }) }));
+  });
+
+  it("keeps a current payload without an address in manual review instead of using legacy shipping", async () => {
+    const { handleStripeWebhook } = await import("./order-service");
+    const store = ownedStore({ ...paidOrder, status: "checkout_created" });
+    const missingCurrentAddress = { ...paidSession, collected_information: { shipping_details: { name: "Ada" } } } as unknown as Stripe.Checkout.Session;
+    mocks.constructEvent.mockReturnValue({ id: "evt_current_address_missing", type: "checkout.session.completed", data: { object: missingCurrentAddress } });
+
+    const response = await handleStripeWebhook("{}", "synthetic-signature");
+
+    expect(response.status).toBe(200);
+    expect(store.read()).toMatchObject({ status: "manual_review", error: { type: "ShippingAddressMissing" } });
     expect(mocks.createPrintfulOrder).not.toHaveBeenCalled();
   });
 

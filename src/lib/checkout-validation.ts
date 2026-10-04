@@ -51,7 +51,9 @@ export function evaluatePaidCheckout(order: StoreOrder, session: Stripe.Checkout
   if ((order.stripePaymentIntentId && order.stripePaymentIntentId !== paymentIntentId) || !Number.isSafeInteger(taxAmount) || taxAmount < 0 || !Number.isSafeInteger(session.amount_total) || session.amount_total !== order.totals.total + (options.stripeTaxEnabled ? taxAmount : 0) || currency !== order.totals.currency.toLowerCase()) {
     return { valid: false, reason: "PaymentMismatch", message: "Stripe paid amount, currency or PaymentIntent does not match the stored order snapshot." };
   }
-  const address = session.shipping_details?.address;
+  const address = session.collected_information == null
+    ? session.shipping_details?.address
+    : session.collected_information.shipping_details?.address;
   if (!address || ![address.line1, address.city, address.country, address.postal_code, order.recipient.address1, order.recipient.city, order.recipient.countryCode, order.recipient.zip].every((value) => value?.trim())) {
     return { valid: false, reason: "ShippingAddressMissing", message: "Stripe shipping address is missing required delivery fields." };
   }
