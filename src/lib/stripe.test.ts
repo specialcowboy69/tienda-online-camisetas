@@ -19,3 +19,12 @@ describe("bounded Stripe reads", () => {
     expect(result).toEqual({ amount_received: 2200 });
   });
 });
+
+describe("Stripe Checkout return URLs", () => {
+  it("keeps internal order IDs out of public return URLs", () => {
+    expect(stripe.buildCheckoutReturnUrls("https://www.funnyteesforall.com")).toEqual({
+      successUrl: "https://www.funnyteesforall.com/success",
+      cancelUrl: "https://www.funnyteesforall.com/cancel"
+    });
+  });
+});

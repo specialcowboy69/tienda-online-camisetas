@@ -27,9 +27,17 @@ export function getStripe(): Stripe {
   return stripeClient;
 }
 
+export function buildCheckoutReturnUrls(baseUrl: string): { successUrl: string; cancelUrl: string } {
+  return {
+    successUrl: `${baseUrl}/success`,
+    cancelUrl: `${baseUrl}/cancel`
+  };
+}
+
 export async function createStripeCheckoutSession(order: StoreOrder): Promise<Stripe.Checkout.Session> {
   const stripe = getStripe();
   const baseUrl = getBaseUrl();
+  const { successUrl, cancelUrl } = buildCheckoutReturnUrls(baseUrl);
 
   return stripe.checkout.sessions.create({
     mode: "payment",
@@ -77,7 +85,7 @@ export async function createStripeCheckoutSession(order: StoreOrder): Promise<St
         }
       }
     ],
-    success_url: `${baseUrl}/success?order_id=${order.id}`,
-    cancel_url: `${baseUrl}/cancel?order_id=${order.id}`
+    success_url: successUrl,
+    cancel_url: cancelUrl
   });
 }
