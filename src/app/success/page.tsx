@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default async function SuccessPage(_props: { searchParams: Promise<{ order_id?: string }> }) {
+export default async function SuccessPage() {
   return (
     <main className="shell">
       <header className="topbar">
