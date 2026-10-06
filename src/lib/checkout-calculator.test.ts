@@ -61,6 +61,57 @@ describe("checkout calculator", () => {
   it("normalizes case, whitespace and absent optional fields", () => {
     expect(addressesMateriallyMatch({ ...savedAddress, address2: "", stateCode: undefined }, { ...finalAddress, line1: " 1 MAIN   ST ", line2: null, state: "" })).toBe(true);
   });
+
+  it("accepts the Spanish Madrid name and province code in either direction", () => {
+    const spanishSavedAddress = {
+      ...savedAddress,
+      city: "Madrid",
+      stateCode: "Madrid",
+      countryCode: "ES",
+      zip: "28013"
+    };
+    const spanishFinalAddress = {
+      ...finalAddress,
+      city: "Madrid",
+      state: "M",
+      country: "ES",
+      postal_code: "28013"
+    };
+
+    expect(addressesMateriallyMatch(spanishSavedAddress, spanishFinalAddress)).toBe(true);
+    expect(
+      addressesMateriallyMatch(
+        { ...spanishSavedAddress, stateCode: "M" },
+        { ...spanishFinalAddress, state: "Madrid" }
+      )
+    ).toBe(true);
+  });
+
+  it("keeps Spanish region aliases country-scoped and rejects a different province", () => {
+    const spanishSavedAddress = {
+      ...savedAddress,
+      city: "Madrid",
+      stateCode: "Madrid",
+      countryCode: "ES",
+      zip: "28013"
+    };
+    const spanishFinalAddress = {
+      ...finalAddress,
+      city: "Madrid",
+      state: "M",
+      country: "ES",
+      postal_code: "28013"
+    };
+
+    expect(addressesMateriallyMatch(spanishSavedAddress, { ...spanishFinalAddress, state: "B" })).toBe(false);
+    expect(
+      addressesMateriallyMatch(
+        { ...spanishSavedAddress, countryCode: "PT" },
+        { ...spanishFinalAddress, country: "PT" }
+      )
+    ).toBe(false);
+  });
+
   it("builds order items from synced Printful variants", () => {
     const cart: CartItemInput[] = [{ productId: "101", syncVariantId: 201, quantity: 2 }];
     const items = buildOrderItems(cart, [product]);

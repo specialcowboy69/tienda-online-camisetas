@@ -41,6 +41,35 @@ describe("paid checkout validation", () => {
   it("accepts current Checkout shipping details without the legacy field", () => {
     expect(evaluatePaidCheckout(order, currentSession, options)).toMatchObject({ valid: true, evidence: { stripeSessionId: "cs_1", stripePaymentIntentId: "pi_1" } });
   });
+  it("accepts Stripe's province code for a saved Spanish province name", () => {
+    const spanishOrder = {
+      ...structuredClone(order),
+      recipient: {
+        ...order.recipient,
+        city: "Madrid",
+        stateCode: "Madrid",
+        countryCode: "ES",
+        zip: "28013"
+      }
+    };
+    const spanishSession = {
+      ...currentSession,
+      collected_information: {
+        shipping_details: {
+          name: "Ada",
+          address: {
+            ...shippingAddress,
+            city: "Madrid",
+            state: "M",
+            country: "ES",
+            postal_code: "28013"
+          }
+        }
+      }
+    } as unknown as Stripe.Checkout.Session;
+
+    expect(evaluatePaidCheckout(spanishOrder, spanishSession, options)).toMatchObject({ valid: true });
+  });
   it.each([
     ["collected information is omitted", undefined],
     ["collected information is null", null]

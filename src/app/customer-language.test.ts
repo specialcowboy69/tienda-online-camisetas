@@ -29,14 +29,15 @@ describe("customer-facing language", () => {
   });
 
   it("renders public checkout support pages in English", async () => {
-    const successHtml = renderToStaticMarkup(
-      await SuccessPage({ searchParams: Promise.resolve({ order_id: "order_123" }) })
-    );
+    const successHtml = renderToStaticMarkup(await SuccessPage());
     const cancelHtml = renderToStaticMarkup(await CancelPage({ searchParams: Promise.resolve({}) }));
 
-    expect(successHtml).toContain("Order confirmed");
     expect(successHtml).toContain("Payment received");
+    expect(successHtml).toContain("We’re processing your order. We’ll email you with updates.");
     expect(successHtml).toContain("Back to shop");
+    expect(successHtml).not.toContain("Order confirmed");
+    expect(successHtml).not.toContain("Printful");
+    expect(successHtml).not.toContain("Order ID");
     expect(cancelHtml).toContain("Checkout canceled");
     expect(cancelHtml).toContain("Payment canceled");
     expect(cancelHtml).toContain("Back to shop");
