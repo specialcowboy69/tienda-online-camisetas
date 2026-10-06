@@ -3,6 +3,23 @@ import { getCatalogProductImage } from "./catalog-images";
 import { assertSameCurrency, toMinorUnits } from "./money";
 import { CatalogProduct, CartItemInput, OrderItem, OrderTotals, Recipient, ShippingRate, StoreOrder } from "./types";
 
+const REGION_ALIASES_BY_COUNTRY: Record<string, Record<string, string>> = {
+  es: {
+    m: "madrid",
+    madrid: "madrid"
+  }
+};
+
+function normalizeAddressValue(value?: string | null): string {
+  return (value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeRegion(value: string | null | undefined, countryCode: string | null | undefined): string {
+  const normalizedValue = normalizeAddressValue(value);
+  const countryAliases = REGION_ALIASES_BY_COUNTRY[normalizeAddressValue(countryCode)];
+  return countryAliases?.[normalizedValue] || normalizedValue;
+}
+
 export function buildOrderItems(cartItems: CartItemInput[], products: CatalogProduct[]): OrderItem[] {
   return cartItems.map((cartItem) => {
     const product = products.find((candidate) => candidate.id === cartItem.productId);
@@ -89,17 +106,16 @@ export function addressesMateriallyMatch(saved: Recipient, stripeAddress?: {
     return false;
   }
 
-  const normalize = (value?: string | null) => (value || "").trim().replace(/\s+/g, " ").toLowerCase();
-  if (![saved.address1, saved.city, saved.countryCode, saved.zip, stripeAddress.line1, stripeAddress.city, stripeAddress.country, stripeAddress.postal_code].every((value) => normalize(value))) {
+  if (![saved.address1, saved.city, saved.countryCode, saved.zip, stripeAddress.line1, stripeAddress.city, stripeAddress.country, stripeAddress.postal_code].every((value) => normalizeAddressValue(value))) {
     return false;
   }
 
   return (
-    normalize(saved.address1) === normalize(stripeAddress.line1) &&
-    normalize(saved.address2) === normalize(stripeAddress.line2) &&
-    normalize(saved.city) === normalize(stripeAddress.city) &&
-    normalize(saved.stateCode) === normalize(stripeAddress.state) &&
-    normalize(saved.countryCode) === normalize(stripeAddress.country) &&
-    normalize(saved.zip) === normalize(stripeAddress.postal_code)
+    normalizeAddressValue(saved.address1) === normalizeAddressValue(stripeAddress.line1) &&
+    normalizeAddressValue(saved.address2) === normalizeAddressValue(stripeAddress.line2) &&
+    normalizeAddressValue(saved.city) === normalizeAddressValue(stripeAddress.city) &&
+    normalizeRegion(saved.stateCode, saved.countryCode) === normalizeRegion(stripeAddress.state, stripeAddress.country) &&
+    normalizeAddressValue(saved.countryCode) === normalizeAddressValue(stripeAddress.country) &&
+    normalizeAddressValue(saved.zip) === normalizeAddressValue(stripeAddress.postal_code)
   );
 }
