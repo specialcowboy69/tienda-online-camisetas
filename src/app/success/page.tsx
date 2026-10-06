@@ -1,8 +1,6 @@
 import Link from "next/link";
 
-export default async function SuccessPage({ searchParams }: { searchParams: Promise<{ order_id?: string }> }) {
-  const params = await searchParams;
-
+export default async function SuccessPage(_props: { searchParams: Promise<{ order_id?: string }> }) {
   return (
     <main className="shell">
       <header className="topbar">
@@ -10,9 +8,8 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
         <Link href="/">Back to shop</Link>
       </header>
       <section className="panel">
-        <h1 className="success">Order confirmed</h1>
-        <p>Payment received. Your order is registered and will be sent to Printful automatically after Stripe confirms the webhook.</p>
-        {params.order_id ? <p className="muted">Order ID: {params.order_id}</p> : null}
+        <h1 className="success">Payment received</h1>
+        <p>We’re processing your order. We’ll email you with updates.</p>
       </section>
     </main>
   );

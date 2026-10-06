@@ -34,9 +34,13 @@ describe("customer-facing language", () => {
     );
     const cancelHtml = renderToStaticMarkup(await CancelPage({ searchParams: Promise.resolve({}) }));
 
-    expect(successHtml).toContain("Order confirmed");
     expect(successHtml).toContain("Payment received");
+    expect(successHtml).toContain("We’re processing your order. We’ll email you with updates.");
     expect(successHtml).toContain("Back to shop");
+    expect(successHtml).not.toContain("Order confirmed");
+    expect(successHtml).not.toContain("Printful");
+    expect(successHtml).not.toContain("Order ID");
+    expect(successHtml).not.toContain("order_123");
     expect(cancelHtml).toContain("Checkout canceled");
     expect(cancelHtml).toContain("Payment canceled");
     expect(cancelHtml).toContain("Back to shop");
