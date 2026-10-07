@@ -5,23 +5,43 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision:** 30 de septiembre de 2026
+**Ultima revision:** 7 de octubre de 2026
 
-## Seguridad de pedidos: alcance de esta revision
+## Seguridad de pedidos: implementacion y prueba controlada
 
-Prueba local en `codex/order-safety-and-refunds`: validacion de pago/direccion,
-propiedad de eventos y pedidos, recuperacion Printful con identidad estable,
+La fase inicial de `codex/order-safety-and-refunds` cubrio localmente
+validacion de pago/direccion, propiedad de eventos y pedidos, recuperacion
+Printful con identidad estable,
 email durable y reconciliacion canonica de reembolsos. Las regresiones combinadas
 usan servicios reales del codigo y transportes sinteticos. La comprobacion visual
-local usa componentes reales y APIs interceptadas en escritorio/movil.
-Esto no confirma aceptacion/entrega real de proveedores ni cambia el NO-GO.
+local usa componentes reales y APIs interceptadas en escritorio/movil. Despues se
+integraron los PR [#21](https://github.com/specialcowboy69/tienda-online-camisetas/pull/21),
+[#22](https://github.com/specialcowboy69/tienda-online-camisetas/pull/22) y
+[#23](https://github.com/specialcowboy69/tienda-online-camisetas/pull/23).
 
-- [ ] Revision independiente de la rama completa y sus interfaces.
-- [ ] Integrar solo el SHA revisado tras inventario AGENTS; autorizar despliegue.
+Una prueba controlada posterior al merge de #23 (`main` en `6789b9d`) comprobo
+un pago Stripe test y su webhook firmado, el pedido en Firestore, un pedido
+Printful en estado `draft`, la aceptacion del email de confirmacion por el
+proveedor y un reembolso completo reflejado en Stripe y Firestore. Una primera
+compra de prueba quedo en `manual_review` cuando Stripe cambio materialmente
+la direccion; se reembolso completamente y no se creo pedido remoto ni se
+acepto email de confirmacion. No se observo fabricacion.
+La entrega en bandeja del email y la compra live siguen sin verificarse. El
+estado global permanece `NO-GO`.
+
+El 7 de octubre de 2026, `npm.cmd test` paso 365/365 tests sobre el SHA base
+`6789b9d`. Esta comprobacion local no sustituye las verificaciones de live.
+
+- [x] ~~Revision e integracion de la seguridad de pedidos y los dos fixes de
+  direccion mediante PRs #21, #22 y #23.~~
+  - Evidencia: merges en `main`; #23 quedo incluido en `6789b9d`.
 - [ ] Parar y drenar workers anteriores sin fencing antes del despliegue/reanudacion.
 - [ ] Confirmar los ocho eventos Stripe primero en test, sin backfill masivo.
 - [ ] Prueba sandbox del flujo completo, eventos concurrentes/repetidos,
   reembolso parcial y pending, recuperacion de emails y lease busy 503.
+  - Verificado parcialmente: pago completo, reembolso completo y un
+    `charge.refunded` que devolvio `503` por concurrencia y quedo procesado
+    tras reenviar el mismo evento. No se probaron reembolso parcial ni pending.
 - [ ] Verificar entrega de email/rebotes por separado de aceptacion Resend.
 - [ ] Revisar legacy sin jobs, confirmaciones faltantes y cutoff de 23 horas,
   sin mensajes historicos automaticos; asignar responsable de recuperacion.
@@ -76,11 +96,11 @@ correo como realizadas basandose en mocks, capturas locales o build.
   publicamente.~~
   - Evidencia: `/products` y `/products/falling-apart-cat-graphic-tee`
     devolvieron `200`.
-- [ ] Confirmar que `/api/webhooks/stripe` y `/api/webhooks/printful` alcanzan
-  la aplicacion sin redireccion SSO.
-  - Verificado parcialmente: Printful sin credenciales devolvio `401`, lo que
-    confirma que alcanza la aplicacion. Stripe sigue pendiente de una prueba
-    controlada.
+- [x] ~~Confirmar que `/api/webhooks/stripe` y `/api/webhooks/printful` alcanzan
+  la aplicacion sin redireccion SSO.~~
+  - Evidencia: un webhook Stripe test firmado respondio `200`; Printful sin
+    credenciales devolvio `401` desde la aplicacion. El evento real de Printful
+    sigue pendiente en la seccion 5.
 - [ ] Elegir el dominio canonico —recomendado: `www.funnyteesforall.com`— y
   redirigir el otro dominio hacia el.
 - [ ] Configurar `NEXT_PUBLIC_BASE_URL` con el dominio canonico en Vercel
@@ -219,7 +239,10 @@ correo como realizadas basandose en mocks, capturas locales o build.
   envio de Resend.~~
   - Evidencia: los registros de `send.funnyteesforall.com` y
     `resend._domainkey.funnyteesforall.com` resuelven publicamente.
-- [ ] Configurar `RESEND_API_KEY` y `RESEND_FROM_EMAIL` en Vercel Production.
+- [x] ~~Comprobar que la configuracion efectiva de Resend permitio aceptar un
+  email de confirmacion desde el deployment probado.~~
+  - Evidencia: job `accepted` con un intento e ID del proveedor. Volver a
+    comprobar la configuracion vigente antes de activar ventas live.
 - [ ] Enviar y recibir correctamente un email transaccional de prueba.
 - [ ] Confirmar que los emails de pedido y envio se muestran correctamente en
   movil y escritorio.
@@ -268,14 +291,31 @@ correo como realizadas basandose en mocks, capturas locales o build.
   reales.
 - [ ] Anadir variantes diferentes al carrito.
 - [ ] Calcular el envio con una direccion admitida.
-- [ ] Completar un checkout de Stripe en modo test.
-- [ ] Confirmar la creacion del pedido en Firestore.
-- [ ] Confirmar el procesamiento del evento en `webhookEvents`.
-- [ ] Confirmar la creacion del pedido draft en Printful.
-- [ ] Confirmar el email de pedido.
-- [ ] Probar las paginas de exito y cancelacion.
-- [ ] Probar un reembolso o cancelacion controlados y documentar el
-  procedimiento.
+- [x] ~~Completar un checkout de Stripe en modo test.~~
+  - Evidencia: Checkout completo y pagado, `livemode=false`, importe de
+    USD 39.99 y `automatic_tax=false` en la sesion consultada.
+- [x] ~~Confirmar la creacion del pedido en Firestore.~~
+  - Evidencia: pago, importe, moneda y asociacion con la sesion Stripe
+    validados en el pedido de prueba.
+- [x] ~~Confirmar el procesamiento del evento de pago en `webhookEvents`.~~
+  - Evidencia: `checkout.session.completed` procesado tras webhook `200`.
+- [x] ~~Confirmar la creacion del pedido draft en Printful.~~
+  - Evidencia: consulta directa al proveedor devolvio el mismo ID externo y
+    estado `draft`; esto comprobo el comportamiento seguro de la prueba, sin
+    confirmar fabricacion.
+- [x] ~~Confirmar que el job de email de pedido fue aceptado por el proveedor.~~
+  - Evidencia: `emailJobs` registro `accepted`, un intento y un ID del proveedor.
+- [ ] Comprobar entrega real del email, rebotes y visualizacion en bandeja.
+- [x] ~~Probar la pagina de exito despues del pago test.~~
+  - Evidencia: `/success` respondio `200`, mostro el estado de pago recibido y
+    la URL de retorno no expuso el ID interno del pedido.
+- [ ] Probar la pagina de cancelacion.
+- [x] ~~Probar un reembolso completo en Stripe test y su reconciliacion.~~
+  - Evidencia: Stripe y Firestore registraron el importe completo reembolsado;
+    `refundSummary.status=full`. Un `503` temporal por eventos concurrentes se
+    resolvio al reenviar el mismo evento, que quedo `processed`.
+- [ ] Revisar manualmente el borrador remoto que quedo de la prueba reembolsada
+  y cancelarlo o eliminarlo solo tras identificarlo y autorizar esa accion.
 
 ### Compra real controlada
 

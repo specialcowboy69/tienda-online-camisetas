@@ -168,6 +168,38 @@ autorizacion de despliegue, en el endpoint del entorno correspondiente. La
 implementacion local no configura suscripciones. Evitar reenviar eventos de
 prueba a produccion mediante `stripe listen`.
 
+### Resultado de la prueba controlada en Stripe test
+
+Tras integrar los PR #21, #22 y #23, se probaron dos recorridos en el dominio
+publico con Stripe test y el codigo de `main` en `6789b9d`:
+
+1. Stripe modifico materialmente una direccion introducida antes del pago. El
+   webhook dejo el pedido en `manual_review` con `ShippingAddressChanged` y no
+   creo pedido Printful ni acepto correo de confirmacion. El pago de prueba se
+   reembolso completamente. No pulsar `Retry` para ese pedido sin revisar
+   direccion, pago, reembolsos y recibos externos.
+2. Con una direccion coincidente, incluida la equivalencia comprobada entre
+   el nombre y el codigo de la region, el pago completo genero un pedido
+   Firestore validado, un evento `checkout.session.completed` procesado, un
+   pedido remoto `draft` y un job de confirmacion `accepted` con ID del
+   proveedor de correo. `accepted` no demuestra entrega en bandeja.
+3. El segundo pago se reembolso completamente en Stripe test. Firestore quedo
+   con `refundSummary.status=full` y el importe completo. El borrador remoto
+   persistio: el reembolso no lo cancela. Aunque `fulfillmentBlocked` pueda ser
+   `false` cuando ya existe recibo remoto, la actividad de reembolso impide un
+   nuevo intento de fulfillment. Localizar y revisar ese borrador antes de
+   cualquier limpieza manual.
+4. Un `charge.refunded` coincidente con otros eventos recibio temporalmente
+   `ProcessingBusyError`/HTTP `503`. Se reenvio el mismo evento de Stripe test;
+   `webhookEvents` termino en `processed`, sin crear otro pedido remoto ni otro
+   email. Ante un `503`, consultar el estado final antes de declarar fallo o
+   reenviar, y conservar la identidad del evento.
+
+La sesion consultada tenia `livemode=false` y `automatic_tax=false`. El estado
+`draft` se comprobo directamente en el proveedor. Estas observaciones prueban
+el resultado de esas sesiones, no revelan los valores actuales de las variables
+en Vercel ni autorizan activar pagos live o fabricacion.
+
 ### Reembolsos manuales y cancelacion de fabricacion
 
 1. Identificar el pedido, su Checkout/PaymentIntent persistido y el importe
