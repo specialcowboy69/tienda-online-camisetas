@@ -125,6 +125,24 @@ Despues:
 11. Probar evento real o simulado de Printful, idealmente cambio de producto/stock.
 12. Confirmar email en ingles si Resend esta activo.
 
+### Ejecucion controlada posterior a PR #23
+
+Con `main` en `6789b9d`, un Checkout Stripe test completo recorrio el webhook
+firmado, Firestore, un pedido Printful `draft` y un job de confirmacion aceptado
+por el proveedor de correo. El reembolso completo quedo conciliado en Stripe y
+Firestore; un `503` temporal por eventos simultaneos se resolvio al reenviar el
+mismo evento y comprobar su estado final `processed`. Una compra test anterior
+con una direccion modificada por Stripe se detuvo en `manual_review` antes de
+crear pedido remoto o aceptar email. Ese pago test tambien se reembolso. La
+pagina de exito respondio `200` sin exponer el ID interno en la URL de retorno.
+
+La prueba consultada fue `livemode=false` y `automatic_tax=false`; el proveedor
+confirmo que el pedido permanecio en `draft`. No se ha demostrado la entrega
+del correo en bandeja, el evento real del webhook Printful, la cancelacion del
+borrador reembolsado ni una compra live con fabricacion. Ver los detalles y
+pendientes en [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md) y el procedimiento de
+diagnostico en [operations.md](operations.md).
+
 ## Rollback basico
 
 Si algo falla tras desplegar:
@@ -136,12 +154,13 @@ Si algo falla tras desplegar:
 
 ## Despliegue de seguridad de pedidos y reembolsos
 
-Estado: implementacion y pruebas locales; lanzamiento sigue `NO-GO`. No se han
-cambiado suscripciones, credenciales, datos remotos ni configuracion productiva
-durante este trabajo. El build local y APIs interceptadas no prueban un deployment
-ni compras, reembolsos o entrega de email en sandbox/produccion.
+Estado: los PR #21, #22 y #23 estan integrados en `main` y la prueba Stripe test
+anterior verifico el flujo de pago, pedido, borrador y reembolso en el deployment.
+El lanzamiento sigue `NO-GO`. El build local y las APIs interceptadas de la fase
+de desarrollo no probaban resultados de proveedores; la prueba posterior tampoco
+demuestra entrega de correo, fabricacion ni cobros live.
 
-Antes de desplegar, con revision explicita y autorizacion operativa:
+Para futuros cambios en este flujo, conservar estos controles de despliegue:
 
 1. Ejecutar tests, lint, TypeScript, build y audit sobre el SHA final revisado;
    completar inventario de PRs/ramas/worktrees de AGENTS.md. Resolver o aceptar
