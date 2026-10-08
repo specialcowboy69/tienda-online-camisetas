@@ -133,7 +133,7 @@ Las reglas de precio de envio para el cliente viven en `priceCustomerShippingRat
 
 Actualmente:
 
-- `STANDARD` se cobra al cliente como `0.00` en todos los paises permitidos.
+- `STANDARD` se cobra al cliente como `0.00` en `US`, `ES`, `FR`, `DE`, `IT` y `PT`; en `CA` y `GB` conserva la tarifa cotizada por Printful.
 - `PRINTFUL_FAST` se cobra como `0.00` solo para `US`.
 - Otros metodos conservan la tarifa real de Printful.
 

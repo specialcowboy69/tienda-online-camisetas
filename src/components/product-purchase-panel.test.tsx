@@ -56,4 +56,10 @@ describe("ProductPurchasePanel recipient wiring through real rendered handlers",
     expect(labelInput("Name").props.value).toBe("Ada");
     expect(renderToStaticMarkup(renderPanel())).not.toContain("Pay with Stripe");
   });
+
+  it("does not promise included standard shipping before the destination is known", () => {
+    const html = renderToStaticMarkup(renderPanel());
+    expect(html).toContain("Shipping options and costs shown at checkout.");
+    expect(html).not.toContain("Standard shipping included.");
+  });
 });

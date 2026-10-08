@@ -278,7 +278,7 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
       </button>
 
       <p className="ncc-buybox__shipping">
-        <Truck size={18} strokeWidth={2} /> Standard shipping included. Options shown at checkout.
+        <Truck size={18} strokeWidth={2} /> Shipping options and costs shown at checkout.
       </p>
 
       {cart.length ? (
