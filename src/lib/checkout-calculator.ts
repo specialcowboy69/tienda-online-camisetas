@@ -10,6 +10,8 @@ const REGION_ALIASES_BY_COUNTRY: Record<string, Record<string, string>> = {
   }
 };
 
+const INCLUDED_STANDARD_SHIPPING_COUNTRIES = new Set(["US", "ES", "FR", "DE", "IT", "PT"]);
+
 function normalizeAddressValue(value?: string | null): string {
   return (value || "").trim().replace(/\s+/g, " ").toLowerCase();
 }
@@ -51,7 +53,8 @@ export function buildOrderItems(cartItems: CartItemInput[], products: CatalogPro
 export function priceCustomerShippingRate(shippingRate: ShippingRate, countryCode: string): ShippingRate {
   const shippingMethodId = shippingRate.id.trim().toUpperCase();
   const normalizedCountryCode = countryCode.trim().toUpperCase();
-  const isIncludedShipping = shippingMethodId === "STANDARD" || (shippingMethodId === "PRINTFUL_FAST" && normalizedCountryCode === "US");
+  const isIncludedShipping = (shippingMethodId === "STANDARD" && INCLUDED_STANDARD_SHIPPING_COUNTRIES.has(normalizedCountryCode)) ||
+    (shippingMethodId === "PRINTFUL_FAST" && normalizedCountryCode === "US");
 
   if (!isIncludedShipping) {
     return shippingRate;
