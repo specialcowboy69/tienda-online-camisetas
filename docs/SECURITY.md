@@ -145,6 +145,31 @@ y pendientes de remediacion en tareas separadas. La auditoria propone Next
 upgrade mayor. No se aplicaron overrides ni `npm audit fix`. No usar `--force`
 sin plan de compatibilidad y aprobacion explicita.
 
+### Decision actualizada de riesgo residual — 8 de octubre de 2026
+
+La aceptacion limitada a Firebase Storage anterior queda como antecedente
+historico. La persona propietaria autorizo **aceptar temporalmente todos los
+hallazgos actuales** de `npm.cmd audit --omit=dev`, sin afirmar que se hayan
+corregido. La auditoria repetida en el worktree de documentacion arrojo
+**9 paquetes afectados: 0 critical, 5 high y 4 moderate**; termina con codigo
+distinto de cero. Todos figuran con `fixAvailable`, pero la compatibilidad y
+el alcance de cada cambio requieren revision antes de aplicarlos.
+
+| Severidad | Paquetes actuales |
+| --- | --- |
+| High (5) | `@fastify/busboy`, `nanoid`, `postcss`, `sharp`, `source-map-js` |
+| Moderate (4) | `gaxios`, `next`, `qs`, `uuid` |
+
+Esta decision permite considerar el criterio de **aceptacion explicita** de
+la checklist; no elimina los avisos, no prueba que sean inalcanzables y no
+levanta los demas bloqueos `NO-GO` (legales, fiscales, soporte y prueba live).
+No usar `npm audit fix --force` ni hacer un upgrade mayor a ciegas. Abrir una
+tarea separada de remediacion con pruebas para cada ruta; volver a ejecutar el
+audit tras cualquier cambio de dependencias y revisar esta aceptacion a mas
+tardar el 8 de noviembre de 2026, o antes si aparece un aviso critico o una
+explotacion relevante. Cualquier hallazgo nuevo requiere una decision nueva;
+no queda cubierto por esta aceptacion.
+
 ## Checklist antes de produccion
 
 - Rotar secretos fuertes.
