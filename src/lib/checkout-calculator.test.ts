@@ -147,10 +147,14 @@ describe("checkout calculator", () => {
     });
   });
 
-  it("prices standard customer shipping as free for every country", () => {
-    expect(priceCustomerShippingRate(shippingRate, "US").rate).toBe("0.00");
-    expect(priceCustomerShippingRate(shippingRate, "ES").rate).toBe("0.00");
-    expect(priceCustomerShippingRate(shippingRate, "CA").rate).toBe("0.00");
+  it.each(["US", "ES", "FR", "DE", "IT", "PT", " us "])("includes standard shipping for %s", (countryCode) => {
+    expect(priceCustomerShippingRate(shippingRate, countryCode).rate).toBe("0.00");
+    expect(shippingRate.rate).toBe("4.95");
+  });
+
+  it.each(["CA", "GB", " ca ", " gb "])("retains the quoted standard rate for %s", (countryCode) => {
+    expect(priceCustomerShippingRate(shippingRate, countryCode)).toBe(shippingRate);
+    expect(shippingRate.rate).toBe("4.95");
   });
 
   it("prices Printful fast customer shipping as free only for the United States", () => {

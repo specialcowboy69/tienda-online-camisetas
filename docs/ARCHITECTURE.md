@@ -219,7 +219,7 @@ comprobaciones completas del snapshot, separado de elegibilidad/refunds/email.
 
 ## Reglas comerciales en codigo
 
-- Envio Standard: se muestra como incluido para el cliente.
+- Envio Standard: incluido para `US`, `ES`, `FR`, `DE`, `IT` y `PT`; `CA` y `GB` conservan la tarifa cotizada.
 - Printful Fast: se muestra incluido solo para destinatarios de Estados Unidos.
 - Otros metodos de envio: mantienen la tarifa devuelta por Printful.
 - La tarifa se recalcula en servidor tanto al listar opciones como al crear checkout.

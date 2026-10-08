@@ -153,12 +153,12 @@ export const productContentById: Record<string, ProductContent> = {
 
 export const productPolicies = {
   shipping: {
-    summary: "Standard shipping is included. Express and other available options are shown at checkout based on the delivery address.",
+    summary: "Standard shipping is included for orders to the US, Spain, France, Germany, Italy, and Portugal. Shipping to Canada and the UK is charged at checkout based on the delivery address.",
     details: [
       "US standard shipping: 3-4 business days after processing.",
       "US express shipping: 1-3 business days after processing.",
       "International standard shipping: 5-20 business days after processing.",
-      "Canada only DDP standard: 3-5 business days after order handling, up to 12 business days for the Atlantic region.",
+      "Canada and UK delivery estimates depend on the selected service and destination.",
       "Shipping times start after the order has been processed for fulfillment."
     ]
   },

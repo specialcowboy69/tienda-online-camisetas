@@ -17,7 +17,7 @@ La tienda ya tiene una base funcional:
 - Payload limpio de carrito para shipping y checkout.
 - Moneda de venta gestionada desde Printful y reflejada en variantes activas sincronizadas.
 - Reconciliacion de catalogo: productos ausentes de Printful se marcan como `isIgnored` en Firestore.
-- Envio Standard incluido para clientes; Printful Fast incluido solo para US.
+- Envio Standard incluido para US, ES, FR, DE, IT y PT; en CA y GB se cobra la tarifa cotizada. Printful Fast incluido solo para US.
 - Imagenes manuales de storefront con prioridad sobre imagenes de Printful.
 - Experiencia publica English-first: tienda, success/cancel, emails y locale de envio Printful en ingles.
 

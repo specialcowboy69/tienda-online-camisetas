@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { getAllowedShippingCountries, getBaseUrl, isStripeTaxEnabled, requiredEnv } from "./env";
+import { getBaseUrl, isStripeTaxEnabled, requiredEnv } from "./env";
 import { StoreOrder } from "./types";
 
 let stripeClient: Stripe | undefined;
@@ -34,6 +34,10 @@ export function buildCheckoutReturnUrls(baseUrl: string): { successUrl: string; 
   };
 }
 
+export function checkoutAllowedCountries(countryCode: string): Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[] {
+  return [countryCode.toUpperCase() as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry];
+}
+
 export async function createStripeCheckoutSession(order: StoreOrder): Promise<Stripe.Checkout.Session> {
   const stripe = getStripe();
   const baseUrl = getBaseUrl();
@@ -47,7 +51,7 @@ export async function createStripeCheckoutSession(order: StoreOrder): Promise<St
     phone_number_collection: { enabled: true },
     billing_address_collection: "required",
     shipping_address_collection: {
-      allowed_countries: getAllowedShippingCountries() as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[]
+      allowed_countries: checkoutAllowedCountries(order.recipient.countryCode)
     },
     automatic_tax: {
       enabled: isStripeTaxEnabled()
