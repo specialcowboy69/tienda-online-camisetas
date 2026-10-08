@@ -5,7 +5,7 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision:** 7 de octubre de 2026
+**Ultima revision:** 8 de octubre de 2026
 
 ## Seguridad de pedidos: implementacion y prueba controlada
 
@@ -29,6 +29,33 @@ acepto email de confirmacion. No se observo fabricacion.
 La entrega en bandeja del email y la compra live siguen sin verificarse. El
 estado global permanece `NO-GO`.
 
+El 8 de octubre se comprobo otro checkout Stripe test expirado sin pago:
+`e370c5da31fc4c6daa99903539f45df0` quedo `expired` en Firestore. Un
+segundo checkout de preparacion, `53371f22e9d14866894f697b6fe71407`,
+tambien se expiro sin pago. Sobre el pedido test ya bloqueado
+`7fa47ac9855e44ae86b531d887df65d1` se hizo un unico reembolso parcial de
+USD 5.00: Stripe marco `succeeded`, `orders/<id>/refunds` guardo el recibo,
+`refundSummary` quedo `partial` con 500/3999 centavos y
+`fulfillmentBlocked=true`; Printful devolvio 404 para su ID externo. Un
+`refund.updated` concurrente termino inicialmente en `ProcessingBusyError`;
+el reenvio del **mismo evento** `evt_3UNammRp3VC0CE6j15eKxqwN` lo dejo
+`processed` sin duplicar el reembolso. Esto no prueba todavia un reembolso
+`pending` real: los 63 tests focalizados de reembolso/seguridad cubren ese
+estado con transportes sinteticos.
+
+Para el webhook real de Printful se creo solo el borrador sintetico
+`179951879` (`codexwh20261008a4f531df`) con `confirm=0`. El evento
+`order_created` llego a `webhookEvents` como `processed` en un intento. El
+borrador sintetico termino `canceled`, sin confirmacion ni fabricacion. No se
+observo un evento `order_canceled` para ese borrador; tampoco se ha probado
+todavia un evento de envio de un pedido real. El borrador **anterior**
+`179691582`, asociado a un pago test reembolsado completamente, sigue en
+`draft` y no se ha borrado ni confirmado.
+
+Por decision de la persona propietaria se omite ahora la comprobacion del
+buzon receptor. El email fue aceptado por el proveedor en la prueba anterior,
+pero **no se afirma entrega en bandeja**; esa comprobacion permanece pendiente.
+
 El 7 de octubre de 2026, `npm.cmd test` paso 365/365 tests sobre el SHA base
 `6789b9d`. Esta comprobacion local no sustituye las verificaciones de live.
 
@@ -39,16 +66,18 @@ El 7 de octubre de 2026, `npm.cmd test` paso 365/365 tests sobre el SHA base
 - [ ] Confirmar los ocho eventos Stripe primero en test, sin backfill masivo.
 - [ ] Prueba sandbox del flujo completo, eventos concurrentes/repetidos,
   reembolso parcial y pending, recuperacion de emails y lease busy 503.
-  - Verificado parcialmente: pago completo, reembolso completo y un
-    `charge.refunded` que devolvio `503` por concurrencia y quedo procesado
-    tras reenviar el mismo evento. No se probaron reembolso parcial ni pending.
+  - Verificado parcialmente: pago completo, reembolsos completo y parcial,
+    expiracion de checkout, y dos eventos concurrentes recuperados al reenviar
+    el mismo ID. Pending real y recuperacion de emails siguen pendientes.
 - [ ] Verificar entrega de email/rebotes por separado de aceptacion Resend.
 - [ ] Revisar legacy sin jobs, confirmaciones faltantes y cutoff de 23 horas,
   sin mensajes historicos automaticos; asignar responsable de recuperacion.
 - [ ] Revisar procedimiento de reembolso manual Stripe y cancelacion Printful
   por separado; no desbloquear latches ni estados terminales mediante Retry.
-- [ ] Resolver o aceptar advisories pendientes antes de GO; audit local sigue
-  documentando 7 hallazgos baseline (4 moderate, 3 high), sin upgrades ni --force.
+- [x] ~~Registrar la aceptacion expresa de los advisories actuales.~~
+  - El 8 de octubre `npm.cmd audit --omit=dev --json` conto **9 paquetes**:
+    0 critical, 5 high y 4 moderate. La aceptacion temporal consta en
+    [SECURITY.md](SECURITY.md); no equivale a corregirlos ni a dar GO.
 - [ ] Compra real controlada y autorizada, monitorizacion y rollback verificados.
 
 Detalles operativos en [operations.md](operations.md) y despliegue seguro en
@@ -99,8 +128,8 @@ correo como realizadas basandose en mocks, capturas locales o build.
 - [x] ~~Confirmar que `/api/webhooks/stripe` y `/api/webhooks/printful` alcanzan
   la aplicacion sin redireccion SSO.~~
   - Evidencia: un webhook Stripe test firmado respondio `200`; Printful sin
-    credenciales devolvio `401` desde la aplicacion. El evento real de Printful
-    sigue pendiente en la seccion 5.
+    credenciales devolvio `401`. El 8 de octubre un `order_created` autentico
+    de Printful quedo `processed` en Firestore; ver seccion 5.
 - [ ] Elegir el dominio canonico —recomendado: `www.funnyteesforall.com`— y
   redirigir el otro dominio hacia el.
 - [ ] Configurar `NEXT_PUBLIC_BASE_URL` con el dominio canonico en Vercel
@@ -116,16 +145,14 @@ correo como realizadas basandose en mocks, capturas locales o build.
 - [x] ~~Ejecutar `npm.cmd audit --omit=dev` despues de actualizar Next.js.~~
   - Evidencia: los dos avisos criticos de Next.js ya no aparecen y el resultado
     tiene `0 critical`.
-- [ ] Resolver o aceptar explicitamente todas las vulnerabilidades productivas
-  restantes.
-  - Estado tras PR
+- [x] ~~Resolver o aceptar explicitamente las vulnerabilidades productivas
+  identificadas en la auditoria actual.~~
+  - Estado historico tras PR
     [#18 — Upgrade Firebase Admin to 14.5.0](https://github.com/specialcowboy69/tienda-online-camisetas/pull/18):
     `3 high`, `4 moderate` y `0 critical`.
-  - Aceptado para el merge y su despliegue automatico: residual
-    `firebase-admin -> @google-cloud/storage -> gaxios -> uuid`, documentado
-    como exposicion limitada por el uso actual.
-  - Siguen pendientes de resolucion o aceptacion explicita los avisos de
-    `nanoid`, `postcss`/Next.js, `sharp` y `qs`.
+  - El 8 de octubre la persona propietaria acepto temporalmente los **9**
+    hallazgos actuales (5 high, 4 moderate); [SECURITY.md](SECURITY.md)
+    conserva el detalle y la tarea de correccion. La auditoria sigue fallando.
 - [x] ~~Preparar, probar y mergear por separado la actualizacion de
   `firebase-admin` a `14.5.0`.~~
   - Evidencia: PR #18 mergeado mediante `6b885052`; Node requerido
@@ -219,6 +246,11 @@ correo como realizadas basandose en mocks, capturas locales o build.
 - [ ] Confirmar que el metodo de pago o saldo de Printful puede cubrir pedidos
   reales.
 - [ ] Registrar el webhook de Printful en el dominio final con su secreto.
+- [x] ~~Comprobar la recepcion de un evento autentico de Printful sin
+  fabricacion.~~
+  - Borrador sintetico `179951879` con `confirm=0` y `order_created` procesado
+    en `webhookEvents`; el borrador se cancelo. El evento de cancelacion no se
+    observo, y un evento de producto/stock o envio real sigue pendiente.
 - [ ] Probar un evento real de actualizacion de producto o stock.
 - [ ] Mantener `ORDER_CONFIRM_PRINTFUL=false` durante las pruebas previas a la
   compra real controlada.
@@ -251,25 +283,25 @@ correo como realizadas basandose en mocks, capturas locales o build.
 
 ## 6. Paises, envios y fiscalidad
 
-- [ ] Decidir y documentar los paises del lanzamiento inicial.
-  - Recomendacion operativa: empezar solo con Estados Unidos hasta validar el
-    resto de mercados.
-  - Alcance de las plantillas preparadas el 29 de septiembre de 2026:
-    Estados Unidos (`US`), Espana (`ES`), Francia (`FR`), Alemania (`DE`),
-    Italia (`IT`) y Portugal (`PT`). Este alcance no confirma la apertura ni
-    sustituye la decision final pendiente; la recomendacion anterior queda
-    conservada como antecedente operativo.
-- [ ] Confirmar expresamente el lanzamiento en `US`, `ES`, `FR`, `DE`, `IT`
-  y `PT` y la cobertura geografica admitida dentro de cada pais antes de
-  ajustar la configuracion.
+- [x] ~~Decidir los paises iniciales previstos.~~
+  - La decision de la persona propietaria es `US`, `ES`, `FR`, `DE`, `IT` y
+    `PT`. La recomendacion anterior de empezar solo por Estados Unidos queda
+    superada por esta decision; la revision fiscal y de rutas sigue pendiente.
+- [ ] Confirmar la cobertura geografica admitida dentro de esos seis paises
+  antes de abrir ventas live.
 - [ ] Ajustar `ALLOWED_SHIPPING_COUNTRIES` a la decision final.
+  - Una sesion Stripe test creada el 8 de octubre ofrecio tambien `CA` y `GB`
+    ademas de los seis paises previstos. Aun no se ha cambiado la variable.
 - [ ] Confirmar que las tarifas y plazos de envio mostrados coinciden con el
   comportamiento real de Printful.
 - [ ] Confirmar que la politica de envio gratuito o incluido sigue siendo
   economicamente sostenible.
 - [ ] Validar obligaciones fiscales y contables con una persona profesional.
-- [ ] Decidir si se utilizara Stripe Tax.
-- [ ] Mantener `STRIPE_TAX_ENABLED=false` hasta haber cerrado la decision fiscal.
+- [x] ~~Decidir mantener Stripe Tax desactivado por ahora.~~
+  - La sesion Stripe test creada el 8 de octubre registro
+    `automatic_tax.enabled=false`; no se ha activado ni configurado Stripe Tax.
+- [ ] Mantener `STRIPE_TAX_ENABLED=false` hasta cerrar la revision fiscal y
+  volver a verificar el valor antes de la compra live.
 - [ ] Revisar la [matriz interna de fulfillment](legal-templates/printful-fulfillment-matrix.md)
   contra el catalogo y las rutas reales: disponibilidad regional, stock y
   tecnica no garantizan una fabrica ni un pais de expedicion.
@@ -309,13 +341,22 @@ correo como realizadas basandose en mocks, capturas locales o build.
 - [x] ~~Probar la pagina de exito despues del pago test.~~
   - Evidencia: `/success` respondio `200`, mostro el estado de pago recibido y
     la URL de retorno no expuso el ID interno del pedido.
-- [ ] Probar la pagina de cancelacion.
+- [ ] Probar visualmente la pagina de cancelacion; la expiracion del checkout
+  y su webhook si se han comprobado en Stripe test y Firestore.
 - [x] ~~Probar un reembolso completo en Stripe test y su reconciliacion.~~
   - Evidencia: Stripe y Firestore registraron el importe completo reembolsado;
     `refundSummary.status=full`. Un `503` temporal por eventos concurrentes se
     resolvio al reenviar el mismo evento, que quedo `processed`.
+- [x] ~~Probar un reembolso parcial en Stripe test y su reconciliacion.~~
+  - Evidencia: un solo refund de 500 centavos sobre 3999, recibo canonico,
+    `refundSummary.status=partial` y bloqueo de fulfillment. Un
+    `refund.updated` ocupado quedo `processed` tras replay del mismo ID.
+- [ ] Probar un reembolso `pending` autentico de Stripe con una tarjeta de
+  prueba especifica; por ahora solo esta cubierto por tests sinteticos.
 - [ ] Revisar manualmente el borrador remoto que quedo de la prueba reembolsada
   y cancelarlo o eliminarlo solo tras identificarlo y autorizar esa accion.
+  - Identificado: Printful `179691582`, `draft`, ID externo
+    `4bdf700f49af4a8ba54d409b8696aa96`, sin envios. Aun no se ha limpiado.
 
 ### Compra real controlada
 
@@ -339,12 +380,17 @@ correo como realizadas basandose en mocks, capturas locales o build.
 - [ ] Decidir la herramienta de analitica.
 - [ ] Implementar consentimiento si la medicion utiliza cookies que lo requieran.
 - [ ] Configurar monitorizacion de errores y revisar logs de Vercel.
-- [ ] Definir alertas o revision periodica para pedidos en `manual_review` y
-  webhooks fallidos.
+- [x] ~~Definir una revision periodica manual para pedidos en `manual_review`,
+  webhooks fallidos y solicitudes de clientes.~~
+  - Procedimiento, responsables y escalado en [operations.md](operations.md).
+    No hay alertas automaticas configuradas; su implementacion sigue pendiente.
 - [ ] Planificar un rate limit compartido antes de escalar a multiples instancias
   o trafico relevante.
-- [ ] Documentar quien revisa pedidos, devoluciones, emails y fallos de
-  fulfillment.
+- [x] ~~Documentar quien revisa pedidos, devoluciones, emails y fallos de
+  fulfillment.~~
+  - La persona propietaria toma las decisiones y ejecuta acciones financieras;
+    Codex ayuda a investigar y verificar cuando se le convoca. Ver
+    [operations.md](operations.md).
 
 ## 9. Revision final y decision GO/NO-GO
 

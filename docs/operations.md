@@ -200,6 +200,41 @@ La sesion consultada tenia `livemode=false` y `automatic_tax=false`. El estado
 el resultado de esas sesiones, no revelan los valores actuales de las variables
 en Vercel ni autorizan activar pagos live o fabricacion.
 
+### Comprobaciones adicionales del 8 de octubre de 2026
+
+- Dos sesiones Stripe test sin pagar se expiraron de forma controlada; Firestore
+  guardo `expired` para ambos pedidos (`e370c5da31fc4c6daa99903539f45df0`
+  y `53371f22e9d14866894f697b6fe71407`). No hubo cargo ni pedido remoto.
+- El pedido test `7fa47ac9855e44ae86b531d887df65d1` ya estaba en
+  `manual_review` por discrepancia de direccion, sin recibo remoto; la busqueda
+  de su ID externo en Printful devolvio 404. Se reembolsaron **500 de 3999**
+  centavos USD mediante el refund `re_3UNammRp3VC0CE6j1fftGL8G`.
+  Firestore guardo un solo recibo `succeeded`, resumen `partial`, importe 500 y
+  `fulfillmentBlocked=true`; el pedido permanecio en revision.
+- El evento `refund.updated` `evt_3UNammRp3VC0CE6j15eKxqwN` quedo
+  inicialmente `failed` por `ProcessingBusyError` entre eventos simultaneos.
+  Tras comprobar que Stripe tenia una entrega pendiente y que el recibo ya
+  estaba conciliado, se reenvio **ese mismo ID** al endpoint test. Firestore
+  termino `processed` en el tercer intento; el refund count siguio en uno.
+- Un borrador sintético Printful `179951879`, con `confirm=0`, emitio un
+  webhook autentico `order_created` que Firestore registro `processed` en un
+  intento. Ese borrador quedo `canceled`, sin cargo ni fabricacion. No se
+  observo un webhook `order_canceled` del borrador, ni se ha probado un evento
+  de envio real. El borrador anterior `179691582`, de un pago test ya
+  reembolsado por completo, sigue `draft` y no se toco.
+- Una sesion Stripe test nueva mostro `automatic_tax.enabled=false`. Tambien
+  permitia `CA` y `GB` ademas de `US`, `ES`, `FR`, `DE`, `IT` y `PT`: corregir
+  la configuracion de paises antes de abrir ventas reales.
+- No se verifico la recepcion en bandeja del email por decision expresa de la
+  persona propietaria. `accepted` de Resend no equivale a `delivered`.
+- El escenario de refund `pending` esta cubierto por tests sinteticos (63
+  pruebas focalizadas aprobadas), no por un refund `pending` real de Stripe.
+
+Los registros de runtime de Vercel no se pudieron leer con el conector (403).
+Por ello, la evidencia del webhook real de Printful procede del propio evento
+guardado como `processed` en Firestore, no de una linea de log ni de una
+captura de respuesta HTTP.
+
 ### Reembolsos manuales y cancelacion de fabricacion
 
 1. Identificar el pedido, su Checkout/PaymentIntent persistido y el importe
@@ -309,6 +344,55 @@ necesaria de destinatario. No copiar direcciones, cuerpos de email, tokens ni
 respuestas arbitrarias de proveedores a logs, capturas o tickets. Los nuevos
 diagnosticos de email y lectura de reembolsos son genericos; los registros y
 errores operativos existentes requieren acceso restringido.
+
+## Vigilancia manual del lanzamiento
+
+**Responsables.** La persona propietaria revisa los tableros y el buzon,
+decide sobre devoluciones, cancelaciones, reembolsos y pausas de venta, y
+ejecuta las acciones financieras. Codex puede ayudar a correlacionar IDs,
+analizar eventos y verificar resultados cuando la persona propietaria lo
+solicite; no vigila la tienda en segundo plano ni sustituye una guardia humana.
+El acceso de soporte a `orders@funnyteesforall.com` debe verificarse antes de
+aceptar ventas reales; hoy la recepcion de ese buzon no esta acreditada.
+
+**Cadencia propuesta.** Mientras solo hay pruebas, revisar despues de cada
+checkout, refund o cambio de webhook. El dia de apertura y los siete primeros
+dias, revisar al menos al inicio, a mitad y al final de la jornada de trabajo
+en hora de Madrid; revisar de inmediato tras cualquier alerta de Stripe o
+cliente. Despues, dos revisiones por dia laborable si no hay incidencias.
+Esta cadencia no da cobertura 24/7 para clientes de Estados Unidos: si se
+requiere esa cobertura, designar un suplente y configurar alertas automaticas
+antes de prometerla. No hay alertas automaticas operativas verificadas hoy.
+
+**En cada ronda, registrar solo IDs y estados en un ledger privado:**
+
+1. Abrir `/admin` y `Load review orders`; inspeccionar `manual_review`,
+   `failed`, `printful_pending`, `fulfillmentBlocked`, `refundReviewReason` y
+   `emailReviewReason`. Comparar cada pedido pagado con Stripe, Firestore y
+   el ID externo remoto antes de cualquier `Retry`.
+2. Revisar `webhookEvents` de Stripe y Printful: `failed` requiere diagnostico;
+   `processing` solo es sospechoso si ya vencio su lease. Consultar tambien
+   los intentos de entrega del proveedor y el estado final del pedido. Un
+   `503 ProcessingBusyError` concurrente no justifica crear otro evento ni
+   otro pedido; reenviar el **mismo ID** solo si sigue sin `processed`.
+3. Comprobar `emailJobs` bloqueados o en revision y el estado del proveedor de
+   correo, distinguiendo aceptacion de entrega. Revisar el buzon de soporte
+   verificado para consultas, desistimientos y reclamaciones. Confirmar
+   recepcion de cada solicitud en un dia laborable y priorizar problemas de
+   pago, direccion o defecto el mismo dia durante la cobertura declarada.
+4. Anotar fecha/hora, ID interno, proveedor, estado, responsable, accion
+   autorizada y resultado. No copiar PII, direcciones, secretos ni payloads
+   completos al repositorio o a tickets compartidos.
+
+**Escalado.** Tratar como urgente un pago live sin pedido local trazable, un
+posible duplicado, un reembolso discrepante, un webhook de pago repetidamente
+fallido o un pedido que pueda fabricarse con importe/direccion incorrectos.
+No pulsar `Retry`, confirmar fabricacion ni emitir otro refund hasta conciliar
+IDs y recibos. Si el riesgo afecta a nuevos compradores, la persona
+propietaria decide pausar temporalmente checkout y comunicar la incidencia;
+el procedimiento de rollback de Vercel se prepara antes del lanzamiento.
+Los casos ordinarios de soporte se investigan durante la siguiente ronda; los
+fallos repetidos o sin dueño se escalan a la persona propietaria ese mismo dia.
 
 ## Checklist Antes De Venta Real
 
