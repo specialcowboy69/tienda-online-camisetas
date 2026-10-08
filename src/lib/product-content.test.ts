@@ -71,6 +71,7 @@ describe("product content", () => {
     expect(copy).toMatch(/standard shipping is included for orders to the US, Spain, France, Germany, Italy, and Portugal/i);
     expect(copy).toMatch(/Canada and the UK.*charged at checkout/i);
     expect(copy).not.toMatch(/^Standard shipping is included\./i);
+    expect(productPolicies.shipping.details.join("\n")).not.toMatch(/Canada only DDP standard/i);
   });
 
   it("offers refunds for store-responsible problems and preserves other legal remedies", () => {

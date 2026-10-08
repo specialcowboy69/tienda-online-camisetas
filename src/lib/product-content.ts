@@ -158,7 +158,7 @@ export const productPolicies = {
       "US standard shipping: 3-4 business days after processing.",
       "US express shipping: 1-3 business days after processing.",
       "International standard shipping: 5-20 business days after processing.",
-      "Canada only DDP standard: 3-5 business days after order handling, up to 12 business days for the Atlantic region.",
+      "Canada and UK delivery estimates depend on the selected service and destination.",
       "Shipping times start after the order has been processed for fulfillment."
     ]
   },

@@ -28,3 +28,11 @@ describe("Stripe Checkout return URLs", () => {
     });
   });
 });
+
+describe("Stripe Checkout shipping country", () => {
+  it("locks the address collection to the country used to price shipping", () => {
+    expect(stripe.checkoutAllowedCountries("US")).toEqual(["US"]);
+    expect(stripe.checkoutAllowedCountries("ca")).toEqual(["CA"]);
+    expect(stripe.checkoutAllowedCountries("GB")).toEqual(["GB"]);
+  });
+});
