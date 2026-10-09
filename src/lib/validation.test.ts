@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { toCartItemInputs } from "./cart";
 import { checkoutRequestSchema } from "./validation";
@@ -99,5 +100,26 @@ describe("shipping country availability", () => {
     const { assertAllowedCountry } = await import("./validation");
 
     expect(() => assertAllowedCountry(countryCode)).toThrow(`Shipping country ${countryCode} is not enabled for this store.`);
+  });
+
+  it.each(["CA", "GB"])("returns HTTP 400 for %s on both public purchase endpoints", async (countryCode) => {
+    vi.stubEnv("ALLOWED_SHIPPING_COUNTRIES", "CA,GB,US,ES,FR,DE,IT,PT");
+    vi.resetModules();
+
+    const [{ POST: quotePost }, { POST: checkoutPost }] = await Promise.all([
+      import("../app/api/shipping/rates/route"),
+      import("../app/api/checkout/route")
+    ]);
+    const recipient = { ...validRequest.recipient, countryCode };
+    const requests = [
+      { post: quotePost, path: "/api/shipping/rates", body: { recipient, items: validRequest.items } },
+      { post: checkoutPost, path: "/api/checkout", body: { recipient, items: validRequest.items, shippingRateId: "STANDARD" } }
+    ];
+
+    for (const { post, path, body } of requests) {
+      const response = await post(new NextRequest(`http://localhost${path}`, { method: "POST", body: JSON.stringify(body) }));
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({ error: `Shipping country ${countryCode} is not enabled for this store.` });
+    }
   });
 });

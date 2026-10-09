@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { ShippingCountryUnavailableError } from "./validation";
 
 export const MAX_PUBLIC_JSON_BODY_BYTES = 64 * 1024;
 
@@ -24,6 +25,10 @@ export function jsonError(error: unknown, status = 500) {
 
   if (error instanceof ZodError) {
     return NextResponse.json({ error: "Invalid request", details: error.flatten() }, { status: 400 });
+  }
+
+  if (error instanceof ShippingCountryUnavailableError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
   const message = error instanceof Error ? error.message : "Unexpected error";
