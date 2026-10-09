@@ -37,6 +37,11 @@ Configurar en Vercel, no en git:
 - `TRUST_PROXY_HEADERS`
 - `RATE_LIMIT_FALLBACK_MULTIPLIER`
 
+Los destinos de envio activos son ES, FR, DE, IT, PT y US. CA y GB estan
+temporalmente deshabilitados en la aplicacion, incluso si aparecen en
+`ALLOWED_SHIPPING_COUNTRIES` en Vercel. No volver a habilitarlos hasta validar
+una tarifa DDP real, el flujo de checkout y la informacion al cliente.
+
 `NEXT_PUBLIC_BASE_URL` debe apuntar al dominio publico real. En local puede ser `http://localhost:3000`. Es una variable publica a proposito: solo contiene la URL base que el navegador tambien puede conocer.
 
 Si `https://www.funnyteesforall.com` es el dominio final activo, usar esa URL sin ruta final ni slash innecesario.

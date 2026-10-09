@@ -86,11 +86,12 @@ Despues de borrar productos en Printful, ejecutar sync desde `/admin` o esperar 
 
 La app pide tarifas reales a Printful, pero aplica reglas de precio al cliente en servidor:
 
-- `STANDARD`: incluido para el cliente en `US`, `ES`, `FR`, `DE`, `IT` y `PT`; en `CA` y `GB` conserva la tarifa cotizada por Printful.
+- Destinos activos: `US`, `ES`, `FR`, `DE`, `IT` y `PT`. `CA` y `GB` estan bloqueados temporalmente antes de cotizar o crear checkout, aunque la variable de Vercel aun los contenga.
+- `STANDARD`: incluido para el cliente en los seis destinos activos.
 - `PRINTFUL_FAST`: incluido solo para destinatarios `US`.
 - Otros metodos: mantienen el precio de Printful.
 
-El cargo de envio de `CA` o `GB` no prepaga aranceles ni convierte el pedido en DDP. No prometer entrega sin cargos de importacion sin confirmar una tarifa DDP y su uso efectivo en fulfillment.
+La logica interna conserva la tarifa cotizada para `CA` y `GB` si se habilitan en el futuro, pero ese cargo no prepaga aranceles ni convierte el pedido en DDP. No reabrir esos destinos sin confirmar una tarifa DDP real y su uso efectivo en fulfillment.
 
 Estas reglas se aplican tanto al listar tarifas como al crear checkout. Si Vercel muestra un `400` rapido y sin llamadas externas en `/api/shipping/rates`, revisar primero el contrato de validacion local del carrito.
 

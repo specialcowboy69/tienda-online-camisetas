@@ -66,12 +66,11 @@ describe("product content", () => {
     expect(returnsCopy).toMatch(/reasonable photos/i);
   });
 
-  it("explains included regions without promising free shipping in Canada or the UK", () => {
+  it("explains shipping only for currently enabled destinations", () => {
     const copy = productPolicies.shipping.summary;
     expect(copy).toMatch(/standard shipping is included for orders to the US, Spain, France, Germany, Italy, and Portugal/i);
-    expect(copy).toMatch(/Canada and the UK.*charged at checkout/i);
+    expect([copy, ...productPolicies.shipping.details].join("\n")).not.toMatch(/Canada|United Kingdom|\bUK\b/i);
     expect(copy).not.toMatch(/^Standard shipping is included\./i);
-    expect(productPolicies.shipping.details.join("\n")).not.toMatch(/Canada only DDP standard/i);
   });
 
   it("offers refunds for store-responsible problems and preserves other legal remedies", () => {

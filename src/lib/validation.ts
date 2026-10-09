@@ -28,9 +28,16 @@ export const checkoutRequestSchema = shippingRatesRequestSchema.extend({
   shippingRateId: z.string().min(1).max(120)
 }).strict();
 
+export class ShippingCountryUnavailableError extends Error {
+  constructor(countryCode: string) {
+    super(`Shipping country ${countryCode} is not enabled for this store.`);
+    this.name = "ShippingCountryUnavailableError";
+  }
+}
+
 export function assertAllowedCountry(countryCode: string): void {
   const allowed = getAllowedShippingCountries();
   if (!allowed.includes(countryCode.toUpperCase())) {
-    throw new Error(`Shipping country ${countryCode} is not enabled for this store.`);
+    throw new ShippingCountryUnavailableError(countryCode);
   }
 }

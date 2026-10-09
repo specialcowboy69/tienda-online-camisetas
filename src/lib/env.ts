@@ -12,7 +12,7 @@ const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
-  ALLOWED_SHIPPING_COUNTRIES: z.string().default("ES,FR,DE,IT,PT,US,CA,GB"),
+  ALLOWED_SHIPPING_COUNTRIES: z.string().default("ES,FR,DE,IT,PT,US"),
   PRINTFUL_WEBHOOK_TYPES: z.string().optional(),
   ADMIN_SECRET: z.string().optional(),
   CRON_SECRET: z.string().optional(),
@@ -23,6 +23,8 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse(process.env);
+
+const temporarilyDisabledShippingCountries = new Set(["CA", "GB"]);
 
 export function requiredEnv(name: keyof typeof env): string {
   const value = env[name];
@@ -35,7 +37,11 @@ export function requiredEnv(name: keyof typeof env): string {
 export function getAllowedShippingCountries(): string[] {
   return env.ALLOWED_SHIPPING_COUNTRIES.split(",")
     .map((country) => country.trim().toUpperCase())
-    .filter(Boolean);
+    .filter((country) => Boolean(country) && !temporarilyDisabledShippingCountries.has(country));
+}
+
+export function getDefaultShippingCountry(): string {
+  return getAllowedShippingCountries()[0] || "US";
 }
 
 export function isStripeTaxEnabled(): boolean {

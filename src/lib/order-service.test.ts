@@ -55,7 +55,7 @@ vi.mock("./stripe", () => ({
 }));
 vi.mock("./refund-service", () => ({ reconcileOrderRefunds: mocks.reconcileRefunds, handleStripeRefundEvent: mocks.refundEvent }));
 
-vi.mock("./env", () => ({ env: { PRINTFUL_WEBHOOK_SECRET: "synthetic-test-secret" }, isStripeTaxEnabled: () => false, requiredEnv: () => "synthetic-test-secret", getAllowedShippingCountries: () => ["US", "ES", "FR", "DE", "IT", "PT", "CA", "GB"], getBaseUrl: () => "http://localhost:3000" }));
+vi.mock("./env", () => ({ env: { PRINTFUL_WEBHOOK_SECRET: "synthetic-test-secret" }, isStripeTaxEnabled: () => false, requiredEnv: () => "synthetic-test-secret", getAllowedShippingCountries: () => ["US", "ES", "FR", "DE", "IT", "PT"], getBaseUrl: () => "http://localhost:3000" }));
 vi.mock("stripe", () => ({ default: class {
   checkout = { sessions: { create: mocks.createSession } };
 } }));
@@ -367,7 +367,7 @@ describe("order service", () => {
     expect(mocks.createStripeCheckoutSession.mock.calls[0][0].totals.shipping).toBe(0);
   });
 
-  it.each(["CA", "GB"])("quotes and charges the Printful standard rate for %s", async (countryCode) => {
+  it.each(["CA", "GB"])("rejects shipping and checkout for %s before external calls", async (countryCode) => {
     const { quoteShipping, createCheckout } = await import("./order-service");
     const recipient = {
       name: "Ada Lovelace",
@@ -379,14 +379,11 @@ describe("order service", () => {
     };
     const items = [{ productId: "101", syncVariantId: 201, quantity: 1 }];
 
-    expect(await quoteShipping({ recipient, items })).toEqual([shippingRate]);
-    const result = await createCheckout({ recipient, items, shippingRateId: "STANDARD" });
-
-    expect(result.order.shippingRate).toEqual(shippingRate);
-    expect(result.order.totals).toEqual({ subtotal: 2550, shipping: 495, total: 3045, currency: "eur" });
-    expect(mocks.createOrder.mock.calls[0][0].totals.shipping).toBe(495);
-    expect(mocks.createStripeCheckoutSession.mock.calls[0][0].totals.shipping).toBe(495);
-    expect(shippingRate.rate).toBe("4.95");
+    await expect(quoteShipping({ recipient, items })).rejects.toThrow(`Shipping country ${countryCode} is not enabled for this store.`);
+    await expect(createCheckout({ recipient, items, shippingRateId: "STANDARD" })).rejects.toThrow(`Shipping country ${countryCode} is not enabled for this store.`);
+    expect(mocks.getShippingRates).not.toHaveBeenCalled();
+    expect(mocks.createOrder).not.toHaveBeenCalled();
+    expect(mocks.createStripeCheckoutSession).not.toHaveBeenCalled();
   });
 
   it("serializes two distinct paid events and an admin retry around one remote creation", async () => {
