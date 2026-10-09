@@ -219,7 +219,8 @@ comprobaciones completas del snapshot, separado de elegibilidad/refunds/email.
 
 ## Reglas comerciales en codigo
 
-- Envio Standard: incluido para `US`, `ES`, `FR`, `DE`, `IT` y `PT`; `CA` y `GB` conservan la tarifa cotizada.
+- Destinos habilitados: `US`, `ES`, `FR`, `DE`, `IT` y `PT`. `CA` y `GB` se excluyen temporalmente incluso si la variable de entorno los enumera.
+- Envio Standard: incluido para los seis destinos habilitados. La logica de precio para `CA` y `GB` permanece en `priceCustomerShippingRate()`, pero no es accesible mientras esten bloqueados.
 - Printful Fast: se muestra incluido solo para destinatarios de Estados Unidos.
 - Otros metodos de envio: mantienen la tarifa devuelta por Printful.
 - La tarifa se recalcula en servidor tanto al listar opciones como al crear checkout.

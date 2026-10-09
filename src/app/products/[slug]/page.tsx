@@ -6,7 +6,7 @@ import { ProductContext, ProductDetails, ProductFinalCallout } from "@/component
 import { ProductGallery } from "@/components/product-gallery";
 import { ProductPurchasePanel } from "@/components/product-purchase-panel";
 import { SiteHeader } from "@/components/site-header";
-import { env, getAllowedShippingCountries } from "@/lib/env";
+import { getAllowedShippingCountries, getDefaultShippingCountry } from "@/lib/env";
 import { getCatalogProduct, listCatalogProducts } from "@/lib/firestore";
 import { getCatalogProductGallery } from "@/lib/product-gallery";
 import { getProductIdBySlug, getProductSlug } from "@/lib/product-slugs";
@@ -77,7 +77,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     : price
       ? `${price.isRange ? "From " : ""}${formatPrice(price.min, price.currency)}`
       : "Unavailable";
-  const defaultCountry = env.ALLOWED_SHIPPING_COUNTRIES.split(",")[0]?.trim().toUpperCase() || "US";
+  const defaultCountry = getDefaultShippingCountry();
 
   return (
     <main className="ncc-page">

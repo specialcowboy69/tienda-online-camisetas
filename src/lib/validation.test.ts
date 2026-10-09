@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { toCartItemInputs } from "./cart";
 import { checkoutRequestSchema } from "./validation";
 
@@ -65,5 +65,39 @@ describe("checkoutRequestSchema", () => {
       recipient: { ...validRequest.recipient, countryCode: "ES" },
       items: [{ productId: "shirt-black-l", syncVariantId: 123, quantity: 1 }]
     });
+  });
+});
+
+describe("shipping country availability", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("omits Canada and the United Kingdom from configured shipping countries", async () => {
+    vi.stubEnv("ALLOWED_SHIPPING_COUNTRIES", "CA,GB,US,ES,FR,DE,IT,PT");
+    vi.resetModules();
+
+    const { getAllowedShippingCountries } = await import("./env");
+
+    expect(getAllowedShippingCountries()).toEqual(["US", "ES", "FR", "DE", "IT", "PT"]);
+  });
+
+  it("defaults to the first enabled destination when a disabled country is configured first", async () => {
+    vi.stubEnv("ALLOWED_SHIPPING_COUNTRIES", "CA,GB,ES,US");
+    vi.resetModules();
+
+    const { getDefaultShippingCountry } = await import("./env");
+
+    expect(getDefaultShippingCountry()).toBe("ES");
+  });
+
+  it.each(["CA", "GB"])("rejects %s even when the runtime configuration includes it", async (countryCode) => {
+    vi.stubEnv("ALLOWED_SHIPPING_COUNTRIES", "CA,GB,US,ES,FR,DE,IT,PT");
+    vi.resetModules();
+
+    const { assertAllowedCountry } = await import("./validation");
+
+    expect(() => assertAllowedCountry(countryCode)).toThrow(`Shipping country ${countryCode} is not enabled for this store.`);
   });
 });

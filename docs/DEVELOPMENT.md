@@ -130,10 +130,11 @@ Evitar un override en codigo mientras Printful siga siendo la fuente de verdad.
 ## Como tocar envio
 
 Las reglas de precio de envio para el cliente viven en `priceCustomerShippingRate()`.
+La disponibilidad de destinos se obtiene con `getAllowedShippingCountries()`; esta funcion excluye temporalmente `CA` y `GB` aunque aparezcan en la variable de entorno. `assertAllowedCountry()` usa esa lista antes de solicitar tarifas o crear checkout.
 
 Actualmente:
 
-- `STANDARD` se cobra al cliente como `0.00` en `US`, `ES`, `FR`, `DE`, `IT` y `PT`; en `CA` y `GB` conserva la tarifa cotizada por Printful.
+- `STANDARD` se cobra al cliente como `0.00` en `US`, `ES`, `FR`, `DE`, `IT` y `PT`; la regla de precio para `CA` y `GB` queda inactiva mientras esos destinos esten bloqueados.
 - `PRINTFUL_FAST` se cobra como `0.00` solo para `US`.
 - Otros metodos conservan la tarifa real de Printful.
 
