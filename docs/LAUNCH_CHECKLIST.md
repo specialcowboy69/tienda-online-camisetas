@@ -335,7 +335,15 @@ correo como realizadas basandose en mocks, capturas locales o build.
     conservada y pago retirado tras invalidar. Ningun checkout llego al servidor.
   - La consola solo mostro los errores HTTP simulados y un favicon 404 previo,
     ajeno al control de compra.
-- [ ] Completar revision independiente de esta implementacion.
+- [x] ~~Completar revision independiente de esta implementacion.~~
+  - Revision de los 24 archivos de `fed72dc..8084dc4`, sin hallazgos criticos,
+    importantes ni menores. 13 comprobaciones adicionales en memoria de parser
+    y politica correctas; no reemplazan las pruebas del ejecutor.
+  - HTTP local con Firestore/Printful reales: seleccion apta ES devuelve 200 y
+    STANDARD 0.00; True Navy M devuelve 409 EU_CUSTOMS_RISK. Sin checkout/pagos.
+  - Auditoria de integracion: cero PR abiertos; solo `codex/eu-customs-guard`
+    tiene commits fuera de origin/main. Los documentos locales previos se
+    preservan; no se ha hecho push, merge ni deployment.
 - [ ] Integrar por PR y comprobar cotizacion publica en el deployment exacto.
 - [ ] Renovar rutas/cobertura antes del lanzamiento. El control previo a Stripe
   no garantiza ruta final ni detecta automaticamente cambios posteriores al pago.
