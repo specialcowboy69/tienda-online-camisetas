@@ -314,6 +314,32 @@ correo como realizadas basandose en mocks, capturas locales o build.
   `ES`, `FR`, `DE`, `IT` o `PT`, y reflejar los costes y responsabilidades
   confirmados en checkout, politicas y emails.
 
+### Control preventivo aduanero UE — 2026-10-11
+
+- [x] ~~Implementar el control por metodo/paquete para ES/FR/DE/IT/PT.~~
+  - Verificacion local: 477 tests, lint, TypeScript y build correctos; sin
+    dependencias nuevas ni cambios en fulfillment, impuestos o credenciales.
+  - US conserva el flujo sin v2. CA/GB se rechazan por codigo antes del
+    proveedor aunque la variable desplegada aun los contenga; esto no marca
+    como actualizado el pendiente historico de ALLOWED_SHIPPING_COUNTRIES.
+- [x] ~~Renovar cotizaciones reales sin pagos ni pedidos.~~
+  - Standard incluido para una seleccion apta en los seis destinos; True Navy M
+    y carrito mixto rechazados para ES. Ver la
+    [matriz fechada](legal-templates/printful-fulfillment-matrix.md#comprobacion-dinamica-2026-10-11).
+  - La crop muestreada no admite la consulta DTF v2 actual: fallo de comprobacion,
+    no evidencia suficiente para afirmar aduanas. No se fuerza tecnica distinta.
+- [x] ~~Completar revision visual local a 390x844 y 1440x900.~~
+  - Seleccion apta, riesgo, servicio no disponible, respuesta lenta invalidada
+    por direccion/pais y retorno a US. Respuestas interceptadas en navegador;
+    alertas legibles sin desbordamiento, tabulacion comprobada, direccion
+    conservada y pago retirado tras invalidar. Ningun checkout llego al servidor.
+  - La consola solo mostro los errores HTTP simulados y un favicon 404 previo,
+    ajeno al control de compra.
+- [ ] Completar revision independiente de esta implementacion.
+- [ ] Integrar por PR y comprobar cotizacion publica en el deployment exacto.
+- [ ] Renovar rutas/cobertura antes del lanzamiento. El control previo a Stripe
+  no garantiza ruta final ni detecta automaticamente cambios posteriores al pago.
+
 ## 7. Prueba integral antes de abrir
 
 ### Compra de prueba

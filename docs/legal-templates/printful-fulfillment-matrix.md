@@ -112,3 +112,53 @@ Fuentes oficiales consultadas el **2026-09-29**. Las paginas y las reglas del
 proveedor pueden cambiar; volver a comprobarlas antes del lanzamiento y ante
 una ruta nueva. Este snapshot no acredita un pedido real, DDP UE, importador
 designado, alta OSS/IOSS, ni aprobacion fiscal o legal.
+
+## Comprobacion dinamica 2026-10-11
+
+Actualizacion de evidencia, sin reemplazar el snapshot historico anterior.
+Se leyeron los cinco productos activos de Firestore y sus metadatos sincronizados
+en Printful: 130 variantes con IDs coincidentes y archivo imprimible
+`front_dtf` (preview excluido). La consulta v2 admite placement `front_dtf` +
+tecnica `dtfilm`; la propuesta inicial `front` + `dtfilm` devuelve 400.
+No se sustituyo la tecnica por DTG ni se modifico el catalogo.
+Contrato: [Shipping Rates v2](https://developers.printful.com/docs/v2-preview/#tag/Shipping-Rates-v2).
+
+Cotizaciones con direcciones de prueba completas, una unidad por variante,
+moneda USD. Solo lecturas y cotizaciones: sin pedidos, escrituras Firestore,
+pagos, emails ni confirmacion de fabricacion. Los siguientes importes son
+transporte, no precio del producto; el Standard ya esta integrado en el precio
+comercial y no se vuelve a cobrar al cliente.
+
+| Destino | Variante(s) de catalogo | Metodo | Coste v1 proveedor (USD) | Recargo cliente | Evidencia v2 | Decision local |
+| --- | --- | --- | --- | --- | --- | --- |
+| US | 15114 Black S | STANDARD | 4.95 | 0.00 | No requerida para US | eligible |
+| ES | 15114 Black S | STANDARD | 4.99 | 0.00 | LV, false | eligible |
+| FR | 15114 Black S | STANDARD | 4.99 | 0.00 | LV, false | eligible |
+| DE | 15114 Black S | STANDARD | 4.99 | 0.00 | LV, false | eligible |
+| IT | 15114 Black S | STANDARD | 4.99 | 0.00 | LV, false | eligible |
+| PT | 15114 Black S | STANDARD | 4.99 | 0.00 | LV, false | eligible |
+| ES | 15182 True Navy M | STANDARD | 4.99 | No ofertado | US, true | customs_risk |
+| ES | 15182 True Navy M | STANDARD_CARBON_OFFSET | 5.08 | No ofertado | US, true | customs_risk |
+| ES | 15114 + 15182 | STANDARD | 6.44 | No ofertado | Dos paquetes: LV false + US true | customs_risk |
+
+Producto de las filas: Falling apart, sync product 468682936. Tambien se
+observo US STANDARD_CARBON_OFFSET a 5.04 USD, mantenido como recargo opcional
+(no altera Standard incluido). Estos valores son un snapshot, no nuevas
+tarifas permanentes ni garantias del centro final.
+
+Comprobacion adicional: hoodie variante 9648 a ES, v2 STANDARD 7.29 USD,
+LV/false. La muestra crop 49803 con su configuracion DTF devolvio 400 por
+combinacion no servible; no se interpreta como aduanas confirmadas ni se fuerza
+otra tecnica. En el control nuevo, evidencia v2 no disponible impide iniciar
+checkout UE. No se afirma que todas las variantes de la crop tengan ese mismo
+resultado: renovar la consulta de la seleccion concreta.
+
+La implementacion local repite el control completo en rates y en checkout.
+Un metodo solo pasa con moneda/ID coherentes, todos los paquetes cubriendo
+exactamente el carrito y todos los flags false. Un solo paquete con true
+rechaza ese metodo; datos incompletos rechazan temporalmente sin inventar false.
+La ruta puede cambiar despues de crear Stripe y no se anade revalidacion
+automatica postpago. US no depende de v2; CA/GB siguen deshabilitados.
+
+Estado: implementado y verificado localmente; pendiente de PR, merge y
+comprobacion del deployment. No cierra las plantillas ni cambia NO-GO a GO.

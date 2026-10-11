@@ -64,7 +64,7 @@ See [`docs/operations.md`](docs/operations.md) for the deployment runbook, webho
 
 Catalog products marked as ignored remain in Firestore for traceability, but are hidden from the public storefront. The storefront keeps display fields in the UI cart, then sends a clean cart input payload to shipping and checkout APIs.
 
-Customer shipping is priced by the app after receiving Printful rates: Standard shipping is included for US, ES, FR, DE, IT, and PT, while CA and GB retain the quoted standard rate. Printful Fast is included only for US recipients. The shipping charge is not a prepaid customs duty. Manual storefront images can override Printful images through catalog fields.
+Customer shipping is priced by the app after receiving Printful rates: Standard shipping is included for eligible orders to US, ES, FR, DE, IT, and PT. CA and GB are temporarily disabled. Printful Fast is included only for US recipients. For the five active EU countries, quotes and checkout require complete per-shipment customs evidence from Printful v2; risky or unverifiable methods cannot start payment. Prices still come from v1, and the shipping charge is not a prepaid customs duty. This pre-payment check does not guarantee the final fulfillment route. See [shipping operations](docs/operations.md#envio). Manual storefront images can override Printful images through catalog fields.
 
 ## Printful Safety
 
