@@ -1,4 +1,90 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mixedPayload, safePayload, syncDtfFixture } from "./__fixtures__/printful-shipping-risk";
+import type { OrderItem, Recipient } from "./types";
+
+describe("Printful shipment customs evidence", () => {
+  const recipient: Recipient = { name: "Test", email: "test@example.com", address1: "Test 1", address2: "Unit 2", city: "Madrid", countryCode: "ES", zip: "28014" };
+  const item: OrderItem = { productId: "468682936", productName: "Tee", syncVariantId: 5489215132, variantId: 15114, variantName: "S", quantity: 1, unitAmount: 3999, currency: "usd" };
+  const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
+  beforeEach(() => { vi.resetModules(); vi.stubEnv("PRINTFUL_API_TOKEN", "test-token"); });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+  it("reads every shipment in the v2 data envelope", async () => {
+    const { readShippingRiskRates } = await import("./printful-shipping-risk");
+    expect(readShippingRiskRates(mixedPayload)[0]).toMatchObject({ id: "STANDARD", currency: "usd", valid: true });
+    expect(readShippingRiskRates(mixedPayload)[0].shipments.map(s => s.customsFeesPossible)).toEqual([false, true]);
+  });
+  it.each([undefined, null, "false", 0])("never converts missing or mistyped customs signals to false: %s", async flag => {
+    const { readShippingRiskRates } = await import("./printful-shipping-risk");
+    const payload = structuredClone(safePayload) as any;
+    payload.data[0].shipments[0].customs_fees_possible = flag;
+    expect(readShippingRiskRates(payload)[0].shipments[0].customsFeesPossible).toBeNull();
+  });
+  it("rejects invalid envelopes and marks malformed methods unverified", async () => {
+    const { readShippingRiskRates } = await import("./printful-shipping-risk");
+    expect(() => readShippingRiskRates({ result: [] })).toThrow();
+    for (const rate of [null, {}, { shipping: "STANDARD", currency: "USD", shipments: [] }]) {
+      expect(readShippingRiskRates({ data: [rate] })[0].valid).toBe(false);
+    }
+  });
+  it("quotes exact sync variants with verified front_dtf placements, full address and complete cart", async () => {
+    const second = { ...item, productId: "468513582", syncVariantId: 5488661812, quantity: 2 };
+    const fetchMock = vi.fn().mockImplementation((url: string) => Promise.resolve(response(
+      url.includes("/v2/") ? safePayload : url.endsWith("468513582")
+        ? { result: { sync_product: { id: 468513582 }, sync_variants: [{ id: 5488661812, variant_id: 15114, files: [{ type: "front_dtf" }] }] } }
+        : syncDtfFixture)));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getShippingRiskRates } = await import("./printful");
+    await getShippingRiskRates(recipient, [item, { ...item, quantity: 3 }, second]);
+    expect(fetchMock.mock.calls.filter(([url]) => !url.includes("/v2/"))).toHaveLength(2);
+    const body = JSON.parse(fetchMock.mock.calls.find(([url]) => url.endsWith("/v2/shipping-rates"))![1].body);
+    expect(body).toMatchObject({ currency: "USD", recipient: { address2: "Unit 2", country_code: "ES" } });
+    expect(body.order_items).toEqual([1, 3, 2].map(quantity => ({ source: "catalog", catalog_variant_id: 15114, quantity, placements: [{ placement: "front_dtf", technique: "dtfilm" }] })));
+  });
+  it.each(["identity", "missing", "back", "dtg", "empty", "duplicate", "ignored"])("rejects unsupported or mismatched sync configuration: %s", async kind => {
+    const metadata = structuredClone(syncDtfFixture) as any;
+    const v = metadata.result.sync_variants[0];
+    if (kind === "identity") v.variant_id = 42;
+    if (kind === "missing") v.id = 1;
+    if (kind === "back") v.files.push({ type: "back_dtf" });
+    if (kind === "dtg") v.files[0].type = "front";
+    if (kind === "empty") v.files = [{ type: "preview" }];
+    if (kind === "duplicate") metadata.result.sync_variants.push(v);
+    if (kind === "ignored") v.is_ignored = true;
+    const fetchMock = vi.fn().mockResolvedValue(response(metadata));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getShippingRiskRates } = await import("./printful");
+    await expect(getShippingRiskRates(recipient, [item])).rejects.toThrow();
+    expect(fetchMock.mock.calls.some(([url]) => url.includes("/v2/"))).toBe(false);
+  });
+  it.each([429, 500, 503])("propagates failed risk checks HTTP %s without retry", async status => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(response(syncDtfFixture)).mockResolvedValueOnce(response({}, status));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getShippingRiskRates } = await import("./printful");
+    await expect(getShippingRiskRates(recipient, [item])).rejects.toMatchObject({ status });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+  it("rejects unreadable successful JSON", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("not json")));
+    const { getShippingRiskRates } = await import("./printful");
+    await expect(getShippingRiskRates(recipient, [item])).rejects.toThrow();
+  });
+  it("bounds metadata concurrency to three and shares a global 20 second deadline", async () => {
+    vi.useFakeTimers();
+    let active = 0, maximum = 0;
+    const fetchMock = vi.fn().mockImplementation((_url, init) => {
+      active++; maximum = Math.max(maximum, active);
+      return new Promise((_resolve, reject) => init.signal.addEventListener("abort", () => { active--; reject(new DOMException("Aborted", "AbortError")); }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { getShippingRiskRates } = await import("./printful");
+    const pending = getShippingRiskRates(recipient, Array.from({ length: 5 }, (_, i) => ({ ...item, productId: String(100 + i) })));
+    const assertion = expect(pending).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(20000);
+    await assertion;
+    expect(maximum).toBe(3);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
 
 describe("Printful order recovery", () => {
   beforeEach(() => {
