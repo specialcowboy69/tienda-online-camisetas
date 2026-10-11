@@ -1,6 +1,7 @@
 import { env, getPrintfulWebhookTypes, requiredEnv, shouldConfirmPrintfulOrders } from "./env";
 import { toMinorUnits } from "./money";
 import { CatalogProduct, OrderItem, Recipient, ShippingRate, StoreOrder } from "./types";
+import { readShippingRiskRates, type ShippingRiskPlacement, type ShippingRiskRate } from "./printful-shipping-risk";
 
 const PRINTFUL_API_BASE = "https://api.printful.com";
 
@@ -178,6 +179,51 @@ export async function getShippingRates(recipient: Recipient, items: OrderItem[])
   });
 
   return data.result;
+}
+
+export async function getShippingRiskRates(recipient: Recipient, items: OrderItem[]): Promise<ShippingRiskRate[]> {
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), 20000);
+  try {
+    if (!items.length) throw new Error("Empty shipping risk cart.");
+    const productIds = [...new Set(items.map(item => item.productId))];
+    const details = new Map<string, PrintfulProductDetail>();
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(3, productIds.length) }, async () => {
+      while (next < productIds.length) {
+        controller.signal.throwIfAborted();
+        const id = productIds[next++];
+        if (!/^\d+$/.test(id)) throw new Error("Invalid sync product identity.");
+        const data = await printfulFetch<PrintfulResponse<PrintfulProductDetail>>(`/store/products/${id}`, { signal: controller.signal });
+        if (String(data?.result?.sync_product?.id) !== id || !Array.isArray(data.result.sync_variants)) {
+          throw new Error("Invalid sync product response.");
+        }
+        details.set(id, data.result);
+      }
+    }));
+    const orderItems = items.map(item => {
+      const variants = details.get(item.productId)!.sync_variants.filter(v => v.id === item.syncVariantId);
+      const variant = variants[0];
+      if (variants.length !== 1 || variant.variant_id !== item.variantId || variant.is_ignored) {
+        throw new Error("Shipping risk variant identity mismatch.");
+      }
+      const files = variant.files?.filter(file => file.type !== "preview");
+      if (!files || files.length !== 1 || files[0].type !== "front_dtf") {
+        throw new Error("Unsupported shipping risk print configuration.");
+      }
+      const placements: ShippingRiskPlacement[] = [{ placement: "front_dtf", technique: "dtfilm" }];
+      return { source: "catalog", catalog_variant_id: item.variantId, quantity: item.quantity, placements };
+    });
+    controller.signal.throwIfAborted();
+    const data = await printfulFetch<unknown>("/v2/shipping-rates", {
+      method: "POST", signal: controller.signal,
+      body: JSON.stringify({ recipient: toPrintfulRecipient(recipient), order_items: orderItems, currency: items[0].currency.toUpperCase() })
+    });
+    return readShippingRiskRates(data);
+  } finally {
+    controller.abort();
+    clearTimeout(deadline);
+  }
 }
 
 export async function createPrintfulOrder(order: StoreOrder): Promise<PrintfulOrder> {

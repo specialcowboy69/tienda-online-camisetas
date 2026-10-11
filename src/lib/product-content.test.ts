@@ -68,7 +68,10 @@ describe("product content", () => {
 
   it("explains shipping only for currently enabled destinations", () => {
     const copy = productPolicies.shipping.summary;
-    expect(copy).toMatch(/standard shipping is included for orders to the US, Spain, France, Germany, Italy, and Portugal/i);
+    expect(copy).toMatch(/standard shipping is included for eligible orders to the US, Spain, France, Germany, Italy, and Portugal/i);
+    expect(copy).toMatch(/checked before payment/i);
+    expect(copy).toMatch(/flagged for possible import charges.*currently unavailable/i);
+    expect([copy, ...productPolicies.shipping.details].join(" ")).not.toMatch(/communicated before payment|always shipped from|guaranteed.*customs/i);
     expect([copy, ...productPolicies.shipping.details].join("\n")).not.toMatch(/Canada|United Kingdom|\bUK\b/i);
     expect(copy).not.toMatch(/^Standard shipping is included\./i);
   });

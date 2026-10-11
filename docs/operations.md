@@ -95,6 +95,40 @@ La logica interna conserva la tarifa cotizada para `CA` y `GB` si se habilitan e
 
 Estas reglas se aplican tanto al listar tarifas como al crear checkout. Si Vercel muestra un `400` rapido y sin llamadas externas en `/api/shipping/rates`, revisar primero el contrato de validacion local del carrito.
 
+### Control de elegibilidad UE (2026-10-11, pendiente de integrar/desplegar)
+
+El precio de transporte sigue procediendo de v1. En ES/FR/DE/IT/PT se comprueba
+ademas v2 por metodo y por paquete, tanto al cotizar como justo antes de crear
+Firestore/Stripe. Solo se permite el metodo si cubre el carrito completo,
+coincide la moneda y todos los flags aduaneros son explicitamente false.
+Esto no es una lista estatica de tallas bloqueadas ni una promesa de DDP.
+
+| Codigo | Significado | Actuacion |
+| --- | --- | --- |
+| `EU_CUSTOMS_RISK` / 409 | Evidencia completa, al menos un paquete con riesgo | Elegir otra talla/color/producto y recalcular; conservar direccion y carrito |
+| `SHIPPING_CHECK_UNAVAILABLE` / 503 | Evidencia ausente/inconsistente, tecnica no soportada o fallo externo | Reintentar mas tarde; investigar contrato, metadatos y disponibilidad si persiste |
+| `SHIPPING_OPTIONS_CHANGED` / 409 | Metodo ya no disponible o tarifas vacias | Volver a cotizar y elegir una opcion nueva |
+
+No editar un flag manualmente, sustituir DTF por DTG para conseguir tarifa,
+reutilizar una cotizacion anterior ni desactivar el control como bypass.
+Una opcion rechazada nunca debe crear pedido interno ni sesion Stripe.
+Los logs del fallo de evidencia son deliberadamente genericos, sin tokens,
+direcciones ni payloads; diagnosticar con lecturas/cotizaciones acotadas.
+
+La correspondencia real verificada es placement `front_dtf` y tecnica `dtfilm`.
+Si se anade otra configuracion de impresion, ampliar contrato y tests antes de
+permitirla. El getter tiene 20 segundos globales y como maximo tres lecturas
+de metadatos simultaneas; US no depende de este getter.
+
+**Limite posterior al pago:** no se detectan automaticamente cambios de ruta
+despues de crear Stripe. Si se conoce un cambio mientras el pedido aun puede
+detenerse, revisar con el procedimiento operativo de pedidos existente y
+contactar con el cliente cuando proceda. No prometer deteccion total, fabrica
+fija, ausencia garantizada de cargos ni cancelacion automatica.
+
+Ver [evidencia de cotizaciones](legal-templates/printful-fulfillment-matrix.md#comprobacion-dinamica-2026-10-11)
+y [checklist](LAUNCH_CHECKLIST.md). No hubo pagos ni fabricacion en esta prueba.
+
 ## Catalogo E Imagenes
 
 La fuente de verdad operativa sigue siendo Printful + Firestore. Para imagenes publicas, la app permite campos manuales en `products`:

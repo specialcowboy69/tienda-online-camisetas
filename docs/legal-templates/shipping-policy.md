@@ -13,6 +13,11 @@ Los costes y cargos fiscales/aduaneros deben ser coherentes con el checkout y
 la información precontractual. No trasladar al cliente un cargo obligatorio no
 informado ni prometer ausencia de aduanas sin conocer el origen y la ruta.
 
+Actualizacion tecnica local 2026-10-11 (pendiente de integrar/desplegar):
+ES/FR/DE/IT/PT excluyen metodos con riesgo o evidencia no verificable antes
+del pago. No garantiza la ruta definitiva ni sustituye la revision de esta
+plantilla. Los campos pendientes y el bloqueo de lanzamiento siguen abiertos.
+
 ## Borrador para cliente: completar y revisar antes de publicar
 
 ### Shipping destinations
@@ -42,8 +47,12 @@ deadline. Estimates do not remove your rights if delivery is late.
 
 ### Shipping costs and separate packages
 
-Available delivery methods and the shipping charge for your address are shown
-before you pay. Shipping charges are calculated by [TO COMPLETE: verified checkout calculation basis and services].
+Standard shipping is included for eligible orders. Availability depends on
+your address and selected items. Check shipping before you pay.
+
+Available delivery methods and any additional shipping charge are shown before
+payment. Other delivery methods use the current quote for your selected items
+and address; included services are displayed at no additional shipping charge.
 
 An order may arrive in separate packages: [TO COMPLETE: verified split-shipment practice and any disclosed cost implications].
 

@@ -37,20 +37,45 @@ Colecciones implicadas:
 
 ## Flujo de compra
 
-1. El cliente anade productos al carrito en `Storefront`.
-2. Antes de llamar a APIs publicas, `Storefront` convierte el carrito visual a entradas limpias con `toCartItemInputs()`.
+1. El cliente anade una variante desde `ProductPurchasePanel` en el PDP. `Storefront` conserva el flujo de carrito heredado, no montado en las paginas actuales.
+2. Antes de llamar a APIs publicas, ambos componentes convierten el carrito visual a entradas limpias con `toCartItemInputs()`.
 3. La tienda pide tarifas a `/api/shipping/rates`.
 4. La ruta aplica rate limit y limite de cuerpo JSON antes de procesar.
-5. `quoteShipping()` valida pais, carga productos de Firestore y pide tarifas a Printful.
+5. `quoteShipping()` valida pais, carga productos de Firestore y pide tarifas v1 a Printful; en ES/FR/DE/IT/PT comprueba tambien evidencia aduanera v2 y solo devuelve metodos elegibles.
 6. `priceCustomerShippingRate()` ajusta el precio que ve el cliente segun reglas de tienda.
 7. El cliente elige tarifa y llama a `/api/checkout`.
-8. `createCheckout()` recalcula productos, envio y totales en servidor antes de crear el pedido interno en Firestore y la sesion de Stripe Checkout.
+8. `createCheckout()` vuelve a obtener tarifas y evidencia UE para el metodo seleccionado. Rechaza riesgo, evidencia incompleta u opcion desaparecida antes de crear el pedido interno en Firestore y la sesion de Stripe Checkout; solo despues calcula los totales.
 9. El cliente paga en Stripe.
 
 Colecciones implicadas:
 
 - `products`
 - `orders`
+
+### Control preventivo UE (implementacion local 2026-10-11)
+
+- `printful-shipping-risk.ts` interpreta datos externos sin convertir senales
+  ausentes o mal tipadas en `false`. `shipping-eligibility.ts` exige un metodo
+  unico en v1/v2, misma moneda y cobertura exacta de todas las cantidades por
+  variante, incluidos paquetes divididos. Todos los flags deben ser booleanos:
+  cualquiera `true` impide ese metodo; todos `false` lo permiten.
+- `getShippingRiskRates()` lee metadatos reales por producto sincronizado,
+  confirma IDs sync/catalogo y archivos frontales DTF. La correspondencia
+  verificada es `front_dtf` + `dtfilm` (no `front` + `dtfilm`).
+  Otras configuraciones no se adivinan: la comprobacion queda no disponible.
+  Maximo tres lecturas simultaneas, plazo global de 20 segundos, sin retries
+  internos ni cache persistente; una llamada v2 incluye todo el carrito.
+- Respuestas publicas: `EU_CUSTOMS_RISK` y `SHIPPING_OPTIONS_CHANGED` (409);
+  `SHIPPING_CHECK_UNAVAILABLE` (503). No contienen payloads del proveedor.
+- US no adquiere dependencia de v2; CA/GB se rechazan antes de consultar
+  proveedores. Standard incluido y Fast US incluido siguen sin recargo.
+- La UI invalida tarifas al editar/recalcular y descarta respuestas obsoletas,
+  incluidos error y finally. Bloquea edicion durante la creacion de checkout.
+- No se cambian modelos de catalogo/pedido, snapshotHash, reembolsos ni
+  fulfillment. La ruta puede cambiar despues de crear Stripe: este control
+  NO anade vigilancia ni revalidacion automatica posterior al pago.
+
+Estado de despliegue y evidencia: ver checklist y matriz de fulfillment.
 
 ## Flujo de Stripe
 
