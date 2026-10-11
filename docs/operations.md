@@ -4,6 +4,9 @@ Este documento recoge los pasos practicos que han ido saliendo durante la puesta
 
 ## Estado Del Proyecto
 
+- La referencia de estado es [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md). El
+  roadmap prioriza y este runbook describe procedimientos; no duplicar estados
+  de lanzamiento ni interpretar snapshots como lecturas actuales del proveedor.
 - Produccion despliega desde la rama `main` en Vercel.
 - Los cambios nuevos deben prepararse en ramas `codex/...` y mergearse a `main` cuando esten revisados.
 - La tienda usa Next.js, Firestore, Stripe Checkout, Printful y Resend.
@@ -95,7 +98,12 @@ La logica interna conserva la tarifa cotizada para `CA` y `GB` si se habilitan e
 
 Estas reglas se aplican tanto al listar tarifas como al crear checkout. Si Vercel muestra un `400` rapido y sin llamadas externas en `/api/shipping/rates`, revisar primero el contrato de validacion local del carrito.
 
-### Control de elegibilidad UE (2026-10-11, pendiente de integrar/desplegar)
+### Control de elegibilidad UE (integrado y desplegado el 2026-10-11)
+
+PR #27, merge `929a725`, Vercel Production `Ready`. El cierre de despliegue y
+las cotizaciones publicas posteriores estan en la
+[checklist](LAUNCH_CHECKLIST.md#control-preventivo-aduanero-ue--2026-10-11).
+Es una comprobacion previa al pago, no una autorizacion para Stripe live.
 
 El precio de transporte sigue procediendo de v1. En ES/FR/DE/IT/PT se comprueba
 ademas v2 por metodo y por paquete, tanto al cotizar como justo antes de crear
@@ -128,6 +136,12 @@ fija, ausencia garantizada de cargos ni cancelacion automatica.
 
 Ver [evidencia de cotizaciones](legal-templates/printful-fulfillment-matrix.md#comprobacion-dinamica-2026-10-11)
 y [checklist](LAUNCH_CHECKLIST.md). No hubo pagos ni fabricacion en esta prueba.
+
+**Limitacion conocida:** la muestra crop de catalogo `49803` con su tecnica
+DTF no obtuvo evidencia v2 utilizable el 11 de octubre. Se trata como
+`SHIPPING_CHECK_UNAVAILABLE`, no como aduanas confirmadas. Consultar de nuevo
+la variante/configuracion concreta al investigar; no extrapolar a toda la
+prenda ni cambiar tecnica o saltarse el control para desbloquear una venta.
 
 ## Catalogo E Imagenes
 
@@ -258,10 +272,13 @@ en Vercel ni autorizan activar pagos live o fabricacion.
   intento. Ese borrador quedo `canceled`, sin cargo ni fabricacion. No se
   observo un webhook `order_canceled` del borrador, ni se ha probado un evento
   de envio real. El borrador anterior `179691582`, de un pago test ya
-  reembolsado por completo, sigue `draft` y no se toco.
+  reembolsado por completo, estaba `draft` en esa consulta y no se toco;
+  consultar de nuevo su estado antes de cualquier accion.
 - Una sesion Stripe test nueva mostro `automatic_tax.enabled=false`. Tambien
-  permitia `CA` y `GB` ademas de `US`, `ES`, `FR`, `DE`, `IT` y `PT`: corregir
-  la configuracion de paises antes de abrir ventas reales.
+  permitia `CA` y `GB` ademas de `US`, `ES`, `FR`, `DE`, `IT` y `PT`. Esta
+  observacion precede a #25/#26: ahora Stripe queda limitado al pais cotizado
+  y CA/GB se bloquean por codigo. La limpieza de la variable de paises sigue
+  pendiente de verificar; ver checklist.
 - No se verifico la recepcion en bandeja del email por decision expresa de la
   persona propietaria. `accepted` de Resend no equivale a `delivered`.
 - El escenario de refund `pending` esta cubierto por tests sinteticos (63

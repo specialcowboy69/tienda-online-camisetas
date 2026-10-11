@@ -1,6 +1,7 @@
 # Matriz interna de fulfillment y fiscalidad — No Context Club
 
-Snapshot operativo: **2026-09-29**. Documento interno para revisar las
+Snapshot inicial: **2026-09-29**; ampliacion de cotizaciones y cierre de despliegue:
+**2026-10-11**. Cada observacion conserva su propia fecha. Documento interno para revisar las
 plantillas y el lanzamiento; no es una promesa de fabrica, origen, ruta,
 stock futuro ni tratamiento fiscal para el cliente.
 
@@ -153,12 +154,16 @@ otra tecnica. En el control nuevo, evidencia v2 no disponible impide iniciar
 checkout UE. No se afirma que todas las variantes de la crop tengan ese mismo
 resultado: renovar la consulta de la seleccion concreta.
 
-La implementacion local repite el control completo en rates y en checkout.
+La implementacion integrada en #27 repite el control completo en rates y en checkout.
 Un metodo solo pasa con moneda/ID coherentes, todos los paquetes cubriendo
 exactamente el carrito y todos los flags false. Un solo paquete con true
 rechaza ese metodo; datos incompletos rechazan temporalmente sin inventar false.
 La ruta puede cambiar despues de crear Stripe y no se anade revalidacion
 automatica postpago. US no depende de v2; CA/GB siguen deshabilitados.
 
-Estado: implementado y verificado localmente; pendiente de PR, merge y
-comprobacion del deployment. No cierra las plantillas ni cambia NO-GO a GO.
+Estado al cierre del 11 de octubre: implementado, integrado mediante PR #27
+(`929a725`) y desplegado en Vercel Production. Se comprobaron cotizaciones
+publicas apta/riesgosa a ES y rechazo de CA/GB, sin crear checkout ni pedidos;
+ver [cierre y evidencia](../LAUNCH_CHECKLIST.md#control-preventivo-aduanero-ue--2026-10-11).
+La tabla anterior sigue siendo una muestra fechada, no un inventario permanente
+de variantes permitidas. No cierra las plantillas ni cambia NO-GO a GO.

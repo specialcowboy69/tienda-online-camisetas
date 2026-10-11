@@ -1,8 +1,15 @@
 # Despliegue
 
-## Plataforma prevista
+## Plataforma y referencia de estado
 
-El proyecto esta preparado para desplegarse en Vercel. `vercel.json` define un cron diario:
+La tienda se despliega desde `main` en Vercel Production y es publica en
+`https://www.funnyteesforall.com`. Esto no equivale a autorizar pagos live.
+El cierre de #27 (`929a725`, 11 de octubre) y la evidencia del dominio estan en
+[LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md), referencia principal de estado.
+No inferir secretos, valores efectivos de entorno ni autorizacion de fabricacion
+a partir de que un deployment este `Ready`.
+
+`vercel.json` define un cron diario:
 
 ```json
 {
@@ -100,10 +107,12 @@ Preferible: configurar desde el panel admin para que use el valor actual de `NEX
 
 Ya estan completados o en proceso: webhook de Printful protegido, Resend integrado, dominio conectado, moneda gestionada desde Printful, productos ignorados ocultos y payload limpio de carrito para envio/checkout.
 
-Mantener como controles operativos:
+Mantener como controles operativos, partiendo de la evidencia ya registrada:
 
-1. Probar webhook de Printful hacia Vercel.
-2. Configurar Resend para emails de confirmacion, envio y estados importantes.
+1. Completar eventos Printful aun pendientes: `order_created` ya se observo;
+   no acredita envio real ni prueba dedicada de producto/stock.
+2. Comprobar entrega/recuperacion de email cuando se retome: la aceptacion
+   por Resend ya esta documentada, no es entrega en bandeja.
 
 Despues:
 
@@ -117,18 +126,50 @@ Despues:
 
 ## Smoke test despues de desplegar
 
-1. Abrir tienda publica.
-2. Confirmar que carga catalogo desde Firestore.
-3. Calcular envio con un carrito pequeno y confirmar que no hay `400` local de validacion.
-4. Confirmar que Standard aparece incluido para el cliente y que Printful Fast solo aparece incluido para US.
-5. Confirmar que UI publica y mensajes de checkout estan en ingles.
-6. Crear checkout en Stripe test.
-7. Completar pago de prueba.
-8. Confirmar pedido en Firestore.
-9. Confirmar evento de Stripe en `webhookEvents`.
-10. Confirmar pedido draft/confirmado en Printful segun `ORDER_CONFIRM_PRINTFUL`.
-11. Probar evento real o simulado de Printful, idealmente cambio de producto/stock.
-12. Confirmar email en ingles si Resend esta activo.
+### Nivel 1: lecturas y cotizaciones, sin pedidos ni cobros
+
+1. Relacionar el SHA exacto de `main`, el deployment `Ready` y el alias publico.
+   Un preview verde no prueba que el dominio ya sirva el merge.
+2. Abrir `/`, `/products` y un PDP real; confirmar HTTP 200, catalogo e imagenes.
+3. Cotizar una seleccion real actualmente apta hacia ES: Standard a 0.00 cuando
+   sea elegible. Reconsultar evidencia: no fijar una variante como apta para siempre.
+4. Probar una seleccion con riesgo conocido y un carrito mixto cuando exista
+   evidencia vigente: 409 `EU_CUSTOMS_RISK`, sin ruta de pago disponible.
+5. Probar falta de evidencia y respuesta tardia en tests/UI interceptada, no
+   provocando fallos del proveedor en produccion. Esperar
+   `SHIPPING_CHECK_UNAVAILABLE`/503, conservar direccion e invalidar tarifas.
+6. Comprobar US sin dependencia de v2 y CA/GB rechazados con 400. Confirmar
+   Standard incluido en destinos aptos y Printful Fast incluido solo para US.
+7. Si cambio la UI, revisar movil/escritorio y edicion de direccion/pais/carrito:
+   respuestas antiguas no recuperan tarifas ni habilitan pago; copy en ingles.
+8. Registrar fecha, SHA, entorno, HTTP/codigo y alcance. No llamar a
+   `/api/checkout` ni crear sesiones, pedidos o emails en este nivel.
+
+En el smoke publico posterior a #27 se probaron las tres paginas, una seleccion
+apta y otra con riesgo a ES, y el bloqueo CA/GB. Los seis destinos y el carrito
+mixto tenian cotizaciones reales locales; los fallos/latencia de la revision
+visual eran interceptados. No atribuir todos los casos anteriores a ese smoke.
+
+### Nivel 2: recorrido Stripe test con efectos controlados
+
+Requiere autorizacion para sus efectos y comprobacion del modo test efectivo,
+`ORDER_CONFIRM_PRINTFUL=false`, Stripe Tax desactivado y destinatario de prueba.
+Los pedidos draft y emails son efectos reales aunque el pago sea test.
+
+1. Crear Checkout test y completar el pago de prueba.
+2. Confirmar pedido en Firestore y evento Stripe procesado en `webhookEvents`.
+3. Confirmar el mismo ID externo de Printful en estado `draft`, sin fabricacion.
+4. Confirmar email en ingles si esta habilitado: distinguir accepted de delivered.
+5. Probar expiraciones, concurrencia y reembolsos completos/parciales/pending
+   segun el alcance autorizado. Los estados no provocados siguen sin verificar.
+6. Probar eventos autenticos Printful solo si pueden provocarse sin fabricacion
+   y estan autorizados; un evento simulado no acredita recepcion del proveedor.
+7. Identificar borradores, reembolsos y emails antes de cualquier limpieza.
+   Reembolsar Stripe no cancela automaticamente Printful.
+
+La compra live/fabricacion es un tercer nivel separado y aplazado por decision
+de la persona propietaria. No la ejecutar por seguir esta guia. Una actualizacion
+solo documental tampoco requiere repetir el nivel 2.
 
 ### Ejecucion controlada posterior a PR #23
 
@@ -142,9 +183,12 @@ crear pedido remoto o aceptar email. Ese pago test tambien se reembolso. La
 pagina de exito respondio `200` sin exponer el ID interno en la URL de retorno.
 
 La prueba consultada fue `livemode=false` y `automatic_tax=false`; el proveedor
-confirmo que el pedido permanecio en `draft`. No se ha demostrado la entrega
-del correo en bandeja, el evento real del webhook Printful, la cancelacion del
-borrador reembolsado ni una compra live con fabricacion. Ver los detalles y
+confirmo que el pedido permanecio en `draft`. Esa prueba no demostro entrega
+del correo en bandeja, evento real del webhook Printful, cancelacion del
+borrador reembolsado ni compra live con fabricacion. Posteriormente, el 8 de
+octubre se registro un `order_created` autentico de un borrador sintetico
+distinto y su cancelacion sin observar el evento `order_canceled`; no confundirlo
+con la limpieza del borrador reembolsado anterior. Ver los detalles y
 pendientes en [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md) y el procedimiento de
 diagnostico en [operations.md](operations.md).
 
@@ -166,6 +210,11 @@ de desarrollo no probaban resultados de proveedores; la prueba posterior tampoco
 demuestra entrega de correo, fabricacion ni cobros live.
 
 Para futuros cambios en este flujo, conservar estos controles de despliegue:
+
+El drenaje/fencing es una precaucion ante cambios de protocolo o rollback a
+workers incompatibles, no una orden de pausar servicios por editar Markdown.
+La evidencia de la transicion original permanece por reconciliar en la checklist;
+no se acredita retrospectivamente con el despliegue de #27.
 
 1. Ejecutar tests, lint, TypeScript, build y audit sobre el SHA final revisado;
    completar inventario de PRs/ramas/worktrees de AGENTS.md. Resolver o aceptar

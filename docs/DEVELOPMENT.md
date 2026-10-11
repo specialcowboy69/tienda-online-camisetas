@@ -67,6 +67,16 @@ La respuesta de cierre siempre debe indicar `Pendiente por integrar` y enumerar
 lo que quede, o escribir `Nada pendiente`. El procedimiento detallado y
 obligatorio para agentes esta en `AGENTS.md`.
 
+### Mantenimiento documental
+
+Usar `LAUNCH_CHECKLIST.md` como referencia de estado. Tras una entrega funcional,
+anadir evidencia fechada de PR/SHA, deployment y pruebas efectivas; actualizar
+el estado previo a merge sin borrar su historial. `ROADMAP.md` prioriza,
+`ARCHITECTURE.md` explica contratos y `operations.md` procedimientos. No propagar
+listas de tareas contradictorias ni convertir una decision de aplazamiento en
+una casilla completada. Una actualizacion solo documental no cambia configuracion
+de proveedores, no publica borradores legales y no requiere repetir pagos.
+
 ## Idioma publico
 
 La experiencia visible para clientes esta en ingles por defecto:
@@ -139,6 +149,31 @@ Actualmente:
 - Otros metodos conservan la tarifa real de Printful.
 
 Si cambia esta politica, actualizar tests de `checkout-calculator` y `order-service`. No fiarse del precio que venga del cliente: shipping y totales se recalculan en servidor.
+
+Desde #27, precio y elegibilidad son comprobaciones distintas: v1 aporta tarifas;
+v2 aporta evidencia completa por paquete para ES/FR/DE/IT/PT. La politica vive
+en `shipping-eligibility.ts`, el parser en `printful-shipping-risk.ts` y la
+consulta en `getShippingRiskRates()`. Cotizacion y checkout deben repetir el
+control antes de crear pedidos o sesiones Stripe. El pais de Stripe queda
+limitado al pais cotizado; no permitir cambiar destino para reutilizar una tarifa.
+
+Regresiones obligatorias al modificar este flujo:
+
+- Metodo apto: carrito completo, moneda coherente y todos los flags false;
+  Standard sigue a 0.00 en destinos elegibles.
+- Un paquete con riesgo: metodo bloqueado; incluir carrito mixto y envio dividido.
+- Evidencia ausente, mal tipada, tecnica no soportada, duplicados o timeout:
+  comprobacion no disponible, nunca convertir el fallo en permiso de compra.
+- Metodo desaparecido entre cotizacion y checkout: recalcular sin crear pedido.
+- US sin dependencia de v2 y CA/GB rechazados antes de llamar al proveedor.
+- Edicion de direccion, pais o carrito: invalidar tarifas y respuestas tardias
+  tanto exitosas como fallidas, impedir pago con seleccion obsoleta.
+
+Cubrir parser/politica/servicio/rutas y los componentes publicos en
+`printful.test.ts`, `shipping-eligibility.test.ts`,
+`shipping-eligibility-routes.test.ts`, `order-service.test.ts`, `stripe.test.ts`,
+`product-purchase-panel.test.tsx` y `storefront.test.tsx`. Las pruebas sinteticas
+no demuestran cobertura real de una variante ni garantizan ruta postpago.
 
 ## Como tocar imagenes de catalogo
 

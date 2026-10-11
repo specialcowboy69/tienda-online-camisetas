@@ -170,6 +170,33 @@ tardar el 8 de noviembre de 2026, o antes si aparece un aviso critico o una
 explotacion relevante. Cualquier hallazgo nuevo requiere una decision nueva;
 no queda cubierto por esta aceptacion.
 
+### Lectura de auditorias del 11 de octubre de 2026
+
+Durante el cierre documental posterior a #27 se reinstalo el lockfile con
+`npm.cmd ci`: el checkout tenia paquetes instalados anteriores a las versiones
+declaradas. No se modificaron `package.json` ni `package-lock.json`.
+
+- `npm.cmd audit --omit=dev --json`: **9 paquetes**, 0 critical, 5 high y
+  4 moderate; codigo de salida 1. Coinciden el recuento y nombres de paquetes
+  con el snapshot del 8 de octubre. No se ha comparado uno a uno cada advisory
+  con aquel informe: no implica que todos los avisos sean identicos ni que
+  nuevos avisos queden aceptados. No se han corregido vulnerabilidades aqui.
+- `npm.cmd audit --json` (incluye desarrollo): **22 paquetes**, 2 critical,
+  13 high y 7 moderate; codigo de salida 1. No comparar ese total directamente
+  con los nueve del alcance productivo.
+- Los dos paquetes criticos del alcance completo son `vitest@2.1.9` y su
+  dependencia `tinypool@1.1.1`. El audit los excluye con `--omit=dev`, pero
+  son relevantes para desarrollo/CI; no declarar su uso inocuo por esa exclusion.
+  Entre los avisos figuran
+  [Vitest UI](https://github.com/advisories/GHSA-5xrq-8626-4rwp) y
+  [Tinypool](https://github.com/advisories/GHSA-5gmw-xhrv-c9v3),
+  [opciones de run](https://github.com/advisories/GHSA-85c8-ppgw-ccpr).
+
+**Pendiente separado:** evaluar y remediar el tooling de tests con verificacion
+de compatibilidad. Estos avisos de desarrollo no quedan aceptados por la
+decision productiva del 8 de octubre. No hubo upgrade, overrides ni `--force`;
+esta lectura no modifica la fecha limite ni amplia la aceptacion anterior.
+
 ## Checklist antes de produccion
 
 - Rotar secretos fuertes.

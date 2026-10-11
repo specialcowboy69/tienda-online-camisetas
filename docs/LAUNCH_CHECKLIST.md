@@ -5,7 +5,35 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision:** 8 de octubre de 2026
+**Ultima revision documental:** 11 de octubre de 2026
+
+## Resumen vigente y fuente de estado
+
+Esta checklist es la referencia principal de avances y pendientes. El roadmap
+ordena el trabajo; el runbook explica como operarlo. Las pruebas historicas se
+conservan con fecha: no prueban por si solas la configuracion actual de un proveedor.
+Estar desplegado en Vercel Production no significa tener autorizados pagos live.
+
+| Area | Estado al cierre documental del 11 de octubre |
+| --- | --- |
+| Integracion | PRs #21 a #27 integrados; ultimo cambio funcional: #27, `929a725`, desplegado en Vercel Production |
+| Envios | Seis destinos previstos US/ES/FR/DE/IT/PT; CA/GB bloqueados por codigo; control preventivo UE integrado y comprobado en cotizaciones publicas |
+| Pagos y pedidos | Evidencia Stripe test, borrador remoto, reembolsos completo/parcial y expiraciones; no acredita ventas live ni fabricacion |
+| Webhook Printful | `order_created` autentico procesado el 8 de octubre; siguen pendientes producto/stock, envio real y confirmacion del evento de cancelacion |
+| Email | Aceptacion del proveedor comprobada; entrega en bandeja no verificada, aplazada por decision de la persona propietaria |
+| Operacion | Vigilancia manual definida; alertas automaticas no implementadas/verificadas |
+| Legales | Plantillas pendientes de completar, revisar y publicar; no se han publicado paginas por este cambio |
+| Riesgo residual | Aceptacion productiva del 8 de octubre; audit repetido el 11 y avisos de desarrollo pendientes en SECURITY.md, sin ampliar la aceptacion |
+
+**Aplazado, no completado:** la compra real controlada, la comprobacion del
+buzon y el trabajo fiscal se han pospuesto por decision de la persona propietaria.
+Se conserva su estado `[ ]`; aplazarlos no elimina riesgos, obligaciones ni los
+criterios de GO. No ejecutar compra live, activar fabricacion o Stripe Tax como
+parte de una tarea documental. La decision vigente es mantener
+`STRIPE_TAX_ENABLED=false`; los valores efectivos deben verificarse al retomar
+pruebas con efectos. La confirmacion de los ocho eventos Stripe y la evidencia
+historica de la transicion de workers siguen pendientes de reconciliar, no se
+marcan completadas por el merge de #27.
 
 ## Seguridad de pedidos: implementacion y prueba controlada
 
@@ -49,8 +77,9 @@ Para el webhook real de Printful se creo solo el borrador sintetico
 borrador sintetico termino `canceled`, sin confirmacion ni fabricacion. No se
 observo un evento `order_canceled` para ese borrador; tampoco se ha probado
 todavia un evento de envio de un pedido real. El borrador **anterior**
-`179691582`, asociado a un pago test reembolsado completamente, sigue en
-`draft` y no se ha borrado ni confirmado.
+`179691582`, asociado a un pago test reembolsado completamente, estaba en
+`draft` en esa consulta. Este cierre documental no lo ha vuelto a consultar,
+borrado ni confirmado.
 
 Por decision de la persona propietaria se omite ahora la comprobacion del
 buzon receptor. El email fue aceptado por el proveedor en la prueba anterior,
@@ -62,7 +91,9 @@ El 7 de octubre de 2026, `npm.cmd test` paso 365/365 tests sobre el SHA base
 - [x] ~~Revision e integracion de la seguridad de pedidos y los dos fixes de
   direccion mediante PRs #21, #22 y #23.~~
   - Evidencia: merges en `main`; #23 quedo incluido en `6789b9d`.
-- [ ] Parar y drenar workers anteriores sin fencing antes del despliegue/reanudacion.
+- [ ] Recuperar y registrar la evidencia de la transicion original de workers
+  sin fencing; no se da por acreditada aqui. Para futuros cambios de protocolo
+  o rollback a una version incompatible, aplicar el drenaje de DEPLOYMENT.md.
 - [ ] Confirmar los ocho eventos Stripe primero en test, sin backfill masivo.
 - [ ] Prueba sandbox del flujo completo, eventos concurrentes/repetidos,
   reembolso parcial y pending, recuperacion de emails y lease busy 503.
@@ -78,7 +109,11 @@ El 7 de octubre de 2026, `npm.cmd test` paso 365/365 tests sobre el SHA base
   - El 8 de octubre `npm.cmd audit --omit=dev --json` conto **9 paquetes**:
     0 critical, 5 high y 4 moderate. La aceptacion temporal consta en
     [SECURITY.md](SECURITY.md); no equivale a corregirlos ni a dar GO.
-- [ ] Compra real controlada y autorizada, monitorizacion y rollback verificados.
+- [ ] Evaluar y remediar los avisos criticos del tooling de tests detectados
+  en el audit completo del 11 de octubre (Vitest/Tinypool). No estan aceptados
+  por la decision sobre dependencias productivas; ver SECURITY.md.
+- [ ] Compra real controlada y autorizada, monitorizacion y rollback verificados
+  — compra aplazada por decision de la persona propietaria.
 
 Detalles operativos en [operations.md](operations.md) y despliegue seguro en
 [DEPLOYMENT.md](DEPLOYMENT.md). No marcar compras, webhooks remotos ni entrega de
@@ -88,6 +123,10 @@ correo como realizadas basandose en mocks, capturas locales o build.
 
 - `[ ]` significa pendiente o todavia no verificado.
 - `[x] ~~Texto~~` significa terminado y comprobado con evidencia.
+- Una tarea aplazada conserva `[ ]` y explica la decision; no es una tarea
+  completada ni una exencion del criterio de lanzamiento.
+- Cada evidencia indica fecha, entorno y SHA/PR cuando exista. Diferenciar
+  codigo, tests locales, cotizacion publica y operaciones reales de proveedores.
 - Una tarea no se marca como terminada solo porque este configurada: debe
   probarse en el entorno correspondiente.
 - La evidencia puede ser un Pull Request, un deployment, una captura del
@@ -291,12 +330,19 @@ correo como realizadas basandose en mocks, capturas locales o build.
   antes de abrir ventas live.
 - [ ] Ajustar `ALLOWED_SHIPPING_COUNTRIES` a la decision final.
   - Una sesion Stripe test creada el 8 de octubre ofrecio tambien `CA` y `GB`
-    ademas de los seis paises previstos. Aun no se ha cambiado la variable.
+    ademas de los seis paises previstos. Es evidencia historica, anterior a #25
+    y #26. La limpieza de la variable desplegada no se acredita en esta revision.
+- [x] ~~Bloquear efectivamente Canada y Reino Unido en la aplicacion.~~
+  - PR #26, merge `fed72dc`: filtro en servidor incluso si la variable los
+    contiene. Smoke publico posterior a #27: ambos destinos devuelven 400.
+  - PR #25, merge `1ff4891`: Stripe solo admite el pais usado para cotizar;
+    la regla de tarifa CA/GB permanece inactiva, no autoriza reabrir destinos.
 - [ ] Confirmar que las tarifas y plazos de envio mostrados coinciden con el
   comportamiento real de Printful.
 - [ ] Confirmar que la politica de envio gratuito o incluido sigue siendo
   economicamente sostenible.
-- [ ] Validar obligaciones fiscales y contables con una persona profesional.
+- [ ] Validar obligaciones fiscales y contables con una persona profesional
+  — trabajo aplazado por decision de la persona propietaria, no resuelto.
 - [x] ~~Decidir mantener Stripe Tax desactivado por ahora.~~
   - La sesion Stripe test creada el 8 de octubre registro
     `automatic_tax.enabled=false`; no se ha activado ni configurado Stripe Tax.
@@ -341,10 +387,27 @@ correo como realizadas basandose en mocks, capturas locales o build.
     y politica correctas; no reemplazan las pruebas del ejecutor.
   - HTTP local con Firestore/Printful reales: seleccion apta ES devuelve 200 y
     STANDARD 0.00; True Navy M devuelve 409 EU_CUSTOMS_RISK. Sin checkout/pagos.
-  - Auditoria de integracion: cero PR abiertos; solo `codex/eu-customs-guard`
-    tiene commits fuera de origin/main. Los documentos locales previos se
-    preservan; no se ha hecho push, merge ni deployment.
-- [ ] Integrar por PR y comprobar cotizacion publica en el deployment exacto.
+  - Snapshot anterior a publicar #27: cero PR abiertos y solo
+    `codex/eu-customs-guard` con commits fuera de origin/main. Entonces no se
+    habia hecho push, merge ni deployment. Se conserva como antecedente;
+    el cierre posterior esta registrado a continuacion.
+- [x] ~~Integrar por PR y comprobar cotizacion publica en el deployment exacto.~~
+  - Evidencia: [PR #27](https://github.com/specialcowboy69/tienda-online-camisetas/pull/27)
+    `MERGED` el 11 de octubre, SHA `929a72583cca395cc1027a503dae2c9f4ed502f9`
+    contenido en `origin/main`, conservando los seis commits.
+  - Vercel Production `Ready`: deployment `dpl_CrSpQJxUieUtBRcGF1JTGyAXFCU6`,
+    [registro del despliegue](https://vercel.com/specialcowboy69s-projects/tienda-online-camisetas/CrSpQJxUieUtBRcGF1JTGyAXFCU6),
+    servido por `www.funnyteesforall.com` en la comprobacion posterior al merge.
+  - Sobre el head revisado `3deb914`: 477 tests, lint, TypeScript y build
+    correctos; el arbol del merge no difiere de ese head.
+  - Smoke publico: `/`, `/products` y
+    `/products/falling-apart-cat-graphic-tee` devolvieron 200. En
+    `/api/shipping/rates`, Falling apart Black S (`5489215132`) a ES devolvio
+    200 y STANDARD 0.00 USD; True Navy M (`5489218795`) a ES devolvio
+    409 `EU_CUSTOMS_RISK`; CA y GB devolvieron 400.
+  - Solo lecturas y cotizaciones: no se crearon sesiones Stripe, pedidos,
+    emails, reembolsos ni fabricacion. Esta muestra publica no acredita todas
+    las variantes/destinos ni una compra posterior a #27.
 - [ ] Renovar rutas/cobertura antes del lanzamiento. El control previo a Stripe
   no garantiza ruta final ni detecta automaticamente cambios posteriores al pago.
 
@@ -389,10 +452,14 @@ correo como realizadas basandose en mocks, capturas locales o build.
   prueba especifica; por ahora solo esta cubierto por tests sinteticos.
 - [ ] Revisar manualmente el borrador remoto que quedo de la prueba reembolsada
   y cancelarlo o eliminarlo solo tras identificarlo y autorizar esa accion.
-  - Identificado: Printful `179691582`, `draft`, ID externo
-    `4bdf700f49af4a8ba54d409b8696aa96`, sin envios. Aun no se ha limpiado.
+  - Identificado el 8 de octubre: Printful `179691582`, `draft`, ID externo
+    `4bdf700f49af4a8ba54d409b8696aa96`, sin envios. Reconsultar estado antes
+    de actuar; la revision documental no acredita su limpieza ni estado actual.
 
 ### Compra real controlada
+
+**Aplazada por decision de la persona propietaria.** No programada ni autorizada
+por esta actualizacion; requiere permiso nuevo al retomarla y sigue sin verificar.
 
 - [ ] Activar temporalmente `ORDER_CONFIRM_PRINTFUL=true` para la prueba real
   acordada.

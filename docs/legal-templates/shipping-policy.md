@@ -13,10 +13,13 @@ Los costes y cargos fiscales/aduaneros deben ser coherentes con el checkout y
 la información precontractual. No trasladar al cliente un cargo obligatorio no
 informado ni prometer ausencia de aduanas sin conocer el origen y la ruta.
 
-Actualizacion tecnica local 2026-10-11 (pendiente de integrar/desplegar):
+Actualizacion tecnica 2026-10-11 (PR #27 integrado y desplegado, `929a725`):
 ES/FR/DE/IT/PT excluyen metodos con riesgo o evidencia no verificable antes
 del pago. No garantiza la ruta definitiva ni sustituye la revision de esta
 plantilla. Los campos pendientes y el bloqueo de lanzamiento siguen abiertos.
+La evidencia de cotizaciones publicas esta en la
+[checklist](../LAUNCH_CHECKLIST.md#control-preventivo-aduanero-ue--2026-10-11).
+Esta actualizacion de notas internas no publica ni completa el borrador para cliente.
 
 ## Borrador para cliente: completar y revisar antes de publicar
 
