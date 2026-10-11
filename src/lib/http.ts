@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { ShippingCountryUnavailableError } from "./validation";
+import { ShippingEligibilityError } from "./shipping-eligibility";
 
 export const MAX_PUBLIC_JSON_BODY_BYTES = 64 * 1024;
 
@@ -19,6 +20,9 @@ type ErrorSummary = {
 };
 
 export function jsonError(error: unknown, status = 500) {
+  if (error instanceof ShippingEligibilityError) {
+    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+  }
   if (error instanceof RequestBodyTooLargeError) {
     return NextResponse.json({ error: error.message }, { status: 413 });
   }

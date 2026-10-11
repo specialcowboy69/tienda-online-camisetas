@@ -20,12 +20,14 @@ import {
 } from "./firestore";
 import { jsonError, summarizeError } from "./http";
 import { assertSameCurrency } from "./money";
-import { createPrintfulOrder, findPrintfulOrderByExternalId, getPrintfulExternalId, getShippingRates, PrintfulApiError } from "./printful";
+import { createPrintfulOrder, findPrintfulOrderByExternalId, getPrintfulExternalId, getShippingRates, getShippingRiskRates, PrintfulApiError } from "./printful";
 import { createStripeCheckoutSession, getStripe } from "./stripe";
 import { assertAllowedCountry } from "./validation";
 import { buildEmailJob, processEmailJob, requireEmailRecovery, retryOrderEmails } from "./email-jobs";
 import { isStripeTaxEnabled, requiredEnv } from "./env";
-import { CartItemInput, Recipient, ShippingRate, StoreOrder } from "./types";
+import { CartItemInput, OrderItem, Recipient, ShippingRate, StoreOrder } from "./types";
+import { evaluateShippingEligibility, isEuCustomsGuardCountry, ShippingEligibilityError, type ShippingRateDecision } from "./shipping-eligibility";
+import type { ShippingRiskRate } from "./printful-shipping-risk";
 import { ProcessingBusyError, ProcessingOwnershipLostError } from "./processing-errors";
 import { handleStripeRefundEvent, reconcileOrderRefunds } from "./refund-service";
 
@@ -34,8 +36,27 @@ export async function quoteShipping(input: { recipient: Recipient; items: CartIt
   const products = await loadProductsForCart(input.items);
   const orderItems = buildOrderItems(input.items, products);
   assertSameCurrency(orderItems.map((item) => item.currency));
-  const shippingRates = await getShippingRates(input.recipient, orderItems);
-  return shippingRates.map((rate) => priceCustomerShippingRate(rate, input.recipient.countryCode));
+  const { rates, decisions } = await resolveShippingOptions(input.recipient, orderItems);
+  const eligible = rates.filter((_, index) => decisions[index].status === "eligible");
+  if (!eligible.length) {
+    throw new ShippingEligibilityError(decisions.some(decision => decision.status === "unverified") ? "SHIPPING_CHECK_UNAVAILABLE" : "EU_CUSTOMS_RISK");
+  }
+  return eligible.map(rate => priceCustomerShippingRate(rate, input.recipient.countryCode));
+}
+
+async function resolveShippingOptions(recipient: Recipient, items: OrderItem[]): Promise<{ rates: ShippingRate[]; decisions: ShippingRateDecision[] }> {
+  const rates = await getShippingRates(recipient, items);
+  if (!rates.length) throw new ShippingEligibilityError("SHIPPING_OPTIONS_CHANGED");
+  let riskRates: ShippingRiskRate[] = [];
+  if (isEuCustomsGuardCountry(recipient.countryCode)) {
+    try {
+      riskRates = await getShippingRiskRates(recipient, items);
+    } catch {
+      // Do not log provider payloads or customer data. Missing evidence fails closed.
+      console.warn("Shipping customs evidence unavailable.");
+    }
+  }
+  return { rates, decisions: evaluateShippingEligibility(recipient.countryCode, items, rates, riskRates) };
 }
 
 export async function createCheckout(input: {
@@ -48,12 +69,16 @@ export async function createCheckout(input: {
   const products = await loadProductsForCart(input.items);
   const orderItems = buildOrderItems(input.items, products);
   assertSameCurrency(orderItems.map((item) => item.currency));
-  const shippingRates = await getShippingRates(input.recipient, orderItems);
+  const { rates: shippingRates, decisions } = await resolveShippingOptions(input.recipient, orderItems);
   const customerShippingRates = shippingRates.map((rate) => priceCustomerShippingRate(rate, input.recipient.countryCode));
   const selectedShippingRate = customerShippingRates.find((rate) => rate.id === input.shippingRateId);
 
   if (!selectedShippingRate) {
-    throw new Error("Selected shipping rate is no longer available.");
+    throw new ShippingEligibilityError("SHIPPING_OPTIONS_CHANGED");
+  }
+  const decision = decisions.find(result => result.rateId === selectedShippingRate.id);
+  if (decision?.status !== "eligible") {
+    throw new ShippingEligibilityError(decision?.status === "customs_risk" ? "EU_CUSTOMS_RISK" : "SHIPPING_CHECK_UNAVAILABLE");
   }
 
   const totals = calculateTotals(orderItems, selectedShippingRate);

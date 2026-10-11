@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   createOrder: vi.fn(),
   getCatalogProduct: vi.fn(),
   getShippingRates: vi.fn(),
+  getShippingRiskRates: vi.fn(),
   createStripeCheckoutSession: vi.fn(),
   getOrder: vi.fn(), updateOrder: vi.fn(), updateOrderStatus: vi.fn(),
   createPrintfulOrder: vi.fn(), findPrintfulOrderByExternalId: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock("./printful", () => ({
   findPrintfulOrderByExternalId: mocks.findPrintfulOrderByExternalId,
   getPrintfulExternalId: (order: StoreOrder) => order.printfulExternalId || order.id.replaceAll("-", ""),
   getShippingRates: mocks.getShippingRates
+  , getShippingRiskRates: mocks.getShippingRiskRates
 }));
 
 vi.mock("./stripe", () => ({
@@ -137,6 +139,77 @@ function deferred<T>() {
 }
 
 describe("order service", () => {
+  const input = { recipient: paidOrder.recipient, items: [{ productId: "101", syncVariantId: 201, quantity: 1 }], shippingRateId: "STANDARD" };
+  const risk = (flag: boolean | null, id = "STANDARD", variantId = 301) => ({ id, currency: "eur", valid: true, shipments: [{ departureCountry: null, items: [{ variantId, quantity: 1 }], customsFeesPossible: flag }] });
+  it.each(["ES", "FR", "DE", "IT", "PT"])("rejects risky %s direct checkout before any durable/payment effect", async countryCode => {
+    const { createCheckout, quoteShipping } = await import("./order-service");
+    mocks.getShippingRiskRates.mockResolvedValue([risk(true)]);
+    const request = { ...input, recipient: { ...input.recipient, countryCode } };
+    await expect(quoteShipping(request)).rejects.toMatchObject({ code: "EU_CUSTOMS_RISK" });
+    await expect(createCheckout(request)).rejects.toMatchObject({ code: "EU_CUSTOMS_RISK" });
+    expect(mocks.createOrder).not.toHaveBeenCalled();
+    expect(mocks.createStripeCheckoutSession).not.toHaveBeenCalled();
+  });
+  it("keeps Standard included after a safe EU check and never calls v2 for US", async () => {
+    const { quoteShipping, createCheckout } = await import("./order-service");
+    expect((await quoteShipping(input))[0].rate).toBe("0.00");
+    mocks.getShippingRiskRates.mockClear();
+    await quoteShipping({ ...input, recipient: { ...input.recipient, countryCode: "US" } });
+    await createCheckout({ ...input, recipient: { ...input.recipient, countryCode: "US" } });
+    expect(mocks.getShippingRiskRates).not.toHaveBeenCalled();
+  });
+  it("rechecks risk after a successful quote and preserves the full cart", async () => {
+    const { quoteShipping, createCheckout } = await import("./order-service");
+    await quoteShipping(input);
+    mocks.getShippingRiskRates.mockResolvedValue([risk(true)]);
+    await expect(createCheckout(input)).rejects.toMatchObject({ code: "EU_CUSTOMS_RISK" });
+    expect(mocks.createOrder).not.toHaveBeenCalled();
+    expect(mocks.getShippingRiskRates).toHaveBeenCalledTimes(2);
+  });
+  it("filters unsafe options but never replaces an unsafe selected method", async () => {
+    const { quoteShipping, createCheckout } = await import("./order-service");
+    mocks.getShippingRates.mockResolvedValue([shippingRate, { ...shippingRate, id: "EXPRESS" }]);
+    mocks.getShippingRiskRates.mockResolvedValue([risk(true), risk(false, "EXPRESS")]);
+    expect((await quoteShipping(input)).map(r => r.id)).toEqual(["EXPRESS"]);
+    await expect(createCheckout(input)).rejects.toMatchObject({ code: "EU_CUSTOMS_RISK" });
+    expect(mocks.createOrder).not.toHaveBeenCalled();
+    await expect(createCheckout({ ...input, shippingRateId: "EXPRESS" })).resolves.toHaveProperty("checkoutUrl");
+  });
+  it.each(["missing", "null", "failure", "mixed-unknown"])("rejects unverifiable options: %s", async kind => {
+    const { quoteShipping, createCheckout } = await import("./order-service");
+    mocks.getShippingRiskRates.mockResolvedValue(kind === "missing" ? [] : [risk(null)]);
+    if (kind === "failure") mocks.getShippingRiskRates.mockRejectedValue(new Error("private provider details"));
+    if (kind === "mixed-unknown") {
+      mocks.getShippingRates.mockResolvedValue([shippingRate, { ...shippingRate, id: "EXPRESS" }]);
+      mocks.getShippingRiskRates.mockResolvedValue([risk(true), risk(null, "EXPRESS")]);
+    }
+    await expect(quoteShipping(input)).rejects.toMatchObject({ code: "SHIPPING_CHECK_UNAVAILABLE" });
+    if (kind !== "mixed-unknown") await expect(createCheckout(input)).rejects.toMatchObject({ code: "SHIPPING_CHECK_UNAVAILABLE" });
+    expect(mocks.createOrder).not.toHaveBeenCalled();
+    expect(mocks.createStripeCheckoutSession).not.toHaveBeenCalled();
+  });
+  it("rejects missing v1 methods even when v2 has failed", async () => {
+    const { quoteShipping, createCheckout } = await import("./order-service");
+    mocks.getShippingRates.mockResolvedValue([]);
+    mocks.getShippingRiskRates.mockRejectedValue(new Error("Unavailable"));
+    await expect(quoteShipping(input)).rejects.toMatchObject({ code: "SHIPPING_OPTIONS_CHANGED" });
+    await expect(createCheckout(input)).rejects.toMatchObject({ code: "SHIPPING_OPTIONS_CHANGED" });
+  });
+  it("rejects an absent selected ID without automatically using Standard", async () => {
+    const { createCheckout } = await import("./order-service");
+    await expect(createCheckout({ ...input, shippingRateId: "GONE" })).rejects.toMatchObject({ code: "SHIPPING_OPTIONS_CHANGED" });
+    expect(mocks.createOrder).not.toHaveBeenCalled();
+  });
+  it("rejects a risky package in a multi-line cart without silently dropping items", async () => {
+    const { createCheckout } = await import("./order-service");
+    mocks.getCatalogProduct.mockImplementation(async id => id === "101" ? product : { ...product, id: "102", variants: [{ ...product.variants[0], syncVariantId: 202, variantId: 302 }] });
+    const evidence = risk(false);
+    evidence.shipments.push(risk(true, "STANDARD", 302).shipments[0]);
+    mocks.getShippingRiskRates.mockResolvedValue([evidence]);
+    await expect(createCheckout({ ...input, items: [...input.items, { productId: "102", syncVariantId: 202, quantity: 1 }] })).rejects.toMatchObject({ code: "EU_CUSTOMS_RISK" });
+    expect(mocks.getShippingRiskRates.mock.calls[0][1].map((i: { variantId: number }) => i.variantId)).toEqual([301, 302]);
+    expect(mocks.createOrder).not.toHaveBeenCalled();
+  });
   afterEach(() => { vi.useRealTimers(); });
   beforeEach(() => {
     vi.resetAllMocks();
@@ -146,6 +219,7 @@ describe("order service", () => {
     mocks.failWebhookEventProcessing.mockResolvedValue(true);
     mocks.getCatalogProduct.mockResolvedValue(product);
     mocks.getShippingRates.mockResolvedValue([shippingRate]);
+    mocks.getShippingRiskRates.mockResolvedValue([{ id: "STANDARD", currency: "eur", valid: true, shipments: [{ departureCountry: "LV", items: [{ variantId: 301, quantity: 1 }], customsFeesPossible: false }] }]);
     mocks.createStripeCheckoutSession.mockResolvedValue({ id: "cs_test", url: "https://checkout.stripe.test" });
     mocks.createPrintfulOrder.mockResolvedValue({ id: 123, status: "draft", external_id: "order1" });
     mocks.findPrintfulOrderByExternalId.mockResolvedValue(null);
