@@ -105,20 +105,36 @@ Si `npm audit` falla por upgrades mayores, no uses `--force` sin plan y aprobaci
 
 ## Prioridades actuales
 
-Los puntos 1 y 2 del roadmap estan completados o en proceso:
+Consultar primero `docs/LAUNCH_CHECKLIST.md`: es la referencia de estado y
+evidencia. `docs/ROADMAP.md` ordena prioridades y `docs/operations.md` describe
+procedimientos; no reconstruir pendientes desde listas historicas aisladas.
 
-1. Webhook de Printful hacia Vercel: protegido y pendiente de prueba real en Vercel.
-2. Resend: integrado para emails transaccionales, pendiente de configuracion fina/dominio si aplica.
+Al cierre del 11 de octubre de 2026, la tienda publica esta desplegada en Vercel
+y el control preventivo de envios UE de #27 esta integrado. Hay pruebas Stripe
+test, un `order_created` autentico de Printful y aceptacion de email por Resend;
+esto no acredita pagos live, fabricacion, eventos de envio ni entrega en bandeja.
 
-Siguientes prioridades practicas:
+1. Completar y revisar las plantillas legales y el canal de soporte antes de
+   publicar las paginas; no rellenar datos del negocio por suposicion.
+2. Mantener US/ES/FR/DE/IT/PT como alcance acordado y CA/GB bloqueados. No
+   desactivar la comprobacion UE ni prometer DDP para desbloquear una seleccion.
+3. Conservar la vigilancia manual definida; distinguirla de alertas automaticas
+   aun pendientes. Codex no supervisa en segundo plano sin un mecanismo explicito.
+4. Revisar accesos, secretos y riesgo residual con `docs/SECURITY.md`. La
+   aceptacion fechada no cubre avisos nuevos ni significa que esten corregidos.
+5. Mantener Stripe Tax desactivado. El trabajo fiscal, la compra real y la
+   comprobacion del buzon estan aplazados, no completados. No ejecutarlos sin
+   retomar el alcance con la persona propietaria; no cambiar `NO-GO` a `GO`.
+6. Verificar configuracion vigente, eventos pendientes y evidencias de despliegue
+   antes de cualquier futura activacion live o de fabricacion.
 
-1. Mantener la tienda publica y emails en ingles con tono de marca `No Context Club`.
-2. Cambiar/rotar secretos fuertes si alguno se uso durante pruebas.
-3. Anadir dominio final en Vercel y ajustar `NEXT_PUBLIC_BASE_URL`.
-4. Crear paginas legales: privacidad, devoluciones, contacto y condiciones.
-5. Pasar Stripe a live solo cuando lo anterior este cerrado.
-6. Validar fiscalidad antes de activar Stripe Tax.
-7. Hacer una compra real controlada con `ORDER_CONFIRM_PRINTFUL=true`.
+Tras integrar cambios funcionales, registrar en la checklist fecha, PR/SHA,
+deployment y alcance real de pruebas. Conservar el historial sin dejar una
+implementacion desplegada descrita como pendiente de PR. Distinguir pruebas
+locales, cotizaciones publicas y acciones con efectos; no cerrar una tarea con
+evidencia de otra. Una revision solo documental no activa servicios ni publica
+plantillas legales. Evitar incluir snapshots volatiles de PRs abiertos en varias
+guias: auditar GitHub de nuevo antes de integrar.
 
 La documentacion interna puede seguir en espanol si ayuda a operar y aprender,
 pero cualquier texto visible para cliente debe tratarse como ingles por defecto.

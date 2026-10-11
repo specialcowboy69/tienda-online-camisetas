@@ -60,6 +60,11 @@ verified dependency audit and remaining findings.
 
 ## Operations
 
+Launch status and dated evidence are maintained in
+[`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md), the single status reference.
+Production hosting is not permission to accept live payments. Completed,
+unverified and owner-deferred tasks are recorded separately; launch remains NO-GO.
+
 See [`docs/operations.md`](docs/operations.md) for the deployment runbook, webhook checks, Printful retry handling, Resend sender setup, and the pre-production checklist.
 
 Catalog products marked as ignored remain in Firestore for traceability, but are hidden from the public storefront. The storefront keeps display fields in the UI cart, then sends a clean cart input payload to shipping and checkout APIs.
@@ -133,11 +138,18 @@ including pending, failed or canceled attempts; payment revalidation never
 automatically unblocks that hold. See [the operating runbook](docs/operations.md)
 for reconciliation and manual-review boundaries.
 
-Launch remains **NO-GO**. Local tests and a synthetic browser fixture do not
-establish deployed provider behavior, sandbox purchases, live refunds or email
-delivery. Deployment requires explicit review, draining older unfenced workers,
-confirming all eight Stripe subscriptions in test first, and no bulk migration.
-See [deployment safety](docs/DEPLOYMENT.md) and [launch gates](docs/LAUNCH_CHECKLIST.md).
+Launch remains **NO-GO**. Dated provider checks now cover Stripe test payment,
+full/partial refunds, a draft order, an authentic Printful `order_created` event
+and email API acceptance. They do not establish inbox delivery, live payments
+or manufacturing. PR #27 added the deployed pre-payment EU shipping guard;
+its public smoke checks only read pages and request quotes. See the
+[launch evidence and gates](docs/LAUNCH_CHECKLIST.md).
+
+Keep all eight Stripe subscriptions, stable recovery identities and the rule
+against bulk migration. The original worker-transition evidence still needs reconciliation;
+future incompatible worker changes or rollbacks require a reviewed drain/recovery
+procedure. This documentation update does not pause production or authorize
+provider actions. See [deployment safety](docs/DEPLOYMENT.md).
 
 ## Tests
 

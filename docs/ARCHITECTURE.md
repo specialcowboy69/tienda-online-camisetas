@@ -10,7 +10,8 @@ La aplicacion es una tienda online de camisetas con frontend y backend dentro de
 - Pagos: Stripe Checkout y webhook de Stripe.
 - Produccion/fulfillment: Printful API y webhook de Printful.
 - Emails: jobs durables en Firestore y transporte Resend segun configuracion.
-- Despliegue previsto: Vercel, deducido por `vercel.json` y cron configurado.
+- Despliegue: Vercel Production desde `main`; `vercel.json` define el cron.
+  El SHA verificado y los pendientes de lanzamiento viven en la checklist.
 
 ## Estructura principal
 
@@ -52,7 +53,7 @@ Colecciones implicadas:
 - `products`
 - `orders`
 
-### Control preventivo UE (implementacion local 2026-10-11)
+### Control preventivo UE (PR #27 integrado el 2026-10-11)
 
 - `printful-shipping-risk.ts` interpreta datos externos sin convertir senales
   ausentes o mal tipadas en `false`. `shipping-eligibility.ts` exige un metodo
@@ -75,7 +76,10 @@ Colecciones implicadas:
   fulfillment. La ruta puede cambiar despues de crear Stripe: este control
   NO anade vigilancia ni revalidacion automatica posterior al pago.
 
-Estado de despliegue y evidencia: ver checklist y matriz de fulfillment.
+Estado de despliegue y evidencia: ver [checklist](LAUNCH_CHECKLIST.md) y
+[matriz de fulfillment](legal-templates/printful-fulfillment-matrix.md).
+La indisponibilidad v2 observada para la muestra crop `49803` es un fallo de
+comprobacion, no prueba de aduanas; no sustituir tecnica ni extrapolar el resultado.
 
 ## Flujo de Stripe
 
