@@ -1,7 +1,8 @@
 "use client";
 
 import { ShoppingBag, Truck } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
+import { ShippingEligibilityError } from "@/lib/shipping-eligibility";
 import { toCartItemInputs } from "@/lib/cart";
 import { productContentById } from "@/lib/product-content";
 import { getActiveProductVariants, getProductOptions, getProductPriceSummary, getSizesForColor, getVariantForSelection } from "@/lib/product-view";
@@ -109,6 +110,10 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const revision = useRef(0);
+  const pendingQuote = useRef<AbortController | null>(null);
+  const checkoutLock = useRef(false);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
 
   const selectedVariant = getVariantForSelection(product, { color: selectedColor, size: selectedSize }) || firstVariant;
@@ -123,6 +128,7 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
   const displayMood = getDisplayMood(content);
 
   function chooseColor(color: string) {
+    if (checkoutLock.current) return;
     const nextVariant = activeVariants.find((variant) => variant.color === color) || firstVariant;
     setSelectedColor(color);
     setSelectedSize(nextVariant?.size || "");
@@ -130,11 +136,13 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
   }
 
   function chooseSize(size: string) {
+    if (checkoutLock.current) return;
     setSelectedSize(size);
     resetCheckout();
   }
 
   function resetCheckout() {
+    invalidateQuote();
     setCart([]);
     setRates([]);
     setSelectedRateId("");
@@ -143,10 +151,12 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
   }
 
   function addToBag() {
+    if (checkoutLock.current) return;
     if (!selectedVariant) {
       return;
     }
 
+    invalidateQuote();
     setCart([
       {
         productId: product.id,
@@ -164,43 +174,73 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
   }
 
   function updateRecipient(field: keyof Recipient, value: string) {
+    if (checkoutLock.current) return;
     setRecipient((current) => ({ ...current, [field]: value }));
+    invalidateQuote();
     setRates([]);
     setSelectedRateId("");
   }
 
+  function invalidateQuote() {
+    revision.current += 1;
+    pendingQuote.current?.abort();
+    pendingQuote.current = null;
+    setRates([]);
+    setSelectedRateId("");
+    setStatus("");
+    setError("");
+    setLoading(false);
+  }
+
   async function fetchRates(event: FormEvent) {
     event.preventDefault();
-    setError("");
-    setStatus("");
+    if (checkoutLock.current) return;
+    invalidateQuote();
+    const token = revision.current;
+    const controller = new AbortController();
+    pendingQuote.current = controller;
+    setStatus("Checking delivery availability...");
     setLoading(true);
-
     try {
       const response = await fetch("/api/shipping/rates", {
-        method: "POST",
+        method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recipient, items: toCartItemInputs(cart) })
       });
       const data = await response.json();
+      if (token !== revision.current) return;
       if (!response.ok) {
+        if (["EU_CUSTOMS_RISK", "SHIPPING_CHECK_UNAVAILABLE", "SHIPPING_OPTIONS_CHANGED"].includes(data.code)) {
+          throw new ShippingEligibilityError(data.code);
+        }
         throw new Error(data.error || "Shipping rates failed.");
       }
-
       setRates(data.rates || []);
       setSelectedRateId(data.rates?.[0]?.id || "");
       setStatus(data.rates?.length ? "Shipping options ready." : "No shipping options found.");
     } catch (caught) {
+      if (token !== revision.current) return;
+      setRates([]);
+      setSelectedRateId("");
+      setStatus("");
       setError(caught instanceof Error ? caught.message : "Shipping rates failed.");
     } finally {
-      setLoading(false);
+      if (token === revision.current) {
+        pendingQuote.current = null;
+        setLoading(false);
+      }
     }
   }
 
   async function checkout() {
+    if (checkoutLock.current || !selectedRateId || loading) return;
+    checkoutLock.current = true;
+    setCheckingOut(true);
+    const token = ++revision.current;
+    pendingQuote.current?.abort();
     setError("");
-    setStatus("");
+    setStatus("Checking delivery before payment...");
     setLoading(true);
-
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
@@ -208,13 +248,22 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
         body: JSON.stringify({ recipient, items: toCartItemInputs(cart), shippingRateId: selectedRateId })
       });
       const data = await response.json();
+      if (token !== revision.current) return;
       if (!response.ok) {
+        if (["EU_CUSTOMS_RISK", "SHIPPING_CHECK_UNAVAILABLE", "SHIPPING_OPTIONS_CHANGED"].includes(data.code)) {
+          throw new ShippingEligibilityError(data.code);
+        }
         throw new Error(data.error || "Checkout failed.");
       }
-
       window.location.href = data.checkoutUrl;
     } catch (caught) {
+      if (token !== revision.current) return;
+      setRates([]);
+      setSelectedRateId("");
+      setStatus("");
       setError(caught instanceof Error ? caught.message : "Checkout failed.");
+      checkoutLock.current = false;
+      setCheckingOut(false);
       setLoading(false);
     }
   }
@@ -233,6 +282,7 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
           <div className="ncc-choice-row">
             {options.colors.map((color) => (
               <button
+                disabled={checkingOut}
                 aria-pressed={selectedColor === color}
                 className="ncc-choice"
                 key={color}
@@ -259,6 +309,7 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
           <div className="ncc-choice-row">
             {(availableSizes.length ? availableSizes : options.sizes).map((size) => (
               <button
+                disabled={checkingOut}
                 aria-pressed={selectedSize === size}
                 className="ncc-choice ncc-choice--square"
                 key={size}
@@ -286,35 +337,35 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
           <h2>Checkout details</h2>
           <label>
             Name
-            <input value={recipient.name} onChange={(event) => updateRecipient("name", event.target.value)} required />
+            <input disabled={checkingOut} value={recipient.name} onChange={(event) => updateRecipient("name", event.target.value)} required />
           </label>
           <label>
             Email
-            <input type="email" value={recipient.email} onChange={(event) => updateRecipient("email", event.target.value)} required />
+            <input disabled={checkingOut} type="email" value={recipient.email} onChange={(event) => updateRecipient("email", event.target.value)} required />
           </label>
           <label className="ncc-form-wide">
             Address
-            <input value={recipient.address1} onChange={(event) => updateRecipient("address1", event.target.value)} required />
+            <input disabled={checkingOut} value={recipient.address1} onChange={(event) => updateRecipient("address1", event.target.value)} required />
           </label>
           <label className="ncc-form-wide">
             Address 2
-            <input value={recipient.address2 || ""} onChange={(event) => updateRecipient("address2", event.target.value)} />
+            <input disabled={checkingOut} value={recipient.address2 || ""} onChange={(event) => updateRecipient("address2", event.target.value)} />
           </label>
           <label>
             City
-            <input value={recipient.city} onChange={(event) => updateRecipient("city", event.target.value)} required />
+            <input disabled={checkingOut} value={recipient.city} onChange={(event) => updateRecipient("city", event.target.value)} required />
           </label>
           <label>
             ZIP
-            <input value={recipient.zip} onChange={(event) => updateRecipient("zip", event.target.value)} required />
+            <input disabled={checkingOut} value={recipient.zip} onChange={(event) => updateRecipient("zip", event.target.value)} required />
           </label>
           <label>
             State
-            <input value={recipient.stateCode || ""} onChange={(event) => updateRecipient("stateCode", event.target.value)} />
+            <input disabled={checkingOut} value={recipient.stateCode || ""} onChange={(event) => updateRecipient("stateCode", event.target.value)} />
           </label>
           <label>
             Country
-            <select value={recipient.countryCode} onChange={(event) => updateRecipient("countryCode", event.target.value)}>
+            <select disabled={checkingOut} value={recipient.countryCode} onChange={(event) => updateRecipient("countryCode", event.target.value)}>
               {allowedCountries.map((country) => (
                 <option key={country} value={country}>
                   {country}
@@ -332,7 +383,7 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
         <div className="ncc-rates">
           {rates.map((rate) => (
             <label className="ncc-rate" key={rate.id}>
-              <input type="radio" checked={selectedRateId === rate.id} onChange={() => setSelectedRateId(rate.id)} />
+              <input disabled={checkingOut} type="radio" checked={selectedRateId === rate.id} onChange={() => { if (!checkoutLock.current) setSelectedRateId(rate.id); }} />
               <span>{rate.name}</span>
               <strong>{Number(rate.rate) === 0 ? "Included" : `${rate.rate} ${rate.currency}`}</strong>
             </label>
@@ -343,8 +394,8 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
         </div>
       ) : null}
 
-      {status ? <p className="success">{status}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      {status ? <p role="status" className="success">{status}</p> : null}
+      {error ? <p role="alert" className="error">{error}</p> : null}
 
       {sizeGuide ? (
         <SizeGuideModal guide={sizeGuide} isOpen={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} productName={product.name} />

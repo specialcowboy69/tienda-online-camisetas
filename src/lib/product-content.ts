@@ -153,7 +153,7 @@ export const productContentById: Record<string, ProductContent> = {
 
 export const productPolicies = {
   shipping: {
-    summary: "Standard shipping is included for orders to the US, Spain, France, Germany, Italy, and Portugal. Other available options are shown at checkout based on the delivery address.",
+    summary: "Standard shipping is included for eligible orders to the US, Spain, France, Germany, Italy, and Portugal. Delivery availability depends on your selected items and address and is checked before payment. Some orders may be fulfilled outside your country. Options flagged for possible import charges to our EU destinations are currently unavailable.",
     details: [
       "US standard shipping: 3-4 business days after processing.",
       "US express shipping: 1-3 business days after processing.",

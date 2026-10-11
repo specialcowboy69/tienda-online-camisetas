@@ -15,7 +15,7 @@ describe("Printful shipment customs evidence", () => {
   });
   it.each([undefined, null, "false", 0])("never converts missing or mistyped customs signals to false: %s", async flag => {
     const { readShippingRiskRates } = await import("./printful-shipping-risk");
-    const payload = structuredClone(safePayload) as any;
+    const payload: { data: { shipments: { customs_fees_possible: unknown }[] }[] } = structuredClone(safePayload);
     payload.data[0].shipments[0].customs_fees_possible = flag;
     expect(readShippingRiskRates(payload)[0].shipments[0].customsFeesPossible).toBeNull();
   });
@@ -41,7 +41,7 @@ describe("Printful shipment customs evidence", () => {
     expect(body.order_items).toEqual([1, 3, 2].map(quantity => ({ source: "catalog", catalog_variant_id: 15114, quantity, placements: [{ placement: "front_dtf", technique: "dtfilm" }] })));
   });
   it.each(["identity", "missing", "back", "dtg", "empty", "duplicate", "ignored"])("rejects unsupported or mismatched sync configuration: %s", async kind => {
-    const metadata = structuredClone(syncDtfFixture) as any;
+    const metadata: { result: { sync_product: { id: number }; sync_variants: { id: number; variant_id: number; files: { type: string }[]; is_ignored?: boolean }[] } } = structuredClone(syncDtfFixture);
     const v = metadata.result.sync_variants[0];
     if (kind === "identity") v.variant_id = 42;
     if (kind === "missing") v.id = 1;

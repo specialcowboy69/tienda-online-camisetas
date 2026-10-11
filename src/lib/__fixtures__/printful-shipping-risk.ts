@@ -18,7 +18,7 @@ export const riskyPayload = { data: [{
   shipping: "STANDARD", currency: "USD",
   shipments: [{ departure_country: "US", shipment_items: [{ catalog_variant_id: 15182, quantity: 1 }], customs_fees_possible: true }]
 }] };
-// Composition of the two real shipments above; explicitly synthetic until refreshed.
+// Also observed together in a single real STANDARD ES quote on 2026-10-11.
 export const mixedPayload = { data: [{
   shipping: "STANDARD", currency: "USD",
   shipments: [...safePayload.data[0].shipments, ...riskyPayload.data[0].shipments]
