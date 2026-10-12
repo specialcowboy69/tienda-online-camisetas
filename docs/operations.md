@@ -69,9 +69,16 @@ autorizacion expresa.
 
 ### Probar Webhook
 
-1. Cambiar algo pequeno en un producto de Printful, como nombre o precio.
-2. Guardar el producto.
-3. Revisar logs en Vercel buscando:
+1. Obtener autorizacion para un cambio reversible y registrar el producto y sus
+   valores originales. Preferir un campo interno cuya ausencia de consumidores
+   comerciales se haya comprobado; no cambiar precios, disenos ni disponibilidad.
+2. Capturar el estado de Printful y Firestore, comprobar que no hay cambios
+   concurrentes y preparar la restauracion incluso si falla o expira la prueba.
+3. Aplicar unicamente el campo acordado. Al usar PUT `/store/products/{id}`,
+   omitir `sync_variants` si no se modifican variantes: una lista parcial puede
+   eliminar variantes omitidas. No enviar un webhook sintetico ni ejecutar sync
+   manual para acreditar la entrega del proveedor.
+4. Revisar logs en Vercel sin copiar secretos de la query, buscando:
 
 ```text
 POST /api/webhooks/printful
@@ -84,10 +91,21 @@ Status: 200
 User Agent: Printful API Webhook Daemon
 ```
 
-4. Revisar Firestore:
+5. Revisar Firestore:
 
 - `webhookEvents`: evento `printful:product_updated:...` o `printful:stock_updated:...` con `status: processed`.
-- `products`: `updatedAt` reciente en el producto actualizado.
+- `products`: comprobar el valor esperado y `updatedAt` reciente; el timestamp
+  por si solo no prueba el cambio. Comparar precios, variantes e imagenes.
+
+6. Restaurar el valor original y verificarlo en Printful y Firestore, junto con
+   el segundo evento procesado. Si aparece un cambio concurrente ajeno, no
+   sobrescribirlo a ciegas. Guardar evidencia sin secretos y retirar temporales.
+
+La [prueba del 12 de octubre](verification/2026-10-12-product-updated-live.md)
+verifico este circuito con `sync_product.external_id`. No repetirla sin nueva
+autorizacion ni asumir que ese campo sigue libre de consumidores en el futuro.
+Un `product_updated` real no demuestra la entrega de `stock_updated`: para stock
+hay que observar un cambio autentico del proveedor con su efecto correspondiente.
 
 ### Productos Borrados O Ignorados
 
@@ -307,6 +325,52 @@ Los registros de runtime de Vercel no se pudieron leer con el conector (403).
 Por ello, la evidencia del webhook real de Printful procede del propio evento
 guardado como `processed` en Firestore, no de una linea de log ni de una
 captura de respuesta HTTP.
+
+### Comprobacion y limpieza autorizada del 11 de octubre de 2026
+
+**Snapshot historico del 11 de octubre; no estado actual de integracion.**
+La [evidencia detallada](verification/2026-10-11-launch-checks.md) actualiza
+los pendientes del snapshot anterior sin modificar sus registros historicos:
+
+- Nueva compra test `8fa67dcc34754f109508d0fb54b45d36`, posterior a #27,
+  cotizada a ES, USD 39.99, Standard incluido y Stripe Tax desactivado.
+  Webhooks de pago y `order_created` autenticos procesados, borrador remoto
+  `180436734`, confirmacion original aceptada con un intento.
+- Refund `re_3UPS4dRp3VC0CE6j03PC01Sj` observado pending y despues succeeded.
+  Firestore paso de pendingCount 1 / refundedAmount 0 a full / 3999, un solo
+  refund. Los eventos terminaron processed; no hubo replay manual.
+- Recuperacion de un job TEST ONLY separado: HTTP 503 simulado en transporte
+  local, seguido de reintento real por Vercel y aceptacion de Resend. La
+  segunda llamada administrativa no reenvio el job ya aceptado. No hubo
+  caida real provocada en Resend ni comprobacion de entrega en bandeja.
+- Con permiso expreso, se cancelaron `179691582` y `180436734` despues de
+  comprobar draft, cero envios y pago test reembolsado. GET posterior confirmo
+  ambos canceled. Se conservaron pedidos, pagos y emails; no se fabrico nada.
+- Sin evento order_canceled observado: el estado local aun puede decir draft,
+  mientras Printful confirma canceled. No reintentar ni editar Firestore para
+  disimular la discrepancia. El admin rechaza fulfillment por RefundReviewRequired.
+- Ronda final: 101 eventos consultados, todos processed; tres jobs accepted;
+  cinco pedidos listados para revision, ninguno elegible para Retry. El detalle
+  contiene IDs y motivos, sin datos personales. No son cinco pedidos resueltos:
+  quedan registros legacy que requieren revision individual antes de actuar.
+
+Ocho suscripciones Stripe test y nueve Printful presentes en sus endpoints
+correctos. Producto actualizado/borrado solo tiene evidencia historica del
+8 de septiembre; no acredita recepcion con el codigo actual. Stock y envio
+autenticos siguen pendientes. No modificar catalogo o confirmar fabricacion
+solo para provocar eventos sin una prueba acotada y autorizada.
+
+Para rollback se identifico el deployment #27
+`dpl_CrSpQJxUieUtBRcGF1JTGyAXFCU6`, Ready, con el mismo codigo funcional que
+#28. Es candidato, no ensayo ejecutado: revisar de nuevo antes de usarlo y
+seguir DEPLOYMENT.md. No se instalaron alertas ni se programo una guardia
+automatica. Se mantiene la vigilancia manual descrita mas abajo.
+
+Actualizaciones posteriores: [capturas de recepcion en Gmail y tracking simulado](verification/2026-10-12-webhooks-tracking-operations.md),
+[registro corregido en #31](verification/2026-10-12-printful-stock-registration.md)
+y [product_updated autentico y restauracion](verification/2026-10-12-product-updated-live.md).
+Las alertas estan integradas/desplegadas desactivadas en #29; quedan indice,
+comprobaciones remotas y activacion. El snapshot anterior no deshace esos avances.
 
 ### Reembolsos manuales y cancelacion de fabricacion
 

@@ -3,9 +3,9 @@
 Fecha: 2026-10-12. Estado: **especificacion aprobada por la persona propietaria**.
 El [plan de implementacion](../plans/2026-10-12-operational-alerts.md) esta
 aprobado para ejecucion con subagentes y revision independiente. No es una
-instruccion de activacion. La implementacion local de este plan tiene su alcance
-y pendientes en el [informe de verificacion](../../verification/2026-10-12-operational-alerts.md);
-no esta publicada, integrada ni activada por ese trabajo.
+instruccion de activacion. La implementacion se integro y desplego desactivada
+en #29; alcance y pendientes en el [informe de verificacion](../../verification/2026-10-12-operational-alerts.md).
+Indice, pruebas remotas y activacion siguen pendientes; no reimplementar el plan.
 
 ## Intencion y decision acordada
 

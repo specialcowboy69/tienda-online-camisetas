@@ -236,6 +236,47 @@ No se corrigieron dependencias, aplicaron overrides/`--force` ni ampliaron
 aceptaciones. Los hallazgos de desarrollo documentados el 11 siguen separados;
 este audit no los reevalua. Conservar el plazo de revision y el estado `NO-GO`.
 
+### Triage estatico y accesos — 11 de octubre de 2026
+
+Revision sobre el mismo arbol funcional del deployment `6c963d0`. Tres
+advisories criticos en dos paquetes; resultado `needs_review`, confianza
+media. Las versiones afectadas estan instaladas: no se consideran corregidas
+ni aceptadas por no aparecer en `audit --omit=dev`.
+
+| Advisory | Alcance observado y limite |
+| --- | --- |
+| [GHSA-5xrq-8626-4rwp](https://github.com/advisories/GHSA-5xrq-8626-4rwp) | Vitest 2.1.9. Scripts/config versionados no habilitan UI/API/Browser Mode; npm test ejecuta Node headless. Invocaciones ad hoc y exposicion externa no quedan auditadas. |
+| [GHSA-5gmw-xhrv-c9v3](https://github.com/advisories/GHSA-5gmw-xhrv-c9v3) | Tinypool 1.1.1 lee opciones heredables de workers. Requiere contaminacion previa de prototipos; no se identifico una fuente no confiable que complete ese recorrido. El caller forks de Vitest asigna env/execArgv propios, contraevidencia solo parcial. |
+| [GHSA-85c8-ppgw-ccpr](https://github.com/advisories/GHSA-85c8-ppgw-ccpr) | Tinypool 1.1.1: opciones heredadas en run. Version vulnerable confirmada; fuente previa de prototype pollution y recorrido explotable no demostrados. |
+
+Los manifiestos de trazas `.next/server/**/*.nft.json` inspeccionados no
+incluyen Vitest/Tinypool. Esto limita la evidencia de exposicion desde el
+runtime de la tienda, no demuestra ausencia de riesgo en desarrollo/CI.
+No se ejecuto exploit, PoC, upgrade ni `npm audit fix`. Recomendacion:
+actualizacion separada de Vitest y transitivas con pruebas; mientras tanto no
+exponer UI/API ni ejecutar codigo no confiable con credenciales disponibles.
+La auditoria propone una version mayor, que requiere plan de compatibilidad.
+
+Audits de esta comprobacion: productivo 9 paquetes (0 critical, 5 high,
+4 moderate); completo 22 (2 critical, 13 high, 7 moderate), ambos exit 1.
+No se amplia la aceptacion anterior ni su fecha de revision.
+
+Escaneo heuristico de 141 archivos versionados y patches del historial Git
+alcanzable: sin coincidencias de prefijos Stripe/GitHub, material de clave
+privada o valores exactos de credenciales locales buscados. Solo `.env.example`
+aparece entre las rutas versionadas con nombre de credencial. No cubre todos
+los formatos ni copias externas, logs o capturas. No se encontro en esta
+muestra un secreto cuya rotacion pudiera justificarse por exposicion; no se
+roto ninguno ni se declara innecesaria una revision mas amplia.
+
+Probes sin credenciales en el deployment publico: admin orders, retry-email,
+retry-printful, revalidate-checkout, configuracion del webhook y catalog sync
+respondieron 401. Stripe sin firma: 400; Printful sin secreto: 401. La consulta
+admin autorizada funciono. No es una prueba exhaustiva de bypass o abuso.
+
+Evidencia de alcance y pendientes en
+[verificacion de lanzamiento](verification/2026-10-11-launch-checks.md).
+
 ## Checklist antes de produccion
 
 - Rotar secretos fuertes.
