@@ -1,0 +1,141 @@
+# Alertas operativas: evidencia local del 12 de octubre de 2026
+
+Estado: implementacion local, sin publicar, integrar ni activar. `NO-GO` vigente.
+Esta evidencia no autoriza envios reales ni configuracion de servicios.
+
+## Identidad y alcance
+
+- Rama: `codex/operational-alerts`; base de la funcion:
+  `6c963d08870bb0d24a949d131b68ff0b87c2aa66`.
+- Implementacion de tareas 1-5 y correcciones de revision:
+  `c8254c1fcd0c2c3caf9442cc2b3f5b3d27a2d8fd`.
+- SHA de codigo/tests comprobado en esta tarea:
+  `2160bad00d5846dddbb9d8f0c7ebaf18f6f1f1d8`. Anade la prueba integrada y su
+  entrada en `npm test`; no cambia codigo productivo. Los cambios posteriores
+  de esta tarea son documentales. No se modifico el lockfile.
+- PowerShell, Node `v24.15.0`, npm `11.12.1`, Vitest `2.1.9`, Next.js `15.5.26`.
+  Dependencias instaladas previamente desde el lockfile de este worktree.
+- Sin credenciales comerciales ni `.env` copiados, emails reales, pedidos,
+  reembolsos, fabricacion, cambios de catalogo, push, PR, merge o deployment.
+
+## Verificacion ejecutada
+
+| Comando | Resultado sobre el codigo indicado |
+| --- | --- |
+| `npx.cmd vitest run src/lib/operational-alerts/lifecycle.integration.test.ts` | 1/1; codigo 0; 17:53:14, 4.89 s |
+| `npm.cmd test` | 44 archivos, 671/671 tests; codigo 0; 17:54:49, 9.59 s |
+| `npm.cmd run lint` | Codigo 0, sin diagnosticos |
+| `npx.cmd tsc --noEmit --incremental false` | Codigo 0, sin diagnosticos |
+| `npm.cmd run build` | Codigo 0; compilacion en 10.0 s, 6/6 paginas estaticas, ruta dinamica `/api/operations/digest` |
+| `npm.cmd audit --omit=dev` | Codigo 1; 9 paquetes, 5 high / 4 moderate; detalle abajo |
+
+Los cuatro gates completos se ejecutaron secuencialmente con parada ante codigo
+no cero, sin cambios de codigo entre ellos. Las horas son las impresas por el
+runner local. Solo aparecieron las dos
+advertencias conocidas `Shipping customs evidence unavailable.` del fixture
+`order service > rejects unverifiable options: failure`; no son advertencias
+nuevas de alertas ni se ocultaron fallos. El audit se ejecuto sobre el mismo
+lockfile antes del commit que solo anade el test; no equivale a un gate limpio.
+
+### Ciclo integrado sintetico
+
+`src/lib/operational-alerts/lifecycle.integration.test.ts` reutiliza el adaptador
+Firestore en memoria con repeticion de callbacks transaccionales. Ejecuta
+funciones reales de proyeccion, observacion post-commit, ledger, renderer,
+dispatcher, autenticacion, handler GET y digest/scan. Solo sustituye fronteras
+externas: DB, reloj, configuracion ficticia, scheduler `after` y transporte.
+
+1. Una observacion sana establece la fecha de inicio; un fallo sintetico nuevo
+   crea la generacion 1 y una entrega pendiente antes de programar transporte.
+2. Ejecutar el callback capturado persiste el recibo ficticio; repetir observacion
+   y callback no envia de nuevo.
+3. GET autenticado resume una incidencia y guarda recibo; repetir el mismo dia
+   no duplica el correo. El resultado diario se lee del ledger.
+4. Estado sano mas reciente resuelve la incidencia, deja conteo cero y conserva
+   el recibo historico. Una reaparicion posterior abre generacion 2 y otra clave.
+5. Espias de funciones Stripe/Printful y de `fetch` registran cero llamadas;
+   las escrituras hechas por la funcion solo van a colecciones operativas.
+   PII y mensajes de error del fixture no llegan al ledger ni al correo capturado.
+
+La prueba caracterizo comportamiento ya implementado: paso inicialmente, sin
+fix productivo ni fase roja inventada. Los RED/GREEN anteriores corresponden a
+las tareas de implementacion. Este ensayo no simula una autenticacion de webhook
+de proveedor ni acredita el despliegue de `after`; sus regresiones independientes
+y de equivalencia comercial estan incluidas en la suite completa.
+
+## Audit productivo: snapshot exacto
+
+Versiones obtenidas con `npm.cmd ls --omit=dev @fastify/busboy nanoid next postcss qs sharp source-map-js uuid gaxios --all`.
+`npm audit` reporta paquetes afectados, no el numero de advisories. Las versiones
+7.x de gaxios instaladas no se confunden con el hallazgo en 6.7.1.
+
+| Paquete instalado | Severidad | Advisories devueltos por audit |
+| --- | --- | --- |
+| `@fastify/busboy@3.2.0` | high | `GHSA-xjh9-v7x6-24jw`, `GHSA-x8mw-p69m-v3mx`, `GHSA-gxm5-99cw-xjw9` |
+| `nanoid@3.3.16` | high | `GHSA-2v37-7h3g-55p8` |
+| `next@15.5.26` | moderate | `GHSA-4jqv-mc3x-m676`, `GHSA-mcj8-r9mp-w47p`; dependencia PostCSS |
+| `postcss@8.4.31` | high | `GHSA-qx2v-qp2m-jg93`, `GHSA-6g55-p6wh-862q`, `GHSA-fxqj-rqcc-2cmp`, `GHSA-r28c-9q8g-f849` |
+| `qs@6.15.3` | moderate | `GHSA-x5fp-wj9c-mxmx`, `GHSA-4mjr-xmp4-gh2g` |
+| `sharp@0.34.5` | high | `GHSA-f88m-g3jw-g9cj`, `GHSA-rgj7-g3m4-5g8c`, `GHSA-wq5f-xc86-pv6w` |
+| `source-map-js@1.2.1` | high | `GHSA-68fv-2mgg-jv7q` |
+| `uuid@9.0.1` | moderate | `GHSA-w5hq-g745-h8pq` |
+| `gaxios@6.7.1` | moderate | Dependencia vulnerable UUID anterior |
+
+El informe propuso `npm audit fix`; no se ejecuto. No se hicieron upgrades,
+overrides ni `--force`. Recuento/nombres coinciden con la auditoria documentada
+el 11 de octubre; no se compararon todas las revisiones de advisories con el
+snapshot aceptado el dia 8. No hay nueva aceptacion de riesgos. El alcance de
+desarrollo y su remediacion siguen separados en [SECURITY.md](../SECURITY.md).
+
+## Decisiones y limites conservados
+
+- La configuracion valida se comprueba antes del I/O, tambien en el store.
+  Local/Preview sin configuracion ficticia inyectada quedan desactivados.
+- Las escrituras simples de pedido/catalogo no prueban predecesor atomico.
+  Su observacion usa `previous='unknown'`; la contrapartida es esperar al
+  resumen para algunos fallos. Los hooks transaccionales observan despues de
+  commit y pueden probar transiciones inmediatas sin alterar contratos financieros.
+- Una resolucion valida invalida un aviso aun no preparado. Los intentos ya
+  preparados conservan mensaje/clave/recibo por posible aceptacion remota.
+- Hay cursor durable con token propietario, reparto de particiones y barrido
+  final del ledger. El presupuesto cuenta lecturas internas y puede ser
+  conservador: algunas incidencias esperan otra ronda. No es snapshot global.
+- La historia de catalogo tiene cursor para nuevas cabeceras y conserva el
+  historico; solo admite evidencia temporalmente coherente de ultimo exito.
+  Historia desconocida o invalida sigue parcial, sin rehabilitar timestamps.
+- El cupo de 20 por hora limita avisos iniciales, no el unico digest idempotente
+  diario. Un digest preparado conserva su fotografia aunque otro scan cambie.
+- El segundo de espera del observador no puede cancelar un commit ya enviado.
+  La ventana segura de reintento es 23 horas; un recibo ambiguo sigue requiriendo
+  revision. Sin Resend no hay canal alternativo; soporte y vigilancia siguen manuales.
+
+Detalles menores trasladados a revision final: el dispatcher puede devolver
+`skipped` si la ventana vence durante prepare aunque el registro ya este en
+`review` (no envia); el comparador del adaptador sintetico iguala ciertos ISO y
+Timestamp que Firestore ordena por tipo. La comprobacion de valores undefined
+anidados del adaptador fue corregida en tarea 4. Estos puntos no se convierten
+en prueba de comportamiento remoto ni se ocultan tras la suite verde.
+
+## Puertas pendientes antes de activar
+
+- [ ] Revision independiente final de los cinco puntos Review Focus y auditoria
+  AGENTS completa antes de declarar la rama lista, crear PR o integrar.
+- [ ] Integracion autorizada; registrar PR/SHA y deployment realmente observado.
+  Este documento no constituye inventario vigente de otras ramas/PRs.
+- [ ] Firestore en emulador o entorno dedicado realmente aislado: indices,
+  concurrencia/contencion, dos workers, lease antiguo, replay y timeout. No se
+  encontro Java/jar del emulador en la preparacion; no se instalo ni se utilizaron
+  credenciales productivas. El adaptador serializado no acredita esta puerta.
+- [ ] Revisar plan Vercel vigente, duracion permitida, `after`, cron declarado y
+  configuracion real. Preview compartido no sirve como sandbox aislado.
+- [ ] Autorizar destinatario privado, remitente, flag y redeploy; verificar
+  `activatedAtMs`, ausencia de rafaga historica y desactivacion conservando ledger.
+- [ ] TEST ONLY controlado mediante runner restringido sin nuevo endpoint publico:
+  recibo y recepcion separados; luego primera invocacion cron autentica y replay
+  deduplicado. GET manual no demuestra programacion real.
+
+No se cerraron stock/productos, tracking autentico, rollback aislado, buzon de
+soporte, fiscalidad, pagos live o fabricacion. `STRIPE_TAX_ENABLED=false`, bloqueo
+CA/GB y `NO-GO` se conservan como decisiones; no se reconsulto ni cambio la
+configuracion remota. El procedimiento operativo y las limitaciones de cobertura
+estan en [operations.md](../operations.md#alertas-operativas-implementacion-local-desactivada).

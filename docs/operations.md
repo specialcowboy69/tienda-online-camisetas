@@ -399,6 +399,93 @@ respuestas arbitrarias de proveedores a logs, capturas o tickets. Los nuevos
 diagnosticos de email y lectura de reembolsos son genericos; los registros y
 errores operativos existentes requieren acceso restringido.
 
+## Alertas operativas: implementacion local desactivada
+
+El 12 de octubre se implemento la funcion en la rama local
+`codex/operational-alerts`. No esta publicada, integrada ni activada por este
+trabajo. La [evidencia local y puertas de activacion](verification/2026-10-12-operational-alerts.md)
+no acredita cron real, aceptacion de Resend ni recepcion en bandeja. La vigilancia
+manual de la siguiente seccion sigue vigente y el lanzamiento permanece `NO-GO`.
+
+### Configuracion y cobertura
+
+- `OPERATIONAL_ALERTS_ENABLED` ausente, `false` o distinto de `true` desactiva
+  la funcion. Ademas exige `VERCEL_ENV=production`, un unico destinatario privado
+  valido en `OPERATIONAL_ALERTS_TO`, `RESEND_FROM_EMAIL` valido y el origen HTTPS
+  de `NEXT_PUBLIC_BASE_URL`. No escribir el correo personal ni secretos en git.
+  Preview/local quedan desactivados; los tests inyectan una configuracion ficticia.
+- `GET /api/operations/digest` exige autenticacion cron/admin antes de Firestore.
+  El cron declarado es `0 8 * * *` UTC, horario aproximado, sin ajuste automatico
+  a Madrid. Conserva el sync de catalogo a las 03:00 UTC. El plan Vercel vigente,
+  la duracion declarada de 60 segundos y la ejecucion real requieren verificacion.
+- Se observan pedidos `manual_review`/`failed`, revision de email/reembolso,
+  jobs `blocked`/`manual_review`, webhooks con fallo persistido y fallos de sync.
+  No se avisa por ocupacion normal, entrada rechazada ni bloqueo preventivo de
+  un reembolso correcto. No se reintentan pedidos, cobran importes, reembolsan
+  pagos ni confirma fabricacion desde las alertas.
+- El aviso inmediato requiere una transicion nueva comprobada, posterior al
+  inicio registrado. Las escrituras simples de pedido/catalogo no prueban un
+  predecesor atomico: usan `previous='unknown'` y quedan `digest_only`. Lo mismo
+  ocurre con incidencias preexistentes, hallazgos diarios y exceso del cupo de
+  20 avisos iniciales por hora UTC. Las observaciones transaccionales conservan
+  la posibilidad de aviso inmediato; no se anaden transacciones financieras.
+- El resumen detecta tambien pedidos `printful_pending` y jobs `pending` con
+  mas de 15 minutos, webhooks `processing` con mas de cinco minutos y lease
+  vencido, sync correcto de mas de 36 horas y entregas de alertas pendientes de
+  revision. Incluye conteos y hasta 20 referencias, no datos del cliente.
+- Cada ronda pagina como maximo 1000 documentos presupuestados/examinados en
+  30 segundos. Guarda cursores; `partial` y `unchecked` significan cobertura
+  incompleta, nunca cero problemas. La cobertura puede abarcar varias rondas;
+  ni siquiera un ciclo completo es una instantanea global simultanea.
+
+### Leer el registro y actuar
+
+1. Con acceso administrativo de solo lectura, consultar
+   `operationalAlertRuns/day-<AAAA-MM-DD UTC>`: `finishedAtMs` indica fin local
+   de ronda y `result` contiene `partial`, `unchecked`, `pendingCount`, `counts`
+   y `examined`. `operationalAlertRuns/scan` conserva cursor y lease en curso.
+   Si falta la ronda esperada, revisar cron/logs y hacer la ronda manual: la
+   ausencia de correo no demuestra salud. Un GET manual no acredita cron.
+2. Revisar `operationalAlerts/<id>`: categoria, referencia, `status`, `generation`
+   y `needsReconciliation`. Una lectura nueva y valida puede resolverla; la
+   ausencia en una pagina o un fallo de lectura no demuestra resolucion.
+   Una reaparicion comprobada abre otra generacion. No editar pedidos para
+   silenciar alertas ni borrar registros para forzar reenvios.
+3. Consultar `deliveries/<generacion>` y, para el resumen,
+   `operationalAlertRuns/day-<fecha>/deliveries/summary`. `accepted` con
+   `providerEmailId` significa aceptacion, no entrega. `pending`, `processing`,
+   `review` y `digest_only` requieren interpretar lease, `firstDispatchAtMs`
+   y `outcomeCode`; `digest_only` no equivale a incidencia resuelta.
+4. El primer intento congela mensaje, remitente, destinatario y clave. Los
+   reintentos conservan esos datos solo dentro de 23 horas desde ese intento;
+   despues pasan a revision, sin cambiar clave para reenviar. Ante recibo perdido,
+   conciliar en Resend antes de una accion manual. El digest aceptado del dia no
+   se reemplaza con hallazgos posteriores; consultar el registro mas reciente.
+5. La persona propietaria investiga y decide acciones. Los logs de fallo usan
+   solo `operational_observation_failed` / `operational_delivery_failed`.
+   Firestore caido puede impedir incluso guardar el aviso. Resend caido deja
+   sin ambos correos: no hay segundo canal, detector externo de caida total de
+   Vercel ni garantia sobre eventos que nunca llegan. El soporte sigue manual.
+
+### Activar o desactivar: fase separada
+
+Antes de activar: integrar con auditoria AGENTS, revisar seguridad y verificar
+indices/transacciones con emulador o entorno realmente aislado, dos workers,
+timeout, cron repetido y desactivacion. No usar un Preview con credenciales
+compartidas. Confirmar configuracion vigente y autorizar destinatario, sender,
+flag y redeploy. La primera observacion guarda `activatedAtMs` en
+`operationalAlertRuns/config`; comprobarlo sin provocar fallos en pedidos reales.
+
+La prueba de correo exige autorizacion concreta, etiqueta TEST ONLY y runner
+temporal restringido, sin endpoint publico adicional. Registrar recibo y
+recepcion por separado, y observar despues una invocacion cron autentica con
+repeticion deduplicada. Hasta entonces no existe vigilancia automatica verificada.
+
+Para desactivar, establecer `OPERATIONAL_ALERTS_ENABLED=false` y redesplegar
+con autorizacion. Conservar ledger, recibos e historico de activacion; no cambiar
+secretos ni datos comerciales. La prueba de esta desactivacion en entorno
+aislado sigue pendiente; no equivale al ensayo separado de rollback de la tienda.
+
 ## Vigilancia manual del lanzamiento
 
 **Responsables.** La persona propietaria revisa los tableros y el buzon,

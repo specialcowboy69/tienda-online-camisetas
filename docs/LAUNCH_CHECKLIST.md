@@ -5,7 +5,7 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 11 de octubre de 2026
+**Ultima revision documental:** 12 de octubre de 2026 (alertas locales; sin activacion)
 
 ## Resumen vigente y fuente de estado
 
@@ -14,14 +14,14 @@ ordena el trabajo; el runbook explica como operarlo. Las pruebas historicas se
 conservan con fecha: no prueban por si solas la configuracion actual de un proveedor.
 Estar desplegado en Vercel Production no significa tener autorizados pagos live.
 
-| Area | Estado al cierre documental del 11 de octubre |
+| Area | Estado documental; evidencias historicas fechadas |
 | --- | --- |
 | Integracion | PRs #21 a #27 integrados; ultimo cambio funcional: #27, `929a725`, desplegado en Vercel Production |
 | Envios | Seis destinos previstos US/ES/FR/DE/IT/PT; CA/GB bloqueados por codigo; control preventivo UE integrado y comprobado en cotizaciones publicas |
 | Pagos y pedidos | Evidencia Stripe test, borrador remoto, reembolsos completo/parcial y expiraciones; no acredita ventas live ni fabricacion |
 | Webhook Printful | `order_created` autentico procesado el 8 de octubre; siguen pendientes producto/stock, envio real y confirmacion del evento de cancelacion |
 | Email | Aceptacion del proveedor comprobada; entrega en bandeja no verificada, aplazada por decision de la persona propietaria |
-| Operacion | Vigilancia manual definida; alertas automaticas no implementadas/verificadas |
+| Operacion | Vigilancia manual definida; alertas implementadas y probadas localmente en rama, sin publicar/integrar/activar ni verificar remotamente |
 | Legales | Plantillas pendientes de completar, revisar y publicar; no se han publicado paginas por este cambio |
 | Riesgo residual | Aceptacion productiva del 8 de octubre; audit repetido el 11 y avisos de desarrollo pendientes en SECURITY.md, sin ampliar la aceptacion |
 
@@ -34,6 +34,26 @@ parte de una tarea documental. La decision vigente es mantener
 pruebas con efectos. La confirmacion de los ocho eventos Stripe y la evidencia
 historica de la transicion de workers siguen pendientes de reconciliar, no se
 marcan completadas por el merge de #27.
+
+## Alertas operativas — implementacion local del 12 de octubre de 2026
+
+Rama `codex/operational-alerts`; [SHA, comandos y alcance de evidencia](verification/2026-10-12-operational-alerts.md).
+El flag queda desactivado por defecto. No hay PR ni deployment de esta funcion
+acreditados por este trabajo; la revision independiente y la auditoria AGENTS
+preceden cualquier declaracion de rama lista. No cambia `NO-GO`.
+
+- [x] Implementacion y prueba sintetica local del ciclo de alertas, sin efectos
+  Stripe/Printful ni email real; configuracion y procedimiento en
+  [operations.md](operations.md#alertas-operativas-implementacion-local-desactivada).
+- [ ] Integrar y registrar PR/SHA y deployment real de la funcion.
+- [ ] Verificar contencion/transacciones e indices en Firestore aislado,
+  dos workers, timeout y desactivacion; los mocks no acreditan estos puntos.
+- [ ] Revisar plan/runtime Vercel y autorizar configuracion/activacion remota.
+- [ ] Comprobar aviso TEST ONLY, recibo y recepcion por separado, primera
+  invocacion cron autentica y repeticion deduplicada.
+
+Stock/productos, tracking genuino, rollback aislado, soporte, fiscalidad y
+compra live siguen siendo tareas separadas. No se completan con estas pruebas.
 
 ## Seguridad de pedidos: implementacion y prueba controlada
 
@@ -484,7 +504,8 @@ por esta actualizacion; requiere permiso nuevo al retomarla y sigue sin verifica
 - [x] ~~Definir una revision periodica manual para pedidos en `manual_review`,
   webhooks fallidos y solicitudes de clientes.~~
   - Procedimiento, responsables y escalado en [operations.md](operations.md).
-    No hay alertas automaticas configuradas; su implementacion sigue pendiente.
+    Alertas implementadas localmente; su integracion, configuracion, activacion
+    y comprobacion remota siguen pendientes. La vigilancia manual se conserva.
 - [ ] Planificar un rate limit compartido antes de escalar a multiples instancias
   o trafico relevante.
 - [x] ~~Documentar quien revisa pedidos, devoluciones, emails y fallos de
