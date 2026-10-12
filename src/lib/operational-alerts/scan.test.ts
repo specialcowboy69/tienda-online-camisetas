@@ -15,7 +15,7 @@ function harness() {
   const now = () => time;
   const store = createAlertStore(memory.db, now, config);
   const send = vi.fn<(message: EmailMessage, key: string) => Promise<EmailSendResult>>().mockResolvedValue({ kind: "accepted", providerEmailId: "synthetic-receipt" });
-  memory.documents.set("syncRuns/latest", { status: "success", createdAt: new Date(T0 - 1000).toISOString() });
+  memory.documents.set("syncRuns/latest", { status: "success", createdAt: Timestamp.fromMillis(T0 - 1000) });
   const deps = { db: memory.db, store, config, send, now };
   return { ...memory, ...deps, deps, tick: (value: number) => { time = value; }, scan: async () => {
     const claim = await store.claimDailyRun(new Date(time).toISOString().slice(0, 10));
@@ -27,6 +27,58 @@ function harness() {
 }
 
 describe("bounded operational scan", () => {
+  it("keeps a contradictory same-version business state visible even without a prior incident", async () => {
+    const h = harness(); const ref = { kind: "order" as const, id: "contradiction" };
+    await h.store.recordObservation({ source: projectSource(ref, sourceAt("paid")), previous: "unknown", mode: "event", observedAtMs: T0 });
+    h.documents.set("orders/contradiction", sourceAt("failed"));
+    const result = await h.scan();
+    expect(result.counts.source_unreadable).toBe(1);
+    expect([...h.documents.values()].find(value => value.category === "source_unreadable")).toMatchObject({ status: "active", needsReconciliation: true });
+    h.documents.set("orders/contradiction", sourceAt("paid"));
+    expect((await h.scan()).counts.source_unreadable).toBe(1);
+    h.tick(T0 + 1); h.documents.set("orders/contradiction", sourceAt("paid", { updatedAt: new Date(T0 + 1).toISOString() }));
+    expect(await h.scan()).toMatchObject({ pendingCount: 0, partial: false });
+  });
+  it.each(["email", "webhook"] as const)("ages %s after lease renewal without a business version change", async kind => {
+    const h = harness(); const ref = { kind, id: "leased" };
+    const raw = sourceAt("processing", { lease: { token: "owner", expiresAtMs: T0 + 120000 } });
+    await h.store.recordObservation({ source: projectSource(ref, raw), previous: "unknown", mode: "event", observedAtMs: T0 });
+    h.documents.set(`${kind === "email" ? "emailJobs" : "webhookEvents"}/leased`, { ...raw, lease: { token: "owner", expiresAtMs: T0 + 240000 } });
+    h.tick(T0 + 180000);
+    expect((await h.scan()).pendingCount).toBe(0);
+    h.documents.set(`${kind === "email" ? "emailJobs" : "webhookEvents"}/leased`, { ...raw, lease: { token: "owner", expiresAtMs: T0 + 1000000 } });
+    h.tick(T0 + 900001);
+    expect((await h.scan()).pendingCount).toBe(0);
+    h.tick(T0 + 1000001);
+    expect((await h.scan()).counts).toEqual({ [kind === "email" ? "email_stale" : "webhook_stale"]: 1 });
+  });
+  it("reopens an earlier resolved unknown source when its current business version contradicts itself", async () => {
+    const h = harness(); const ref = { kind: "order" as const, id: "reopened-unknown" };
+    await h.store.recordObservation({ source: projectSource(ref, {}), previous: "unknown", mode: "event", observedAtMs: T0 });
+    h.documents.set("orders/reopened-unknown", sourceAt("paid"));
+    expect((await h.scan()).pendingCount).toBe(0);
+    h.documents.set("orders/reopened-unknown", sourceAt("failed"));
+    expect((await h.scan()).counts.source_unreadable).toBe(1);
+    expect([...h.documents.values()].find(value => value.category === "source_unreadable")).toMatchObject({ status: "active", generation: 2, needsReconciliation: true });
+  });
+  it("requires a newer version after a contradiction upgrades an already unreadable source", async () => {
+    const h = harness(); const ref = { kind: "order" as const, id: "unknown-then-conflicting" };
+    await h.store.recordObservation({ source: projectSource(ref, sourceAt("paid")), previous: "unknown", mode: "event", observedAtMs: T0 });
+    h.documents.set("orders/unknown-then-conflicting", sourceAt("paid", { orderProcessingLease: { invalid: true } }));
+    expect((await h.scan()).counts.source_unreadable).toBe(1);
+    h.documents.set("orders/unknown-then-conflicting", sourceAt("failed")); await h.scan();
+    h.documents.set("orders/unknown-then-conflicting", sourceAt("paid"));
+    expect((await h.scan()).counts.source_unreadable).toBe(1);
+  });
+  it("refuses a string catalog timestamp as complete coverage", async () => {
+    const h = harness(); h.documents.set("syncRuns/latest", { status: "success", createdAt: new Date(T0).toISOString() });
+    expect(await h.scan()).toMatchObject({ partial: true, unchecked: expect.arrayContaining(["catalog"]) });
+  });
+  it("refuses numeric historical catalog timestamps instead of converting their cursor", async () => {
+    const h = harness(); h.documents.set("syncRuns/latest", { status: "failed", createdAt: Timestamp.fromMillis(T0) });
+    h.documents.set("syncRuns/legacy", { status: "success", createdAt: T0 - 1000 });
+    expect(await h.scan()).toMatchObject({ partial: true, unchecked: expect.arrayContaining(["catalog"]), counts: { source_unreadable: 1, catalog_failed: 1 } });
+  });
   it("counts active incidents once and caps safe references at twenty", async () => {
     const h = harness();
     for (let n = 0; n < 25; n++) h.documents.set(`orders/order-${String(n).padStart(4, "0")}`, sourceAt("manual_review"));
@@ -106,25 +158,25 @@ describe("bounded operational scan", () => {
   });
   it("uses aggregate catalog identity and does not reset the stale-success clock after failures", async () => {
     const h = harness(); h.documents.delete("syncRuns/latest");
-    h.documents.set("syncRuns/old-success", { status: "success", createdAt: new Date(T0 - 40 * 3600000).toISOString() });
-    h.documents.set("syncRuns/new-failure", { status: "failed", createdAt: new Date(T0 - 1000).toISOString() });
+    h.documents.set("syncRuns/old-success", { status: "success", createdAt: Timestamp.fromMillis(T0 - 40 * 3600000) });
+    h.documents.set("syncRuns/new-failure", { status: "failed", createdAt: Timestamp.fromMillis(T0 - 1000) });
     expect(await h.scan()).toMatchObject({ pendingCount: 2, counts: { catalog_failed: 1, catalog_stale: 1 }, references: [{ kind: "catalog", id: "catalog" }] });
-    h.tick(T0 + 1000); h.documents.set("syncRuns/new-success", { status: "success", createdAt: new Date(T0 + 1000).toISOString() });
+    h.tick(T0 + 1000); h.documents.set("syncRuns/new-success", { status: "success", createdAt: Timestamp.fromMillis(T0 + 1000) });
     expect(await h.scan()).toMatchObject({ pendingCount: 0, partial: false });
   });
   it("never treats failure-only or future catalog history as healthy", async () => {
     const h = harness(); h.documents.delete("syncRuns/latest");
-    h.documents.set("syncRuns/failure", { status: "failed", createdAt: new Date(T0 - 1000).toISOString() });
+    h.documents.set("syncRuns/failure", { status: "failed", createdAt: Timestamp.fromMillis(T0 - 1000) });
     expect(await h.scan()).toMatchObject({ partial: true, counts: { source_unreadable: 1, catalog_failed: 1 } });
-    h.documents.set("syncRuns/future", { status: "success", createdAt: new Date(T0 + 100000).toISOString() });
+    h.documents.set("syncRuns/future", { status: "success", createdAt: Timestamp.fromMillis(T0 + 100000) });
     const result = await h.scan();
     expect(result.pendingCount).toBeGreaterThan(0);
     expect([...h.documents.values()].find(value => value.category === "catalog_failed")).toMatchObject({ status: "active" });
   });
   it("does not replace malformed or future lastSuccessAt evidence with a historical success", async () => {
     for (const lastSuccessAt of ["invalid", T0 + 1000]) {
-      const h = harness(); h.documents.set("syncRuns/latest", { status: "success", createdAt: new Date(T0 - 10000).toISOString() });
-      h.documents.set("syncRuns/failed", { status: "failed", createdAt: new Date(T0 - 1000).toISOString(), lastSuccessAt });
+      const h = harness(); h.documents.set("syncRuns/latest", { status: "success", createdAt: Timestamp.fromMillis(T0 - 10000) });
+      h.documents.set("syncRuns/failed", { status: "failed", createdAt: Timestamp.fromMillis(T0 - 1000), lastSuccessAt });
       expect((await h.scan()).counts.source_unreadable).toBe(1);
     }
   });
@@ -160,9 +212,9 @@ describe("bounded operational scan", () => {
   });
   it("rechecks a new catalog head while its old history cursor is still unfinished", async () => {
     const h = harness(); h.documents.delete("syncRuns/latest");
-    for (let n = 0; n < 1500; n++) h.documents.set(`syncRuns/failure-${n}`, { status: "failed", createdAt: new Date(T0 - n - 1000).toISOString() });
+    for (let n = 0; n < 1500; n++) h.documents.set(`syncRuns/failure-${n}`, { status: "failed", createdAt: Timestamp.fromMillis(T0 - n - 1000) });
     expect((await h.scan()).partial).toBe(true);
-    h.documents.set("syncRuns/new-success", { status: "success", createdAt: new Date(T0).toISOString() });
+    h.documents.set("syncRuns/new-success", { status: "success", createdAt: Timestamp.fromMillis(T0) });
     expect(await h.scan()).toMatchObject({ pendingCount: 0, partial: false });
   });
   it("never persists provider errors or customer fields from projected sources", async () => {
@@ -188,8 +240,8 @@ describe("bounded operational scan", () => {
   });
   it("inspects a changed catalog head before completing a resumed final ledger pass", async () => {
     const h = harness();
-    h.documents.set("syncRuns/latest", { status: "failed", createdAt: new Date(T0 - 1000).toISOString() });
-    h.documents.set("syncRuns/success", { status: "success", createdAt: new Date(T0 - 5000).toISOString() });
+    h.documents.set("syncRuns/latest", { status: "failed", createdAt: Timestamp.fromMillis(T0 - 1000) });
+    h.documents.set("syncRuns/success", { status: "success", createdAt: Timestamp.fromMillis(T0 - 5000) });
     const claim = await h.store.claimDailyRun("2026-10-12");
     const progress = (await h.store.readScanProgress(claim!.token))!;
     progress.phase = "final"; progress.covered = ["orders", "emailJobs", "webhookEvents", "catalog"]; progress.provisional = { counts: {}, references: [] };
@@ -209,8 +261,8 @@ describe("bounded operational scan", () => {
     expect(result.counts.catalog_stale).toBeUndefined();
   });
   it("reconciles same-run catalog evidence after an event lacked a known success", async () => {
-    const h = harness(); h.documents.set("syncRuns/latest", { status: "success", createdAt: new Date(T0 - 10000).toISOString() });
-    const failure = { status: "failed", createdAt: new Date(T0 - 1000).toISOString() };
+    const h = harness(); h.documents.set("syncRuns/latest", { status: "success", createdAt: Timestamp.fromMillis(T0 - 10000) });
+    const failure = { status: "failed", createdAt: Timestamp.fromMillis(T0 - 1000) };
     h.documents.set("syncRuns/failure", failure);
     await h.store.recordObservation({ source: projectSource({ kind: "catalog", id: "catalog" }, failure), previous: "unknown", observedAtMs: T0, mode: "event" });
     expect([...h.documents.values()].find(value => value.category === "source_unreadable")).toMatchObject({ status: "active" });
@@ -219,7 +271,7 @@ describe("bounded operational scan", () => {
   });
   it("resolves stale catalog evidence when a newer known success is established for the same failed head", async () => {
     const h = harness(); const ref = { kind: "catalog" as const, id: "catalog" };
-    const createdAt = new Date(T0 - 1000).toISOString();
+    const createdAt = Timestamp.fromMillis(T0 - 1000);
     await h.store.recordObservation({ source: projectSource(ref, { status: "failed", createdAt, lastSuccessAt: T0 - 40 * 3600000 }), previous: "unknown", mode: "daily", observedAtMs: T0 });
     expect([...h.documents.values()].find(value => value.category === "catalog_stale")).toMatchObject({ status: "active" });
     await h.store.recordObservation({ source: projectSource(ref, { status: "failed", createdAt, lastSuccessAt: T0 - 5000 }), previous: "unknown", mode: "daily", observedAtMs: T0 });

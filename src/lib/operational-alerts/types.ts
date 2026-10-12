@@ -107,6 +107,6 @@ export type AlertStore = {
   prepareDigest(dayUtc: string, token: string, result: ScanResult): Promise<string | null>;
   finishDailyRun(dayUtc: string, token: string, result: ScanResult): Promise<boolean>;
   claimDelivery(id: string): Promise<DeliveryClaim>;
-  prepareDelivery(id: string, token: string, message: EmailMessage): Promise<PreparedDelivery | null>;
+  prepareDelivery(id: string, token: string, message: EmailMessage): Promise<PreparedDelivery | { reason: "review" } | null>;
   finishDelivery(id: string, token: string, outcome: DeliveryOutcome): Promise<boolean>;
 };

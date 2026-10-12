@@ -66,6 +66,18 @@ describe("operational message rendering", () => {
 });
 
 describe("recoverable operational dispatch", () => {
+  it("reports review when the safe retry window closes between claim and preparation", async () => {
+    const h = harness(); h.send.mockRejectedValue(new EmailDispatchError());
+    expect(await h.dispatch()).toBe("retry");
+    const frozen = h.documents.get(id)!;
+    h.tick(T0 + 82800000 - 1);
+    const prepare = h.store.prepareDelivery;
+    h.deps.store = { ...h.store, prepareDelivery: async (...args) => { h.tick(T0 + 82800000); return prepare(...args); } };
+    expect(await h.dispatch()).toBe("review");
+    expect(h.documents.get(id)).toMatchObject({ status: "review", outcomeCode: "window_expired", message: frozen.message, idempotencyKey: frozen.idempotencyKey, attempts: 1 });
+    expect(h.send).toHaveBeenCalledOnce();
+    expect(h.documents.get(id)).not.toHaveProperty("lease");
+  });
   it("persists preparation before sending and retains an accepted provider receipt", async () => {
     const h = harness();
     h.send.mockImplementation(async (message, key) => {

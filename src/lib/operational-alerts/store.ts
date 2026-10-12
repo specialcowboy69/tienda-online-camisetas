@@ -13,10 +13,15 @@ const validId = (id: string) => /^operationalAlerts\/[a-f0-9]{64}\/deliveries\/[
   || /^operationalAlertRuns\/day-\d{4}-\d{2}-\d{2}\/deliveries\/summary$/.test(id);
 
 function fingerprint(source: SourceProjection): string {
-  const common = [source.kind, source.status, source.readable, source.errorCode];
+  const common = [source.kind, source.status, source.readable];
   switch (source.kind) {
-    case "order": return hash([...common, source.emailReview, source.refundReview, source.fulfillmentBlocked, source.leaseExpiresAtMs]);
-    case "email": case "webhook": return hash([...common, source.leaseExpiresAtMs]);
+    // Leases gate age detection but are not business-version identity: order
+    // claim/renew/release can legitimately leave updatedAt unchanged.
+    case "order": return hash([...common, source.emailReview, source.refundReview, source.fulfillmentBlocked]);
+    case "email": return hash(common);
+    // Only busy changes webhook classification. Unselected arbitrary error
+    // detail must not contradict the scanner's allowlisted projection.
+    case "webhook": return hash([...common, source.errorCode === "busy"]);
     case "catalog": return hash([...common, source.lastSuccessAtMs]);
   }
 }
@@ -68,7 +73,9 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
           && fingerprint({ ...source, lastSuccessAtMs: state.catalogLastSuccessAtMs }) === state.fingerprint;
         const contradictory = readable && version !== null && version === state?.sourceVersionMs && state.fingerprint !== identity && !catalogEvidenceAdvanced;
         const ordered = readable && !contradictory;
-        const incidents = contradictory ? [] : detected;
+        // Preserve uncertainty even when this source had no previous incident.
+        const incidents: Incident[] = contradictory ? [{ ref: source.ref, category: "source_unreadable",
+          observedAtMs: input.observedAtMs, sourceVersionMs: version, trigger: "daily" }] : detected;
         const categories = [...new Set([...(state?.categories ?? []), ...incidents.map(i => i.category)])];
         const logicalId = (category: AlertCategory) => hash([config.environment, source.ref.kind, source.ref.id, category]);
         const parentRefs = categories.map(category => db.doc(`operationalAlerts/${logicalId(category)}`));
@@ -106,13 +113,13 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
             continue;
           }
           if (parent?.status === "active") {
-            transaction.set(parentRefs[index], { ...parent, sourceVersionMs: ordered ? version : parent.sourceVersionMs,
+            transaction.set(parentRefs[index], { ...parent, sourceVersionMs: ordered || contradictory ? version : parent.sourceVersionMs,
               observedAtMs: input.observedAtMs, needsReconciliation: !ordered });
             const id = deliveryId(parent.logicalId, parent.generation); const delivery = current.get(id);
             if (delivery && (delivery.status === "pending" || delivery.status === "processing")) eligible.push(id);
             continue;
           }
-          if (parent && !ordered) {
+          if (parent && !ordered && !contradictory) {
             transaction.set(parentRefs[index], { ...parent, needsReconciliation: true }); continue;
           }
           const generation = (parent?.generation ?? 0) + 1;
@@ -122,7 +129,7 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
             && (previous === null || (previousValid && !previousCategories.includes(category)))
             && (state?.sourceVersionMs === null || state?.sourceVersionMs === undefined || version > state.sourceVersionMs);
           const record: AlertRecord = { logicalId: logicalId(category), sourceKey, ref: { ...incident.ref }, category,
-            generation, status: "active", sourceVersionMs: ordered ? version : null, observedAtMs: input.observedAtMs, needsReconciliation: !ordered };
+            generation, status: "active", sourceVersionMs: ordered || contradictory ? version : null, observedAtMs: input.observedAtMs, needsReconciliation: !ordered };
           const delivery: AlertDelivery = { id, environment: config.environment, kind: "incident", generation, snapshot: { incidents: [incident] },
             status: immediate ? "pending" : "digest_only", attempts: 0 };
           transaction.set(parentRefs[index], record); transaction.set(db.doc(id), delivery);
@@ -214,7 +221,7 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
         const delivery = snapshot.data() as AlertDelivery; const time = now();
         if (!owns(delivery, token, time)) return null;
         if (expired(delivery, time)) {
-          transaction.set(reference, { ...withoutLease(delivery), status: "review", outcomeCode: "window_expired" }); return null;
+          transaction.set(reference, { ...withoutLease(delivery), status: "review", outcomeCode: "window_expired" }); return { reason: "review" as const };
         }
         const hourRef = db.doc(`operationalAlertRuns/hour-${new Date(time).toISOString().slice(0, 13)}`);
         const first = delivery.firstDispatchAtMs === undefined;

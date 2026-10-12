@@ -7,6 +7,7 @@ import { observeCommittedChange } from "./observe";
 import { GET } from "../../app/api/operations/digest/route";
 import type { AlertConfig } from "./types";
 import type { sendEmail } from "../email";
+import { releaseOrderProcessing, renewOrderProcessing, updateClaimedOrder } from "../firestore";
 
 const boundary = vi.hoisted(() => ({
   db: vi.fn(), after: vi.fn(), send: vi.fn<typeof sendEmail>(),
@@ -30,6 +31,24 @@ describe("operational alert lifecycle through real observer and digest handler",
     boundary.after.mockImplementation(() => undefined);
   });
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it.each(["release", "renew"])("reports a stale order after real claimed write and %s without changing its business timestamp", async maintenance => {
+    const memory = memoryAlertDb(); boundary.db.mockReturnValue(memory.db);
+    let time = T0; vi.spyOn(Date, "now").mockImplementation(() => time);
+    memory.documents.set("orders/leased", sourceAt("paid", { orderProcessingLease: { token: "owner", expiresAtMs: T0 + 120000 } }));
+    memory.documents.set("syncRuns/latest", { status: "success", createdAt: Timestamp.fromMillis(T0) });
+    expect(await updateClaimedOrder("leased", "owner", { status: "printful_pending" })).toBe(true);
+    const version = memory.documents.get("orders/leased")!.updatedAt;
+    time += 1000;
+    expect(await (maintenance === "release" ? releaseOrderProcessing : renewOrderProcessing)("leased", "owner")).toBe(true);
+    expect(memory.documents.get("orders/leased")!.updatedAt).toBe(version);
+    time = T0 + 900001;
+    const response = await GET(new NextRequest("https://shop.example.com/api/operations/digest", { headers: { authorization: "Bearer synthetic-cron" } }));
+    expect(await response.json()).toEqual({ status: "complete", delivery: "accepted" });
+    expect(memory.documents.get("operationalAlertRuns/day-2026-10-12")).toMatchObject({ result: { partial: false, pendingCount: 1, counts: { order_stale: 1 } } });
+    expect(boundary.send).toHaveBeenCalledOnce();
+    expect(boundary.stripe).not.toHaveBeenCalled(); expect(boundary.printful).not.toHaveBeenCalled();
+  });
 
   // Missing observation, broken deduplication, false resolution or generation
   // reuse must break this end-to-end state/transport contract.

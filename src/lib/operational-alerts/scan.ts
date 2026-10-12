@@ -15,9 +15,10 @@ const fields = {
 const fresh = (): ScanProgress => ({ phase: "sources", next: 0, cursors: {}, covered: [], counts: {}, references: [], provisional: null,
   catalog: { cursor: null, lastSuccessAtMs: null, head: null, prefix: null, historyComplete: false, nextPrefix: true } });
 const compareCatalogCursor = (a: CatalogCursor, b: CatalogCursor) => a.seconds - b.seconds || a.nanoseconds - b.nanoseconds || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-function catalogCursor(id: string, raw: unknown, version: number | null): CatalogCursor | null {
-  const stamp = raw instanceof Timestamp ? raw : version === null ? null : Timestamp.fromMillis(version);
-  return stamp ? { id, seconds: stamp.seconds, nanoseconds: stamp.nanoseconds } : null;
+function catalogCursor(id: string, raw: unknown): CatalogCursor | null {
+  // Firestore orders values by storage type. Converting a string/date/number
+  // into a Timestamp cursor can skip records; refuse unsupported history.
+  return raw instanceof Timestamp ? { id, seconds: raw.seconds, nanoseconds: raw.nanoseconds } : null;
 }
 const safeRef = (value: SourceRef | undefined): value is SourceRef => !!value && ["order", "email", "webhook", "catalog"].includes(value.kind)
   && typeof value.id === "string" && value.id.length > 0 && value.id.length <= 300 && !value.id.includes("/");
@@ -80,7 +81,8 @@ export async function scanOperationalIncidents(deps: { db: Firestore; store: Ale
   try {
     const head = await page(queryForCatalog(), 1); catalogHead = head.docs[0]?.data();
     const projected = projectSource({ kind: "catalog", id: "catalog" }, catalogHead);
-    const cursor = head.docs[0] ? catalogCursor(head.docs[0].id, catalogHead?.createdAt, projected.sourceVersionMs) : null;
+    const cursor = head.docs[0] ? catalogCursor(head.docs[0].id, catalogHead?.createdAt) : null;
+    if (head.docs[0] && !cursor) throw new Error("invalid_catalog_cursor");
     if (cursor && progress.catalog.head && compareCatalogCursor(cursor, progress.catalog.head) !== 0) {
       // Restart only the new prefix; the deep history cursor keeps advancing.
       progress.catalog.prefix = { cursor: null, until: progress.catalog.prefix?.until ?? progress.catalog.head };
@@ -124,8 +126,7 @@ export async function scanOperationalIncidents(deps: { db: Firestore; store: Ale
         let success = false;
         for (const doc of result.docs) {
           const data = doc.data(); const projected = projectSource({ kind: "catalog", id: "catalog" }, data);
-          const version = projected.sourceVersionMs;
-          const cursor = catalogCursor(doc.id, data.createdAt, version);
+          const cursor = catalogCursor(doc.id, data.createdAt);
           if (!cursor) { unchecked.add("catalog"); throw new Error("invalid_catalog_cursor"); }
           if (prefix && compareCatalogCursor(cursor, prefix.until) <= 0) { progress.catalog.prefix = null; break; }
           // Validate against this historical run before moving its evidence to

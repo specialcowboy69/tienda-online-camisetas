@@ -20,7 +20,7 @@ export function preventiveRefund() {
 // In-memory Firestore boundary: staged writes commit atomically, callbacks can be
 // replayed, and reads after writes fail like real Firestore transactions.
 import type { Firestore } from "firebase-admin/firestore";
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 function copy<T>(value: T): T {
   if (value instanceof Timestamp) return new Timestamp(value.seconds, value.nanoseconds) as T;
@@ -56,11 +56,14 @@ export function memoryAlertDb(options: { replayCallbacks?: number } = {}) {
   let queue: Promise<unknown> = Promise.resolve();
   const ref = (path: string): TestRef => ({ path, id: path.split("/").at(-1)!, collection: name => collection(`${path}/${name}`), get: async () => { await read(path); readPaths.push(path); return snapshot(ref(path)); } });
   const field = (data: TestDocument, key: string): unknown => key.split(".").reduce<unknown>((current, part) => current && typeof current === "object" ? (current as TestDocument)[part] : undefined, data);
-  const comparable = (value: unknown): string | number => {
-    if (value && typeof value === "object" && "toMillis" in value) return (value as { toMillis: () => number }).toMillis();
-    if (value && typeof value === "object" && "_seconds" in value) return Number((value as TestDocument)._seconds) * 1000 + Number((value as TestDocument)._nanoseconds) / 1e6;
-    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) return Date.parse(value);
-    return value as string | number;
+  const compare = (a: unknown, b: unknown): number => {
+    // Model the storage types used by these queries, including Timestamp's
+    // nanoseconds. ISO strings are strings, not Firestore date values.
+    const rank = (value: unknown) => value === null ? 0 : typeof value === "boolean" ? 1
+      : typeof value === "number" ? 2 : value instanceof Timestamp ? 3 : typeof value === "string" ? 4 : 5;
+    const differentType = rank(a) - rank(b); if (differentType) return differentType;
+    if (a instanceof Timestamp && b instanceof Timestamp) return a.seconds - b.seconds || a.nanoseconds - b.nanoseconds;
+    return (a as string | number) < (b as string | number) ? -1 : (a as string | number) > (b as string | number) ? 1 : 0;
   };
   const query = (spec: QuerySpec): TestCollection => ({
     doc: id => ref(`${spec.path}/${id}`),
@@ -72,7 +75,6 @@ export function memoryAlertDb(options: { replayCallbacks?: number } = {}) {
     get: async () => {
       queryCalls.push(spec); await read(spec.path);
       const valueAt = (entry: [string, TestDocument], key: string) => key === "__name__" ? (spec.group ? entry[0] : entry[0].split("/").at(-1)!) : field(entry[1], key);
-      const compare = (a: unknown, b: unknown) => comparable(a) < comparable(b) ? -1 : comparable(a) > comparable(b) ? 1 : 0;
       let values = [...documents.entries()].filter(([path]) => spec.group ? path.split("/").at(-2) === spec.path : path.startsWith(`${spec.path}/`) && path.split("/").length === spec.path.split("/").length + 1);
       values = values.filter(entry => spec.filters.every(([key, op, value]) => op === "in" ? (value as unknown[]).includes(valueAt(entry, key)) : valueAt(entry, key) === value));
       values = values.filter(entry => spec.orders.every(([key]) => valueAt(entry, key) !== undefined));
@@ -100,8 +102,8 @@ export function memoryAlertDb(options: { replayCallbacks?: number } = {}) {
     collection,
     collectionGroup: (path: string) => query({ path, group: true, orders: [], filters: [] }),
     doc: ref,
-    runTransaction: <T>(callback: (transaction: unknown) => Promise<T>, settings: { maxAttempts: number }) => {
-      transactionAttempts.push(settings.maxAttempts);
+    runTransaction: <T>(callback: (transaction: unknown) => Promise<T>, settings?: { maxAttempts: number }) => {
+      transactionAttempts.push(settings?.maxAttempts ?? 5);
       const execute = async () => {
         let result!: T;
         for (let iteration = 0; iteration <= (options.replayCallbacks ?? 0); iteration++) {
@@ -120,7 +122,12 @@ export function memoryAlertDb(options: { replayCallbacks?: number } = {}) {
             set: (reference: TestRef, data: TestDocument, settings?: { merge?: boolean }) => {
               const hasUndefined = (value: unknown): boolean => value === undefined || (value !== null && typeof value === "object" && Object.values(value).some(hasUndefined));
               if (hasUndefined(data)) throw new Error("Invalid document");
-              writes.set(reference.path, copy(settings?.merge ? { ...documents.get(reference.path), ...data } : data));
+              const next = settings?.merge ? { ...documents.get(reference.path) } : {};
+              for (const [key, value] of Object.entries(data)) {
+                if (value instanceof FieldValue && value.isEqual(FieldValue.delete())) delete next[key];
+                else next[key] = copy(value);
+              }
+              writes.set(reference.path, next);
               return transaction;
             }
           };

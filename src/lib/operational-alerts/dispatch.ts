@@ -26,6 +26,7 @@ export async function dispatchAlert(id: string, deps: { store: AlertStore; confi
     prepared = await deps.store.prepareDelivery(id, token, message);
   } catch { return "retry"; }
   if (!prepared) return "skipped";
+  if ("reason" in prepared) return prepared.reason;
   // No await between these checks and transport: do not send from an expired
   // claim or after configuration has been disabled during preparation.
   if (!canRunAlerts(deps.config)) return "skipped";

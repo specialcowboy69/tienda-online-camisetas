@@ -142,7 +142,10 @@ describe("durable operational alert ledger", () => {
   it("does not resolve on a contradictory equal version", async () => {
     const h = harness(); await activate(h); await immediate(h);
     expect(await h.store.recordObservation(observation("paid", T0 + 1))).toEqual([]);
-    expect(parents(h)).toMatchObject([{ status: "active", needsReconciliation: true }]);
+    expect(parents(h)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ category: "order_review", status: "active", needsReconciliation: true }),
+      expect.objectContaining({ category: "source_unreadable", status: "active", needsReconciliation: true })
+    ]));
   });
   it("can reconcile an unreadable future timestamp after a valid source is read", async () => {
     const h = harness(); await activate(h); h.tick(T0 + 2);
@@ -196,7 +199,7 @@ describe("durable operational alert ledger", () => {
     await h.store.prepareDelivery(id, first.token, message);
     await h.store.finishDelivery(id, first.token, { kind: "retry", code: "receipt_unknown" });
     h.tick(T0 + 82800000); const second = await claimed(h, id); h.tick(T0 + 82800001);
-    expect(await h.store.prepareDelivery(id, second.token, message)).toBeNull();
+    expect(await h.store.prepareDelivery(id, second.token, message)).toEqual({ reason: "review" });
     expect(h.documents.get(id)).toMatchObject({ status: "review" });
   });
   it("caps first dispatches at 20 per UTC hour without a deferred excess burst", async () => {
