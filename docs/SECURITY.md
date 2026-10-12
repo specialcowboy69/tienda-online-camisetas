@@ -28,6 +28,7 @@ Si alguno se pego en chats, capturas, logs o pruebas compartidas, hay que rotarl
 Endpoints admin:
 
 - `/api/catalog/sync`
+- `/api/operations/digest` (implementacion local, desactivada por defecto)
 - `/api/admin/orders`
 - `/api/admin/orders/[orderId]/retry-printful`
 - `/api/admin/printful/webhook`
@@ -196,6 +197,42 @@ declaradas. No se modificaron `package.json` ni `package-lock.json`.
 de compatibilidad. Estos avisos de desarrollo no quedan aceptados por la
 decision productiva del 8 de octubre. No hubo upgrade, overrides ni `--force`;
 esta lectura no modifica la fecha limite ni amplia la aceptacion anterior.
+
+## Alertas operativas — superficie local del 12 de octubre de 2026
+
+Funcion local en `codex/operational-alerts`, sin publicacion ni activacion.
+El [informe de verificacion](verification/2026-10-12-operational-alerts.md)
+recoge SHA, pruebas, audit y pendientes; no acredita Firestore ni Vercel reales.
+
+Autenticacion cron/admin precede cualquier lectura en la ruta de resumen.
+El flag exige exactamente `true`, entorno Production y configuracion valida;
+Preview/local no deben usarse con credenciales productivas para pruebas.
+`OPERATIONAL_ALERTS_TO` es informacion privada de configuracion. Los mensajes
+congelados contienen destinatario/remitente operativos y referencias internas:
+restringir acceso al ledger aunque no contenga PII del cliente. Nunca incluir
+payloads, secretos ni mensajes arbitrarios de excepciones; enlaces solo al panel
+normal autenticado. No existe ruta publica para elegir contenido o destinatario.
+
+Los writes operativos usan colecciones propias, leases y generaciones; los
+transportes quedan fuera de las transacciones de negocio. En escrituras simples
+el predecesor desconocido impide afirmar una transicion inmediata. El presupuesto
+del observador es de un segundo: limita la espera y cerca trabajo tardio antes
+del write, pero no cancela un commit Firestore ya enviado. Probar contencion real,
+indices y `after` desplegado antes de activar; pruebas en memoria no lo sustituyen.
+
+El limite de 23 horas evita reenvios deliberados con clave nueva ante recibo
+ambiguo; no garantiza entrega exactamente una vez. La caida del transporte
+afecta tanto avisos como resumen y mantiene necesaria la supervision manual.
+
+### Audit productivo repetido el 12 de octubre
+
+`npm.cmd audit --omit=dev` termino con codigo 1: **9 paquetes afectados,
+5 high y 4 moderate**. Versiones y advisories en el informe enlazado. Coinciden
+recuento y nombres con el snapshot previo; no se ha establecido identidad de
+todos los advisories. La aceptacion del 8 de octubre no acepta avisos nuevos.
+No se corrigieron dependencias, aplicaron overrides/`--force` ni ampliaron
+aceptaciones. Los hallazgos de desarrollo documentados el 11 siguen separados;
+este audit no los reevalua. Conservar el plazo de revision y el estado `NO-GO`.
 
 ## Checklist antes de produccion
 

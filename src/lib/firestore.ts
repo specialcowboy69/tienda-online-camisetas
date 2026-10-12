@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import type { DocumentReference } from "firebase-admin/firestore";
 import { getDb } from "./firebase-admin";
 import { CatalogProduct, ClaimResult, EmailJob, OrderStatus, ProcessingLease, RefundSnapshot, StoreOrder, WebhookSource } from "./types";
 import { ProcessingBusyError } from "./processing-errors";
+import { canRunAlerts, readAlertConfig } from "./operational-alerts/config";
+import { detectIncidents, projectSource } from "./operational-alerts/detect";
+import { observeCommittedChange } from "./operational-alerts/observe";
+import type { Observation, SourceRef } from "./operational-alerts/types";
 
 const productsCollection = "products";
 const ordersCollection = "orders";
@@ -10,20 +15,73 @@ const webhookEventsCollection = "webhookEvents";
 const syncRunsCollection = "syncRuns";
 const processingLeaseMs = 120000;
 
+function alertsEnabled(): boolean {
+  try { return canRunAlerts(readAlertConfig()); } catch { return false; }
+}
+
+function mergeProjectionData(before: Record<string, unknown> | undefined, patch: Record<string, unknown>) {
+  const data = { ...before };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value instanceof FieldValue && value.isEqual(FieldValue.delete())) delete data[key];
+    else data[key] = value;
+  }
+  return data;
+}
+
+function committedObservation(enabled: boolean, ref: SourceRef, before: Record<string, unknown> | undefined, patch: Record<string, unknown>): Observation | null {
+  if (!enabled) return null;
+  try {
+    return { source: projectSource(ref, mergeProjectionData(before, patch)), previous: before ? projectSource(ref, before) : null, mode: "event", observedAtMs: Date.now() };
+  } catch { return null; }
+}
+
+async function observeSafely(observation: Observation | null): Promise<void> {
+  if (!observation) return;
+  try { await observeCommittedChange(observation); } catch { /* Preserve the committed business result. */ }
+}
+
+// Best-effort source reads have a separate short bound; neither can block a write.
+async function readForObservation<T>(read: () => Promise<T>): Promise<T | undefined> {
+  if (!alertsEnabled()) return undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([read(), new Promise<undefined>(resolve => { timer = setTimeout(() => resolve(undefined), 500); })]);
+  } catch { return undefined; }
+  finally { if (timer) clearTimeout(timer); }
+}
+
+async function observeSimpleOrder(ref: DocumentReference): Promise<void> {
+  if (!alertsEnabled()) return;
+  try {
+    const after = await readForObservation(() => ref.get());
+    if (!after?.exists) return; // No resolution or incident based on a hypothetical merged state.
+    const sourceRef: SourceRef = { kind: "order", id: ref.id };
+    const source = projectSource(sourceRef, after.data());
+    // An unconditional set cannot prove its immediate predecessor, even if a
+    // post-read matches its receipt. Keep uncertain transitions digest-only.
+    await observeSafely({ source, previous: "unknown", mode: "event", observedAtMs: Date.now() });
+  } catch { /* Leave unreadable/concurrent sources for the daily reconciler. */ }
+}
+
 export async function completeClaimedFulfillment(orderId: string, token: string, update: StoreOrderUpdate, job?: EmailJob): Promise<boolean> {
   const db = getDb();
   const ref = db.collection(ordersCollection).doc(orderId);
   if (job && job.orderId !== orderId) throw new Error("Email job belongs to another order.");
   const jobRef = job ? db.collection("emailJobs").doc(job.id) : null;
-  return db.runTransaction(async (transaction) => {
+  const enabled = alertsEnabled();
+  const result = await db.runTransaction(async (transaction) => {
     const order = await transaction.get(ref);
     const existingJob = jobRef ? await transaction.get(jobRef) : null;
     const now = Date.now();
     if (!ownsProcessingLease(order.data()?.orderProcessingLease, token, now)) return false;
-    transaction.set(ref, { ...update, updatedAt: new Date(now).toISOString() }, { merge: true });
+    const patch = { ...update, updatedAt: new Date(now).toISOString() };
+    transaction.set(ref, patch, { merge: true });
     if (jobRef && !existingJob?.exists) transaction.set(jobRef, job!);
-    return true;
+    return { observations: [committedObservation(enabled, { kind: "order", id: orderId }, order.data(), patch),
+      job && !existingJob?.exists ? committedObservation(enabled, { kind: "email", id: job.id }, undefined, { ...job }) : null] };
   });
+  if (result) for (const observation of result.observations) await observeSafely(observation);
+  return !!result;
 }
 
 export const applyClaimedShipment = completeClaimedFulfillment;
@@ -84,12 +142,16 @@ export async function prepareEmailDispatch(jobId: string, token: string, sender:
 
 export async function finishEmailJob(jobId: string, token: string, status: "pending" | "blocked" | "accepted" | "manual_review", details: { providerEmailId?: string; lastError?: string } = {}): Promise<boolean> {
   const db = getDb(); const ref = db.collection("emailJobs").doc(jobId);
-  return db.runTransaction(async (transaction) => {
+  const enabled = alertsEnabled();
+  const result = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref); const job = snapshot.data() as EmailJob | undefined;
     if (!job || job.status !== "processing" || !ownsProcessingLease(job.lease, token, Date.now())) return false;
-    transaction.set(ref, { status, ...details, lease: FieldValue.delete(), updatedAt: new Date().toISOString(), ...(status === "accepted" ? { lastError: FieldValue.delete() } : {}) }, { merge: true });
-    return true;
+    const patch = { status, ...details, lease: FieldValue.delete(), updatedAt: new Date().toISOString(), ...(status === "accepted" ? { lastError: FieldValue.delete() } : {}) };
+    transaction.set(ref, patch, { merge: true });
+    return { observation: committedObservation(enabled, { kind: "email", id: jobId }, snapshot.data(), patch) };
   });
+  if (result) await observeSafely(result.observation);
+  return !!result;
 }
 
 type StoreOrderUpdate = Partial<Omit<StoreOrder, "error" | "refundReviewReason">> & {
@@ -147,7 +209,9 @@ export async function markCatalogProductDeleted(syncProductId: number): Promise<
 }
 
 export async function createOrder(order: StoreOrder): Promise<void> {
-  await getDb().collection(ordersCollection).doc(order.id).set(order);
+  const ref = getDb().collection(ordersCollection).doc(order.id);
+  await ref.set(order);
+  await observeSimpleOrder(ref);
 }
 
 export async function getOrder(orderId: string): Promise<StoreOrder | null> {
@@ -177,10 +241,10 @@ export async function findOrderByPrintfulExternalId(printfulExternalId: string):
 }
 
 export async function updateOrder(orderId: string, update: StoreOrderUpdate): Promise<void> {
-  await getDb()
-    .collection(ordersCollection)
-    .doc(orderId)
-    .set({ ...update, updatedAt: new Date().toISOString() }, { merge: true });
+  const ref = getDb().collection(ordersCollection).doc(orderId);
+  const patch = { ...update, updatedAt: new Date().toISOString() };
+  await ref.set(patch, { merge: true });
+  await observeSimpleOrder(ref);
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus, update: StoreOrderUpdate = {}): Promise<void> {
@@ -235,7 +299,8 @@ export async function beginWebhookEventProcessing(source: WebhookSource, eventId
   const db = getDb();
   const ref = db.collection(webhookEventsCollection).doc(`${source}:${eventId}`);
   const token = randomUUID();
-  const result = await db.runTransaction(async (transaction): Promise<ClaimResult<null> | { kind: "processed" } | { kind: "quarantined" }> => {
+  const enabled = alertsEnabled();
+  const result = await db.runTransaction(async (transaction): Promise<ClaimResult<null> | { kind: "processed" } | { kind: "quarantined"; observation: Observation | null }> => {
     const existing = await transaction.get(ref);
     const data = existing.data();
     const now = Date.now();
@@ -255,12 +320,13 @@ export async function beginWebhookEventProcessing(source: WebhookSource, eventId
       if (malformed) {
         // Commit the quarantine before throwing: throwing inside a transaction
         // would roll back the protective lease and its diagnostic.
-        transaction.set(ref, {
+        const patch = {
           status: "failed", lease: { token, expiresAtMs: now + processingLeaseMs },
           error: { type: "MalformedProcessingLease", message: "Malformed webhook ownership was quarantined for recovery." },
           updatedAt: Timestamp.fromMillis(now)
-        }, { merge: true });
-        return { kind: "quarantined" };
+        };
+        transaction.set(ref, patch, { merge: true });
+        return { kind: "quarantined", observation: committedObservation(enabled, { kind: "webhook", id: `${source}:${eventId}` }, data, patch) };
       }
     }
     const claimedLease = { token, expiresAtMs: now + processingLeaseMs };
@@ -280,7 +346,10 @@ export async function beginWebhookEventProcessing(source: WebhookSource, eventId
 
     return { kind: "claimed", lease: claimedLease, value: null };
   });
-  if (result.kind === "quarantined") throw new ProcessingBusyError(processingLeaseMs / 1000);
+  if (result.kind === "quarantined") {
+    await observeSafely(result.observation);
+    throw new ProcessingBusyError(processingLeaseMs / 1000);
+  }
   return result;
 }
 
@@ -308,18 +377,22 @@ export async function failWebhookEventProcessing(source: WebhookSource, eventId:
 async function changeWebhookEvent(source: WebhookSource, eventId: string, token: string, processed: boolean, error?: unknown): Promise<boolean> {
   const db = getDb();
   const ref = db.collection(webhookEventsCollection).doc(`${source}:${eventId}`);
-  return db.runTransaction(async (transaction) => {
+  const enabled = alertsEnabled();
+  const result = await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(ref);
     const data = existing.data();
     const now = Date.now();
     if (data?.status !== "processing" || !ownsProcessingLease(data?.lease, token, now)) return false;
-    transaction.set(ref, {
+    const patch = {
       status: processed ? "processed" : "failed",
       ...(processed ? { processedAt: Timestamp.fromMillis(now), error: FieldValue.delete() } : { error }),
       lease: FieldValue.delete(), updatedAt: Timestamp.fromMillis(now)
-    }, { merge: true });
-    return true;
+    };
+    transaction.set(ref, patch, { merge: true });
+    return { observation: committedObservation(enabled, { kind: "webhook", id: `${source}:${eventId}` }, data, patch) };
   });
+  if (result) await observeSafely(result.observation);
+  return !!result;
 }
 
 export async function claimOrderProcessing(orderId: string): Promise<ClaimResult<StoreOrder> | { kind: "missing" }> {
@@ -357,7 +430,8 @@ export async function releaseOrderProcessing(orderId: string, token: string): Pr
 async function changeClaimedOrder(orderId: string, token: string, operation: "renew" | "update" | "release", update: Omit<StoreOrderUpdate, "orderProcessingLease"> = {}): Promise<boolean> {
   const db = getDb();
   const ref = db.collection(ordersCollection).doc(orderId);
-  return db.runTransaction(async (transaction) => {
+  const enabled = operation === "update" && alertsEnabled();
+  const result = await db.runTransaction(async (transaction) => {
     const existing = await transaction.get(ref);
     const now = Date.now();
     if (!ownsProcessingLease(existing.data()?.orderProcessingLease, token, now)) return false;
@@ -365,8 +439,10 @@ async function changeClaimedOrder(orderId: string, token: string, operation: "re
       : operation === "release" ? { orderProcessingLease: FieldValue.delete() }
       : { ...update, updatedAt: new Date(now).toISOString() };
     transaction.set(ref, patch, { merge: true });
-    return true;
+    return { observation: committedObservation(enabled, { kind: "order", id: orderId }, existing.data(), patch) };
   });
+  if (result) await observeSafely(result.observation);
+  return !!result;
 }
 
 function readProcessingLease(value: unknown): ProcessingLease | null {
@@ -392,8 +468,25 @@ export async function createSyncRun(input: {
   variantCount?: number;
   error?: unknown;
 }): Promise<void> {
-  await getDb().collection(syncRunsCollection).add({
+  const collection = getDb().collection(syncRunsCollection);
+  const previousHead = await readForObservation(async () => (await collection.orderBy("createdAt", "desc").limit(1).get()).docs[0]);
+  await collection.add({
     ...input,
     createdAt: FieldValue.serverTimestamp()
   });
+  if (!alertsEnabled()) return;
+  try {
+    // Catalog alerts use one stable aggregate, never a new incident per run ID.
+    const head = await readForObservation(async () => (await collection.orderBy("createdAt", "desc").limit(1).get()).docs[0]);
+    if (!head?.exists) return;
+    const sourceRef: SourceRef = { kind: "catalog", id: "catalog" };
+    const prior = previousHead ? projectSource(sourceRef, previousHead.data()) : null;
+    // The old head can prove a past success, but not an atomic predecessor.
+    // Never rehabilitate malformed/future history by copying its timestamp.
+    const lastSuccessAt = prior?.kind === "catalog" && !detectIncidents(prior, Date.now()).some(incident => incident.category === "source_unreadable")
+      ? prior.lastSuccessAtMs : null;
+    const data = head.data();
+    const source = projectSource(sourceRef, { ...data, ...(data?.status === "failed" ? { lastSuccessAt } : {}) });
+    await observeSafely({ source, previous: "unknown", mode: "event", observedAtMs: Date.now() });
+  } catch { /* Missing source evidence is reconciled by the bounded daily scan. */ }
 }

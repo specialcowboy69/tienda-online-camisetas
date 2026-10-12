@@ -18,6 +18,9 @@ const envSchema = z.object({
   CRON_SECRET: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
+  OPERATIONAL_ALERTS_ENABLED: z.string().optional(),
+  OPERATIONAL_ALERTS_TO: z.string().optional(),
+  VERCEL_ENV: z.string().optional(),
   TRUST_PROXY_HEADERS: z.enum(["true", "false"]).default("false"),
   RATE_LIMIT_FALLBACK_MULTIPLIER: z.coerce.number().int().min(1).max(100).default(10)
 });
