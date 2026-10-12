@@ -127,23 +127,38 @@ describe("committed operational observations", () => {
     await db.updateOrder("one", { status: "manual_review" });
     expect(alerts.observe.mock.calls[0][0]).toMatchObject({ previous: "unknown", source: { status: "shipped" } });
   });
-  it("observes creation and simple updates, and keeps disabled writes free of extra reads", async () => {
+  it("keeps unconditional creation and updates conservative even when the post-read matches the write", async () => {
     const db = await import("./firestore");
     await db.createOrder({ id: "one", status: "failed", updatedAt: new Date().toISOString() } as StoreOrder);
-    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ previous: null, source: { status: "failed" } });
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ previous: "unknown", source: { status: "failed" } });
     vi.advanceTimersByTime(1); await db.updateOrder("one", { status: "shipped" });
-    expect(alerts.observe.mock.calls[1][0]).toMatchObject({ previous: { status: "failed" }, source: { status: "shipped" } });
+    expect(alerts.observe.mock.calls[1][0]).toMatchObject({ previous: "unknown", source: { status: "shipped" } });
     alerts.enabled = false; readsFail = true; alerts.observe.mockClear();
     await db.updateOrder("one", { status: "paid" }); expect(alerts.observe).not.toHaveBeenCalled();
   });
-  it("bounds a stalled pre-read and marks the first observed transition unknown", async () => {
+  it("does not claim a stale predecessor when another writer resolves the incident before set", async () => {
+    const db = await import("./firestore"); seedOrder(); records.get("orders/one")!.status = "failed";
+    const reference = ref("orders/one"); const read = vi.fn(() => reference.get());
+    mocks.collection.mockImplementation(() => ({ doc: () => ({ ...reference, get: read,
+      set: async (patch: Record<string, unknown>, options?: { merge: boolean }) => {
+        // B commits after A could have read failed(v1), but before A's set.
+        await db.updateClaimedOrder("one", "owner", { status: "shipped" });
+        return reference.set(patch, options);
+      }
+    }) }));
+    await db.updateOrder("one", { status: "failed" });
+    expect(alerts.observe.mock.calls.map(([observation]) => observation.source.status)).toEqual(["shipped", "failed"]);
+    expect(alerts.observe.mock.calls[1][0]).toMatchObject({ previous: "unknown", source: { status: "failed" } });
+    expect(read).toHaveBeenCalledOnce();
+  });
+  it("bounds a stalled post-read without inventing an observation or delaying the write", async () => {
     const db = await import("./firestore"); seedOrder(); const reference = ref("orders/one");
     const read = vi.fn().mockImplementationOnce(() => new Promise(() => {})).mockImplementation(() => reference.get());
     mocks.collection.mockImplementation(() => ({ doc: () => ({ ...reference, get: read }) }));
     const write = db.updateOrder("one", { status: "failed" });
     await vi.advanceTimersByTimeAsync(500); await write;
     expect(records.get("orders/one")?.status).toBe("failed");
-    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ previous: "unknown", source: { status: "failed" } });
+    expect(alerts.observe).not.toHaveBeenCalled(); expect(read).toHaveBeenCalledOnce();
   });
   it("performs zero extra source reads when alerts are disabled", async () => {
     const db = await import("./firestore"); seedOrder(); alerts.enabled = false;
@@ -158,6 +173,29 @@ describe("committed operational observations", () => {
     vi.advanceTimersByTime(1); await db.createSyncRun({ status: "failed", error: { message: "private" } });
     expect(alerts.observe.mock.calls[1][0]).toMatchObject({ source: { status: "failed" } });
     expect(JSON.stringify(alerts.observe.mock.calls)).not.toContain("private");
+  });
+  it("keeps a sync recurrence unknown when a successful run appears between prior-head read and append", async () => {
+    const db = await import("./firestore");
+    records.set("syncRuns/prior", { status: "failed", createdAt: Timestamp.fromMillis(900000), lastSuccessAt: Timestamp.fromMillis(800000) });
+    mocks.collection.mockImplementation(() => ({
+      orderBy: () => ({ limit: () => ({ get: async () => ({ docs: [snapshot(records.has("syncRuns/current") ? "syncRuns/current" : "syncRuns/prior")] }) }) }),
+      add: async (data: Record<string, unknown>) => {
+        apply("syncRuns/intervening", { status: "success", createdAt: Timestamp.fromMillis(999999) });
+        apply("syncRuns/current", data); return ref("syncRuns/current");
+      }
+    }));
+    await db.createSyncRun({ status: "failed" });
+    expect(records.get("syncRuns/intervening")?.status).toBe("success");
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ previous: "unknown", source: { status: "failed", sourceVersionMs: 1000000, lastSuccessAtMs: 800000 } });
+  });
+  it.each([
+    { status: "unknown", createdAt: Timestamp.fromMillis(900000), lastSuccessAt: Timestamp.fromMillis(800000) },
+    { status: "failed", createdAt: Timestamp.fromMillis(900000), lastSuccessAt: Timestamp.fromMillis(950000) },
+    { status: "success", createdAt: Timestamp.fromMillis(1000001) }
+  ])("never borrows success evidence from an invalid prior catalog projection: %j", async prior => {
+    const db = await import("./firestore"); records.set("syncRuns/run", prior);
+    await db.createSyncRun({ status: "failed" });
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ previous: "unknown", source: { status: "failed", readable: false, lastSuccessAtMs: null } });
   });
 });
 

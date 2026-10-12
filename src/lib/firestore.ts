@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import type { DocumentReference, DocumentSnapshot, WriteResult } from "firebase-admin/firestore";
+import type { DocumentReference } from "firebase-admin/firestore";
 import { getDb } from "./firebase-admin";
 import { CatalogProduct, ClaimResult, EmailJob, OrderStatus, ProcessingLease, RefundSnapshot, StoreOrder, WebhookSource } from "./types";
 import { ProcessingBusyError } from "./processing-errors";
 import { canRunAlerts, readAlertConfig } from "./operational-alerts/config";
-import { projectSource } from "./operational-alerts/detect";
+import { detectIncidents, projectSource } from "./operational-alerts/detect";
 import { observeCommittedChange } from "./operational-alerts/observe";
 import type { Observation, SourceRef } from "./operational-alerts/types";
 
@@ -50,18 +50,16 @@ async function readForObservation<T>(read: () => Promise<T>): Promise<T | undefi
   finally { if (timer) clearTimeout(timer); }
 }
 
-async function observeSimpleOrder(ref: DocumentReference, before: DocumentSnapshot | undefined, receipt: WriteResult, patch: Record<string, unknown>, replace: boolean): Promise<void> {
+async function observeSimpleOrder(ref: DocumentReference): Promise<void> {
   if (!alertsEnabled()) return;
   try {
     const after = await readForObservation(() => ref.get());
     if (!after?.exists) return; // No resolution or incident based on a hypothetical merged state.
     const sourceRef: SourceRef = { kind: "order", id: ref.id };
     const source = projectSource(sourceRef, after.data());
-    const expected = projectSource(sourceRef, replace ? patch : mergeProjectionData(before?.data(), patch));
-    const exactWrite = !!after.updateTime && !!receipt?.writeTime && after.updateTime.isEqual(receipt.writeTime)
-      && JSON.stringify(source) === JSON.stringify(expected);
-    const previous = exactWrite && before ? (before.exists ? projectSource(sourceRef, before.data()) : null) : "unknown";
-    await observeSafely({ source, previous, mode: "event", observedAtMs: Date.now() });
+    // An unconditional set cannot prove its immediate predecessor, even if a
+    // post-read matches its receipt. Keep uncertain transitions digest-only.
+    await observeSafely({ source, previous: "unknown", mode: "event", observedAtMs: Date.now() });
   } catch { /* Leave unreadable/concurrent sources for the daily reconciler. */ }
 }
 
@@ -212,9 +210,8 @@ export async function markCatalogProductDeleted(syncProductId: number): Promise<
 
 export async function createOrder(order: StoreOrder): Promise<void> {
   const ref = getDb().collection(ordersCollection).doc(order.id);
-  const before = await readForObservation(() => ref.get());
-  const receipt = await ref.set(order);
-  await observeSimpleOrder(ref, before, receipt, { ...order }, true);
+  await ref.set(order);
+  await observeSimpleOrder(ref);
 }
 
 export async function getOrder(orderId: string): Promise<StoreOrder | null> {
@@ -245,10 +242,9 @@ export async function findOrderByPrintfulExternalId(printfulExternalId: string):
 
 export async function updateOrder(orderId: string, update: StoreOrderUpdate): Promise<void> {
   const ref = getDb().collection(ordersCollection).doc(orderId);
-  const before = await readForObservation(() => ref.get());
   const patch = { ...update, updatedAt: new Date().toISOString() };
-  const receipt = await ref.set(patch, { merge: true });
-  await observeSimpleOrder(ref, before, receipt, patch, false);
+  await ref.set(patch, { merge: true });
+  await observeSimpleOrder(ref);
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus, update: StoreOrderUpdate = {}): Promise<void> {
@@ -474,7 +470,7 @@ export async function createSyncRun(input: {
 }): Promise<void> {
   const collection = getDb().collection(syncRunsCollection);
   const previousHead = await readForObservation(async () => (await collection.orderBy("createdAt", "desc").limit(1).get()).docs[0]);
-  const created = await collection.add({
+  await collection.add({
     ...input,
     createdAt: FieldValue.serverTimestamp()
   });
@@ -484,10 +480,13 @@ export async function createSyncRun(input: {
     const head = await readForObservation(async () => (await collection.orderBy("createdAt", "desc").limit(1).get()).docs[0]);
     if (!head?.exists) return;
     const sourceRef: SourceRef = { kind: "catalog", id: "catalog" };
-    const previous = previousHead ? projectSource(sourceRef, previousHead.data()) : "unknown";
-    const lastSuccessAt = previous !== "unknown" && previous.kind === "catalog" ? previous.lastSuccessAtMs : null;
+    const prior = previousHead ? projectSource(sourceRef, previousHead.data()) : null;
+    // The old head can prove a past success, but not an atomic predecessor.
+    // Never rehabilitate malformed/future history by copying its timestamp.
+    const lastSuccessAt = prior?.kind === "catalog" && !detectIncidents(prior, Date.now()).some(incident => incident.category === "source_unreadable")
+      ? prior.lastSuccessAtMs : null;
     const data = head.data();
     const source = projectSource(sourceRef, { ...data, ...(data?.status === "failed" ? { lastSuccessAt } : {}) });
-    await observeSafely({ source, previous: head.id === created.id ? previous : "unknown", mode: "event", observedAtMs: Date.now() });
+    await observeSafely({ source, previous: "unknown", mode: "event", observedAtMs: Date.now() });
   } catch { /* Missing source evidence is reconciled by the bounded daily scan. */ }
 }
