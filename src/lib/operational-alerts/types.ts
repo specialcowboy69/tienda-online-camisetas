@@ -1,4 +1,5 @@
-import type { EmailJob, OrderStatus } from "../types";
+import type { EmailJob, EmailMessage, OrderStatus, ProcessingLease } from "../types";
+export type { EmailMessage } from "../types";
 
 export type AlertConfig = {
   enabled: boolean;
@@ -45,4 +46,45 @@ export type Observation = {
   previous: SourceProjection | null | "unknown";
   mode: "event" | "daily";
   observedAtMs: number;
+};
+
+export type AlertSnapshot = { incidents: Incident[] };
+export type DeliveryOutcome =
+  | { kind: "accepted"; providerEmailId: string }
+  | { kind: "retry" | "review"; code: "transport_failed" | "configuration_missing" | "window_expired" | "receipt_unknown" };
+export type AlertDelivery = {
+  // Document path; both incident and daily summary deliveries share one worker.
+  id: string;
+  kind: "incident" | "digest";
+  generation: number;
+  snapshot: AlertSnapshot;
+  status: "pending" | "processing" | "accepted" | "review" | "digest_only";
+  attempts: number;
+  lease?: ProcessingLease;
+  firstDispatchAtMs?: number;
+  message?: EmailMessage;
+  idempotencyKey?: string;
+  providerEmailId?: string;
+  outcomeCode?: Exclude<DeliveryOutcome, { kind: "accepted" }>["code"];
+};
+export type DeliveryClaim =
+  | { kind: "claimed"; token: string; delivery: AlertDelivery }
+  | { kind: "skip"; reason: "busy" | "accepted" | "review" | "missing" | "digest_only" };
+export type PreparedDelivery = { message: EmailMessage; idempotencyKey: string };
+export type AlertRecord = {
+  logicalId: string;
+  sourceKey: string;
+  ref: SourceRef;
+  category: AlertCategory;
+  status: "active" | "resolved";
+  generation: number;
+  sourceVersionMs: number | null;
+  observedAtMs: number;
+  needsReconciliation: boolean;
+};
+export type AlertStore = {
+  recordObservation(input: Observation): Promise<string[]>;
+  claimDelivery(id: string): Promise<DeliveryClaim>;
+  prepareDelivery(id: string, token: string, message: EmailMessage): Promise<PreparedDelivery | null>;
+  finishDelivery(id: string, token: string, outcome: DeliveryOutcome): Promise<boolean>;
 };
