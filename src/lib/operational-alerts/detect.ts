@@ -99,7 +99,7 @@ export function detectIncidents(source: SourceProjection, nowMs: number): Incide
   };
   const validTime = source.sourceVersionMs !== null && source.sourceVersionMs <= nowMs;
   const readable = source.readable && validTime && Number.isFinite(nowMs)
-    && (source.kind !== "catalog" || (source.lastSuccessAtMs !== null && source.lastSuccessAtMs <= nowMs));
+    && (source.kind !== "catalog" || (source.lastSuccessAtMs !== null && source.lastSuccessAtMs <= nowMs && source.lastSuccessAtMs <= source.sourceVersionMs!));
   if (!readable) add("source_unreadable", "daily");
   const age = validTime ? nowMs - source.sourceVersionMs! : 0;
   switch (source.kind) {

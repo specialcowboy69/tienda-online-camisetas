@@ -2,11 +2,11 @@ import { createHash, randomUUID } from "node:crypto";
 import type { Firestore } from "firebase-admin/firestore";
 import { canRunAlerts, readAlertConfig } from "./config";
 import { detectIncidents } from "./detect";
-import type { AlertCategory, AlertConfig, AlertDelivery, AlertRecord, AlertStore, DeliveryClaim, Incident, SourceProjection } from "./types";
+import type { AlertCategory, AlertConfig, AlertDelivery, AlertRecord, AlertStore, DeliveryClaim, Incident, ScanProgress, SourceProjection } from "./types";
 
 const LEASE_MS = 120000;
 const SAFE_RETRY_MS = 82800000;
-type SourceState = { categories: AlertCategory[]; sourceVersionMs: number | null; fingerprint: string | null };
+type SourceState = { categories: AlertCategory[]; sourceVersionMs: number | null; fingerprint: string | null; catalogLastSuccessAtMs?: number | null };
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const deliveryId = (logicalId: string, generation: number) => `operationalAlerts/${logicalId}/deliveries/${generation}`;
 const validId = (id: string) => /^operationalAlerts\/[a-f0-9]{64}\/deliveries\/[1-9]\d*$/.test(id)
@@ -39,8 +39,11 @@ function withoutLease(delivery: AlertDelivery): AlertDelivery {
 /** No business Firestore module import: configuration guards all ledger I/O. */
 export function createAlertStore(db: Firestore, now: () => number, config: AlertConfig = readAlertConfig()): AlertStore {
   const enabled = () => canRunAlerts(config);
+  const scanRef = () => db.doc("operationalAlertRuns/scan");
+  const validDay = (day: string) => /^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(Date.parse(`${day}T00:00:00Z`));
+  const ownsScan = (data: FirebaseFirestore.DocumentData | undefined, token: string) => data?.lease?.token === token && data.lease.expiresAtMs > now();
   return {
-    async recordObservation(input) {
+    async recordObservation(input, budget) {
       if (!enabled()) return [];
       const source = input.source;
       const sourceKey = hash([config.environment, source.ref.kind, source.ref.id]);
@@ -48,6 +51,7 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
       const activationRef = db.doc("operationalAlertRuns/config");
       return db.runTransaction(async transaction => {
         const time = now();
+        budget?.reserve(2);
         const [activationSnapshot, stateSnapshot] = await transaction.getAll(activationRef, sourceRef);
         const activatedAtMs = activationSnapshot.exists ? activationSnapshot.data()!.activatedAtMs as number : time;
         const state = stateSnapshot.data() as SourceState | undefined;
@@ -56,15 +60,23 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
         if (version !== null && state?.sourceVersionMs !== null && state?.sourceVersionMs !== undefined && version < state.sourceVersionMs) return [];
         const readable = !detected.some(i => i.category === "source_unreadable");
         const identity = fingerprint(source);
-        const contradictory = readable && version !== null && version === state?.sourceVersionMs && state.fingerprint !== identity;
+        // A catalog aggregate can gain a newer proven success while its failed
+        // head remains unchanged. Accept only that monotonic evidence update.
+        const catalogEvidenceAdvanced = readable && source.kind === "catalog" && version === state?.sourceVersionMs
+          && typeof state?.catalogLastSuccessAtMs === "number" && source.lastSuccessAtMs !== null
+          && source.lastSuccessAtMs > state.catalogLastSuccessAtMs
+          && fingerprint({ ...source, lastSuccessAtMs: state.catalogLastSuccessAtMs }) === state.fingerprint;
+        const contradictory = readable && version !== null && version === state?.sourceVersionMs && state.fingerprint !== identity && !catalogEvidenceAdvanced;
         const ordered = readable && !contradictory;
         const incidents = contradictory ? [] : detected;
         const categories = [...new Set([...(state?.categories ?? []), ...incidents.map(i => i.category)])];
         const logicalId = (category: AlertCategory) => hash([config.environment, source.ref.kind, source.ref.id, category]);
         const parentRefs = categories.map(category => db.doc(`operationalAlerts/${logicalId(category)}`));
+        budget?.reserve(parentRefs.length);
         const parentSnapshots = parentRefs.length ? await transaction.getAll(...parentRefs) : [];
         const parents = parentSnapshots.map(snapshot => snapshot.data() as AlertRecord | undefined);
         const currentRefs = parents.flatMap(parent => parent?.status === "active" ? [db.doc(deliveryId(parent.logicalId, parent.generation))] : []);
+        budget?.reserve(currentRefs.length);
         const currentSnapshots = currentRefs.length ? await transaction.getAll(...currentRefs) : [];
         const current = new Map(currentSnapshots.map(snapshot => [snapshot.ref.path, snapshot.data() as AlertDelivery]));
         const previous = input.previous;
@@ -74,6 +86,7 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
           && !detectIncidents(previous, Math.min(input.observedAtMs, time)).some(i => i.category === "source_unreadable");
         const previousCategories = previousValid ? detectIncidents(previous as SourceProjection, input.observedAtMs).map(i => i.category) : [];
         const eligible: string[] = [];
+        budget?.reserve(0);
         if (!activationSnapshot.exists) transaction.set(activationRef, { activatedAtMs });
         for (let index = 0; index < categories.length; index++) {
           const category = categories[index]; const parent = parents[index];
@@ -81,8 +94,8 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
           if (!incident) {
             if (!parent) continue;
             if (!ordered) { transaction.set(parentRefs[index], { ...parent, needsReconciliation: true }); continue; }
-            // Only an explicitly read, newer source version can close an alert.
-            if (parent.status === "active" && (parent.sourceVersionMs === null || version! > parent.sourceVersionMs)) {
+            // Close only on a newer read version or the catalog evidence advance above.
+            if (parent.status === "active" && (parent.sourceVersionMs === null || version! > parent.sourceVersionMs || catalogEvidenceAdvanced)) {
               transaction.set(parentRefs[index], { ...parent, status: "resolved", sourceVersionMs: version,
                 observedAtMs: input.observedAtMs, needsReconciliation: false });
               const id = deliveryId(parent.logicalId, parent.generation); const delivery = current.get(id);
@@ -110,14 +123,66 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
             && (state?.sourceVersionMs === null || state?.sourceVersionMs === undefined || version > state.sourceVersionMs);
           const record: AlertRecord = { logicalId: logicalId(category), sourceKey, ref: { ...incident.ref }, category,
             generation, status: "active", sourceVersionMs: ordered ? version : null, observedAtMs: input.observedAtMs, needsReconciliation: !ordered };
-          const delivery: AlertDelivery = { id, kind: "incident", generation, snapshot: { incidents: [incident] },
+          const delivery: AlertDelivery = { id, environment: config.environment, kind: "incident", generation, snapshot: { incidents: [incident] },
             status: immediate ? "pending" : "digest_only", attempts: 0 };
           transaction.set(parentRefs[index], record); transaction.set(db.doc(id), delivery);
           if (immediate) eligible.push(id);
         }
         transaction.set(sourceRef, { categories, sourceVersionMs: ordered ? version : state?.sourceVersionMs ?? null,
-          fingerprint: ordered ? identity : state?.fingerprint ?? null });
+          fingerprint: ordered ? identity : state?.fingerprint ?? null,
+          catalogLastSuccessAtMs: ordered && source.kind === "catalog" ? source.lastSuccessAtMs : state?.catalogLastSuccessAtMs ?? null });
         return eligible;
+      }, { maxAttempts: 3 });
+    },
+    async claimDailyRun(dayUtc) {
+      if (!enabled() || !validDay(dayUtc)) return null;
+      const reference = scanRef(); const token = randomUUID();
+      return db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(reference); const data = snapshot.data(); const time = now();
+        if (data?.lease?.expiresAtMs > time) return null;
+        transaction.set(reference, { ...data, dayUtc, lease: { token, expiresAtMs: time + LEASE_MS } });
+        return { token };
+      }, { maxAttempts: 3 });
+    },
+    async readScanProgress(token, budget) {
+      if (!enabled()) return null;
+      budget?.reserve(1);
+      const snapshot = await scanRef().get(); const data = snapshot.data();
+      if (!ownsScan(data, token)) return null;
+      return data?.progress as ScanProgress ?? { phase: "sources", next: 0, cursors: {}, covered: [], counts: {}, references: [], provisional: null,
+        catalog: { cursor: null, lastSuccessAtMs: null, head: null, prefix: null, historyComplete: false, nextPrefix: true } };
+    },
+    async saveScanProgress(token, progress, budget) {
+      if (!enabled()) return false;
+      const reference = scanRef();
+      return db.runTransaction(async transaction => {
+        budget?.reserve(1);
+        const snapshot = await transaction.get(reference); const data = snapshot.data();
+        if (!ownsScan(data, token)) return false;
+        transaction.set(reference, { ...data, progress }); return true;
+      }, { maxAttempts: 3 });
+    },
+    async prepareDigest(dayUtc, token, result) {
+      if (!enabled() || !validDay(dayUtc)) return null;
+      const reference = db.doc(`operationalAlertRuns/day-${dayUtc}/deliveries/summary`);
+      return db.runTransaction(async transaction => {
+        const [scan, delivery] = await transaction.getAll(scanRef(), reference);
+        if (!ownsScan(scan.data(), token) || scan.data()?.dayUtc !== dayUtc) return null;
+        if (delivery.exists) return reference.path;
+        if (!result.partial && result.pendingCount === 0) return null;
+        const value: AlertDelivery = { id: reference.path, environment: config.environment, kind: "digest", generation: 1, status: "pending", attempts: 0,
+          snapshot: { incidents: [], scan: { ...result, references: result.references.slice(0, 20) } } };
+        transaction.set(reference, value); return reference.path;
+      }, { maxAttempts: 3 });
+    },
+    async finishDailyRun(dayUtc, token, result) {
+      if (!enabled() || !validDay(dayUtc)) return false;
+      return db.runTransaction(async transaction => {
+        const reference = scanRef(); const snapshot = await transaction.get(reference); const data = snapshot.data();
+        if (!ownsScan(data, token) || data?.dayUtc !== dayUtc) return false;
+        const rest = { ...data }; delete rest.lease;
+        transaction.set(reference, rest);
+        transaction.set(db.doc(`operationalAlertRuns/day-${dayUtc}`), { result, finishedAtMs: now() }); return true;
       }, { maxAttempts: 3 });
     },
     async claimDelivery(id) {
@@ -153,16 +218,17 @@ export function createAlertStore(db: Firestore, now: () => number, config: Alert
         }
         const hourRef = db.doc(`operationalAlertRuns/hour-${new Date(time).toISOString().slice(0, 13)}`);
         const first = delivery.firstDispatchAtMs === undefined;
-        const hourSnapshot = first ? await transaction.get(hourRef) : null;
+        const initialIncident = first && delivery.kind === "incident";
+        const hourSnapshot = initialIncident ? await transaction.get(hourRef) : null;
         const count = (hourSnapshot?.data()?.initialDispatches as number | undefined) ?? 0;
-        if (first && count >= 20) {
+        if (initialIncident && count >= 20) {
           transaction.set(reference, { ...withoutLease(delivery), status: "digest_only" }); return null;
         }
         const frozen = delivery.message ?? { ...(message.from === undefined ? {} : { from: message.from }),
           to: message.to, subject: message.subject, text: message.text, html: message.html,
           tags: message.tags.map(tag => ({ name: tag.name, value: tag.value })) };
         const idempotencyKey = delivery.idempotencyKey ?? `operational-${hash([config.environment, id])}`;
-        if (first) transaction.set(hourRef, { initialDispatches: count + 1 });
+        if (initialIncident) transaction.set(hourRef, { initialDispatches: count + 1 });
         transaction.set(reference, { ...delivery, message: frozen, idempotencyKey,
           firstDispatchAtMs: delivery.firstDispatchAtMs ?? time, attempts: delivery.attempts + 1 });
         return { message: frozen, idempotencyKey };

@@ -24,6 +24,14 @@ function harness() {
 }
 
 describe("operational message rendering", () => {
+  it("renders digest coverage, counts, and capped safe references", () => {
+    const h = harness(); const delivery = fixture(); delivery.kind = "digest";
+    delivery.snapshot = { incidents: [], scan: { pendingCount: 42, counts: { order_review: 42 }, references: [{ kind: "order", id: "<internal>" }], partial: true, unchecked: ["orders"], examined: 999 } };
+    const message = renderOperationalMessage(delivery, h.config);
+    expect(message.text).toContain("parcial"); expect(message.text).toContain("42"); expect(message.text).toContain("999");
+    expect(message.text).toContain("order_review: 42"); expect(message.text).toContain("orders");
+    expect(message.html).toContain("&lt;internal&gt;"); expect(message.html).not.toContain("<internal>");
+  });
   it("escapes internal references and exposes only the admin panel destination", () => {
     const h = harness(); const delivery = fixture();
     delivery.snapshot.incidents[0].ref.id = '<script>alert("unsafe")</script>&\'';

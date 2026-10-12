@@ -48,11 +48,28 @@ export type Observation = {
   observedAtMs: number;
 };
 
-export type AlertSnapshot = { incidents: Incident[] };
+export type ScanResult = { pendingCount: number; counts: Partial<Record<AlertCategory, number>>; references: SourceRef[]; partial: boolean; unchecked: string[]; examined: number };
+export type ScanPartition = "orders" | "emailJobs" | "webhookEvents" | "catalog" | "ledger" | "deliveries";
+export type CatalogCursor = { id: string; seconds: number; nanoseconds: number };
+export type ScanProgress = {
+  phase: "sources" | "final" | "complete";
+  next: number;
+  cursors: Partial<Record<ScanPartition, string>>;
+  covered: ScanPartition[];
+  counts: ScanResult["counts"];
+  references: SourceRef[];
+  provisional: { counts: ScanResult["counts"]; references: SourceRef[] } | null;
+  catalog: { cursor: CatalogCursor | null; lastSuccessAtMs: number | null; head: CatalogCursor | null;
+    prefix: { cursor: CatalogCursor | null; until: CatalogCursor } | null; historyComplete: boolean; nextPrefix: boolean };
+};
+// Throws before the read if the shared inspection/deadline budget is exhausted.
+export type InspectionBudget = { reserve: (documents: number) => void };
+export type AlertSnapshot = { incidents: Incident[]; scan?: ScanResult };
 export type DeliveryOutcome =
   | { kind: "accepted"; providerEmailId: string }
   | { kind: "retry" | "review"; code: "transport_failed" | "configuration_missing" | "window_expired" | "receipt_unknown" };
 export type AlertDelivery = {
+  environment?: string;
   // Document path; both incident and daily summary deliveries share one worker.
   id: string;
   kind: "incident" | "digest";
@@ -83,7 +100,12 @@ export type AlertRecord = {
   needsReconciliation: boolean;
 };
 export type AlertStore = {
-  recordObservation(input: Observation): Promise<string[]>;
+  recordObservation(input: Observation, budget?: InspectionBudget): Promise<string[]>;
+  claimDailyRun(dayUtc: string): Promise<{ token: string } | null>;
+  readScanProgress(token: string, budget?: InspectionBudget): Promise<ScanProgress | null>;
+  saveScanProgress(token: string, progress: ScanProgress, budget?: InspectionBudget): Promise<boolean>;
+  prepareDigest(dayUtc: string, token: string, result: ScanResult): Promise<string | null>;
+  finishDailyRun(dayUtc: string, token: string, result: ScanResult): Promise<boolean>;
   claimDelivery(id: string): Promise<DeliveryClaim>;
   prepareDelivery(id: string, token: string, message: EmailMessage): Promise<PreparedDelivery | null>;
   finishDelivery(id: string, token: string, outcome: DeliveryOutcome): Promise<boolean>;

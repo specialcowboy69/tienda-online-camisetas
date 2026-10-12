@@ -171,6 +171,9 @@ describe("safe source projection and incident detection", () => {
   it("marks future version times unreadable without inventing an age", () => {
     expect(categories(order, sourceAt("printful_pending", { updatedAt: T0 + 1 }))).toEqual(["source_unreadable"]);
   });
+  it("rejects a claimed catalog success later than the latest run even when both are in the past", () => {
+    expect(categories(catalog, { status: "success", createdAt: T0 - 10000, lastSuccessAt: T0 - 5000 })).toEqual(["source_unreadable"]);
+  });
 
   it("normalizes a real Firestore server timestamp containing nanoseconds", () => {
     const timestamp = new Timestamp(Math.floor(T0 / 1000), 123456000);

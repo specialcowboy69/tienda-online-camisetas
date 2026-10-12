@@ -34,11 +34,19 @@ export function renderOperationalMessage(delivery: AlertDelivery, config: AlertC
   const incidents = delivery.snapshot.incidents.slice(0, 20);
   const title = delivery.kind === "digest" ? "Resumen operativo diario" : "Aviso operativo";
   const subject = delivery.kind === "digest" ? title : `${title}: ${incidents[0]?.category ?? "source_unreadable"}`;
-  const lines = incidents.map(incident => `${incident.category} | ${incident.ref.kind}: ${incident.ref.id} | ${descriptions[incident.category]}`);
+  const scan = delivery.kind === "digest" ? delivery.snapshot.scan : undefined;
+  const lines = scan ? scan.references.slice(0, 20).map(ref => `${ref.kind}: ${ref.id}`)
+    : incidents.map(incident => `${incident.category} | ${incident.ref.kind}: ${incident.ref.id} | ${descriptions[incident.category]}`);
+  const coverage = scan ? [
+    scan.partial ? "Cobertura parcial. Los conteos son provisionales; quedan fuentes sin verificar." : "Cobertura completa del ciclo de inspeccion. Las lecturas ocurrieron en momentos distintos.",
+    `Incidencias observadas: ${scan.pendingCount}. Documentos presupuestados/examinados en esta ronda: ${scan.examined}.`,
+    ...Object.entries(scan.counts).map(([category, count]) => `${category}: ${count}`),
+    ...(scan.unchecked.length ? [`Sin comprobar: ${scan.unchecked.join(", ")}.`] : [])
+  ] : [];
   const intro = "Revisar las referencias en el panel administrativo. Este aviso no ejecuta acciones sobre pedidos.";
   return {
     from: config.sender, to: config.recipient ?? "", subject,
-    text: [title, "", intro, "", ...lines.map(line => `- ${line}`), "", `Abrir el panel administrativo: ${url}`].join("\n"),
+    text: [title, "", intro, "", ...coverage, "", ...lines.map(line => `- ${line}`), "", `Abrir el panel administrativo: ${url}`].join("\n"),
     html: `<!doctype html>
 <html lang="es" dir="ltr">
 <head><meta charset="utf-8"><title>${escapeHtml(subject)}</title></head>
@@ -46,6 +54,7 @@ export function renderOperationalMessage(delivery: AlertDelivery, config: AlertC
 <main lang="es" dir="ltr" style="max-width:640px;margin:0 auto;padding:24px;">
 <h1 style="font-size:24px;">${escapeHtml(title)}</h1>
 <p>${intro}</p>
+${coverage.map(line => `<p>${escapeHtml(line)}</p>`).join("")}
 <ul>${lines.map(line => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
 <p><a href="${escapeHtml(url)}" style="color:#0047ab;display:inline-block;padding:12px 0;">Abrir el panel administrativo</a></p>
 </main>
