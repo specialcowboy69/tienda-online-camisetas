@@ -190,6 +190,14 @@ No se publico, integro, configuro ni activo ningun servicio.
 
 ## Puertas pendientes antes de activar
 
+Revision automatica de GitHub en PR #29: P2
+[indice de grupo deliveries](https://github.com/specialcowboy69/tienda-online-camisetas/pull/29#discussion_r4250616705).
+Se confirmo la forma de consulta y la exigencia documentada por Firebase; no
+se consultaron ni modificaron indices remotos. Se acepta como bloqueo de
+activacion, no como defecto corregido: el despliegue se integra desactivado.
+Runbook y checklist nombran la consulta que debe provisionarse y probarse.
+Sin indice el scanner informa cobertura parcial; no se declara sano.
+
 - [x] Revision independiente final de los cinco puntos Review Focus,
   correcciones y auditoria AGENTS local. Refrescar inventario y checks antes de
   crear PR o integrar; esta evidencia no autoriza acciones remotas.

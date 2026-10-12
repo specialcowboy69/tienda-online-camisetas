@@ -52,6 +52,9 @@ integrar. No cambia `NO-GO`.
 - [ ] Integrar y registrar PR/SHA y deployment real de la funcion.
 - [ ] Verificar contencion/transacciones e indices en Firestore aislado,
   dos workers, timeout y desactivacion; los mocks no acreditan estos puntos.
+  - Bloqueo concreto de PR #29: provisionar y comprobar el indice de grupo
+    `deliveries` para la consulta de estados pendientes/processing/review;
+    no esta incluido ni verificado por esta entrega desactivada.
 - [ ] Revisar plan/runtime Vercel y autorizar configuracion/activacion remota.
 - [ ] Comprobar aviso TEST ONLY, recibo y recepcion por separado, primera
   invocacion cron autentica y repeticion deduplicada.

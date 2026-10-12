@@ -478,6 +478,19 @@ manual de la siguiente seccion sigue vigente y el lanzamiento permanece `NO-GO`.
 
 ### Activar o desactivar: fase separada
 
+Bloqueo conocido de activacion, concretado en la revision de PR #29: el scanner
+consulta `collectionGroup("deliveries")` con `status in
+["pending", "processing", "review"]` y orden por ID de documento. Firestore no
+crea por defecto los indices con alcance de grupo de colecciones necesarios
+para consultas filtradas/ordenadas
+([documentacion oficial](https://firebase.google.com/docs/firestore/query-data/index-overview#query_scopes)).
+El repositorio aun no provisiona ese indice. Antes de activar, definir y
+provisionar el indice que requiera esta consulta exacta, esperar estado listo y
+verificarla en Firestore dedicado/aislado; un adaptador en memoria o un emulador
+no acredita que el indice de produccion exista. Sin el indice, la ronda queda
+`partial` con `deliveries` sin comprobar: no equivale a cero incidencias.
+No se ha aplicado ningun cambio de indices por publicar la funcion desactivada.
+
 Antes de activar: integrar con auditoria AGENTS, revisar seguridad y verificar
 indices/transacciones con emulador o entorno realmente aislado, dos workers,
 timeout, cron repetido y desactivacion. No usar un Preview con credenciales
