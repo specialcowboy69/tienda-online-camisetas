@@ -109,12 +109,60 @@ desarrollo y su remediacion siguen separados en [SECURITY.md](../SECURITY.md).
   La ventana segura de reintento es 23 horas; un recibo ambiguo sigue requiriendo
   revision. Sin Resend no hay canal alternativo; soporte y vigilancia siguen manuales.
 
-Detalles menores trasladados a revision final: el dispatcher puede devolver
+Detalles menores trasladados a revision final, antes de la correccion registrada
+abajo: el dispatcher podia devolver
 `skipped` si la ventana vence durante prepare aunque el registro ya este en
 `review` (no envia); el comparador del adaptador sintetico iguala ciertos ISO y
 Timestamp que Firestore ordena por tipo. La comprobacion de valores undefined
 anidados del adaptador fue corregida en tarea 4. Estos puntos no se convierten
 en prueba de comportamiento remoto ni se ocultan tras la suite verde.
+
+## Correccion de revision final — 12 de octubre de 2026
+
+Codigo y tests: `81ced848327659a0b187317367a36905c1e8c6b7`, sobre la entrega
+documental `872a263852b4f86b8ea55fda4bbc62c9573ad962`. Esta seccion conserva
+los resultados anteriores como historia y registra el alcance comprobado del fix.
+
+- P1 corregido: la identidad comercial excluye mantenimiento rutinario de
+  leases. El detector sigue consultando su vencimiento actual. La regresion usa
+  `updateClaimedOrder` real con lease, `releaseOrderProcessing` o
+  `renewOrderProcessing` real, avance de 900001 ms y GET/digest reales sobre DB
+  sintetica: un `order_stale`, sin alterar el `updatedAt` comercial. Tambien se
+  prueban leases renovados y su vencimiento para email/webhook.
+- Contradicciones reales de la misma version crean o reabren `source_unreadable`
+  con reconciliacion pendiente; volver al estado anterior con la misma version
+  no basta para resolverlas. Observaciones simplemente antiguas siguen ignoradas.
+  La identidad usa solo diferencias que afectan a la clasificacion; no confunde
+  errores arbitrarios omitidos por la proyeccion segura del scanner.
+- Minor 1 corregido: si vencen las 23 horas entre claim y prepare, el store
+  devuelve un motivo cerrado y el dispatcher devuelve `review`. Conserva
+  mensaje/clave/primer intento, no envia y elimina el lease propio al cerrar.
+- Minor 2 corregido: cursor de catalogo exclusivamente Timestamp nativo; otros
+  tipos encontrados dejan `partial`/`unchecked=catalog`. No hay migracion de
+  datos. Fixtures de continuacion usan Timestamp nativo y el comparador
+  sintetico distingue tipos y conserva nanosegundos.
+
+TDD focalizado: primera ejecucion con 7 fallos esperados y 56 pases; el primer
+ajuste revelo un falso conflicto de proyeccion en el lifecycle existente
+(90/91), corregido sin ampliar campos leidos. Dos regresiones adicionales de
+reaparicion/persistencia de contradicciones fallaron antes de su ajuste. Resultado
+focal final: 4 archivos, 94/94, codigo 0, 18:34:34, 2.84 s.
+
+| Comando sobre `81ced84` | Resultado final |
+| --- | --- |
+| `npm.cmd test` | 44 archivos, 681/681; codigo 0; 18:35:14, 36.91 s |
+| `npm.cmd run lint` | Codigo 0, sin diagnosticos |
+| `npx.cmd tsc --noEmit --incremental false` | Codigo 0, sin diagnosticos |
+| `npm.cmd run build` | Codigo 0; compilacion 10.9 s, 6/6 paginas, `/api/operations/digest` dinamica |
+| `npm.cmd audit --omit=dev` | Codigo 1; 9 vulnerabilidades, 4 moderate y 5 high; mismos paquetes/advisories listados arriba |
+
+No hubo cambios de codigo entre estos gates. La suite conserva las dos
+advertencias conocidas `Shipping customs evidence unavailable.` del fixture
+`order service > rejects unverifiable options: failure`. Audit no esta limpio;
+no se ejecutaron upgrades ni se amplio ninguna aceptacion. Los cambios posteriores
+a este SHA son documentales. La revision independiente del fix y la auditoria
+de integracion corresponden al controlador; estos gates no acreditan Firestore
+real, activacion, cron desplegado, proveedor, buzon ni nuevos permisos comerciales.
 
 ## Puertas pendientes antes de activar
 

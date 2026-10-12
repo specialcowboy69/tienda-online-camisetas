@@ -437,6 +437,15 @@ manual de la siguiente seccion sigue vigente y el lanzamiento permanece `NO-GO`.
   30 segundos. Guarda cursores; `partial` y `unchecked` significan cobertura
   incompleta, nunca cero problemas. La cobertura puede abarcar varias rondas;
   ni siquiera un ciclo completo es una instantanea global simultanea.
+- El lease vigente sigue aplazando la deteccion por antiguedad. Renovarlo o
+  liberarlo no cambia por si solo la identidad del estado comercial ni su
+  `updatedAt`. Una contradiccion comercial con la misma version queda visible
+  como `source_unreadable` y requiere evidencia posterior para resolverse.
+- El cursor de `syncRuns.createdAt` solo admite Timestamp nativo de Firestore,
+  como escribe `serverTimestamp`. Si una pagina leida contiene ISO, numero u
+  otro tipo, la ronda indica `partial` y `catalog` en `unchecked`; no transforma
+  el valor ni declara cobertura completa. Revisar esos datos aparte antes de
+  activar; esta implementacion no los migra ni modifica el catalogo.
 
 ### Leer el registro y actuar
 
