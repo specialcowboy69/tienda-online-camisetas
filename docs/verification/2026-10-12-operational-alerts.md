@@ -1,6 +1,8 @@
-# Alertas operativas: evidencia local del 12 de octubre de 2026
+# Alertas operativas: evidencia e integracion del 12 de octubre de 2026
 
-Estado: implementacion local, sin publicar, integrar ni activar. `NO-GO` vigente.
+Estado al cierre: PR #29 integrado y desplegado, alertas desactivadas. `NO-GO` vigente.
+Las primeras secciones conservan la evidencia local anterior a la integracion;
+el cierre remoto figura mas abajo y no sustituye las puertas de activacion.
 Esta evidencia no autoriza envios reales ni configuracion de servicios.
 
 ## Identidad y alcance
@@ -186,7 +188,36 @@ y los tres worktrees. El checkout de implementacion estaba limpio; los cambios
 documentales ajenos permanecieron intactos. El inventario vigente se comunica
 en la entrega, no se replica como una lista durable de pendientes en esta guia.
 Los cambios posteriores a ese SHA para registrar el cierre son solo documentales.
-No se publico, integro, configuro ni activo ningun servicio.
+En esa fase local no se publico, integro, configuro ni activo ningun servicio.
+
+## Integracion y despliegue verificados — 12 de octubre de 2026
+
+- [PR #29](https://github.com/specialcowboy69/tienda-online-camisetas/pull/29),
+  base `main`, head `99e99d9e4353d0aa8305ebb1e9b09a7814c2c408`, integrado con
+  merge normal a las 17:36:19 UTC. Merge:
+  `d95104e1c1fefad1ffdfae27c28312a6fac73c21`, comprobado en `origin/main`.
+  El arbol del merge coincide exactamente con el head verificado.
+- Gates repetidos sobre ese head: 681/681 tests (44 archivos; 19:34:18 Madrid,
+  9.09 s), lint, TypeScript sin incremental y build: todos codigo 0.
+  Audit productivo de `c14d283`: codigo 1, 5 altos/4 moderados/0 criticos;
+  entre ese SHA y el head solo cambio documentacion, no dependencias.
+- GitHub no publicaba check-runs ni estados de checks; no se presentan como
+  checks verdes. Se verificaron gates locales y Preview Vercel `READY` para
+  el SHA exacto (`dpl_6SsoVsd2TfjXW68uommbeJFAjmcr`) antes del merge.
+- Production `dpl_BUWEjAMtTdG4S7dDS96VFY3z16As`, target Production, `READY`,
+  gitSource `main` y SHA de merge exacto. Alias `www.funnyteesforall.com`,
+  `funnyteesforall.com` y `tienda-online-camisetas.vercel.app`.
+  [Deployment](https://vercel.com/specialcowboy69s-projects/tienda-online-camisetas/BUWEjAMtTdG4S7dDS96VFY3z16As).
+- GET publicos en el dominio canonico: `/`, `/products` y
+  `/products/falling-apart-cat-graphic-tee`: 200. GET sin autenticacion de
+  `/api/operations/digest`: 401 `Unauthorized`. No se invoco un digest autenticado.
+- El inventario Production no contenia `OPERATIONAL_ALERTS_ENABLED` ni
+  `OPERATIONAL_ALERTS_TO`: el feature permanece desactivado. Proyecto Node 24.x.
+  No se copiaron credenciales ni cambiaron variables, indices, alias o proveedores.
+  Los valores ocultos de Stripe Tax/fabricacion no se revalidaron en esta entrega.
+- Revision automatica P2 del indice: documentada como bloqueo de activacion
+  (seccion siguiente), no declarada corregida ni descartada. El despliegue
+  desactivado no acredita transacciones, indice, cron ni email de alertas reales.
 
 ## Puertas pendientes antes de activar
 
@@ -201,7 +232,7 @@ Sin indice el scanner informa cobertura parcial; no se declara sano.
 - [x] Revision independiente final de los cinco puntos Review Focus,
   correcciones y auditoria AGENTS local. Refrescar inventario y checks antes de
   crear PR o integrar; esta evidencia no autoriza acciones remotas.
-- [ ] Integracion autorizada; registrar PR/SHA y deployment realmente observado.
+- [x] Integracion autorizada; PR #29/SHA y deployment registrados en el cierre anterior.
   Este documento no constituye inventario vigente de otras ramas/PRs.
 - [ ] Firestore en emulador o entorno dedicado realmente aislado: indices,
   concurrencia/contencion, dos workers, lease antiguo, replay y timeout. No se
@@ -217,6 +248,7 @@ Sin indice el scanner informa cobertura parcial; no se declara sano.
 
 No se cerraron stock/productos, tracking autentico, rollback aislado, buzon de
 soporte, fiscalidad, pagos live o fabricacion. `STRIPE_TAX_ENABLED=false`, bloqueo
-CA/GB y `NO-GO` se conservan como decisiones; no se reconsulto ni cambio la
-configuracion remota. El procedimiento operativo y las limitaciones de cobertura
-estan en [operations.md](../operations.md#alertas-operativas-implementacion-local-desactivada).
+CA/GB y `NO-GO` se conservan como decisiones; no se revalidaron
+los valores ocultos de configuracion remota ni se cambiaron variables.
+El procedimiento operativo y las limitaciones de cobertura
+estan en [operations.md](../operations.md#alertas-operativas-implementacion-desactivada).
