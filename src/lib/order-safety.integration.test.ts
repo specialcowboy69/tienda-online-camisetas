@@ -3,6 +3,29 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextRequest } from "next/server";
 import type Stripe from "stripe";
 import type { StoreOrder } from "./types";
+import type { InspectionBudget, Observation } from "./operational-alerts/types";
+
+const alertFaults = vi.hoisted(() => ({ mode: "disabled" as "disabled" | "record" | "timeout" | "after", records: 0, scheduled: 0, insideTransaction: false, scheduledInsideTransaction: false }));
+vi.mock("./operational-alerts/config", async importOriginal => ({
+  ...await importOriginal<typeof import("./operational-alerts/config")>(),
+  readAlertConfig: () => ({ enabled: alertFaults.mode !== "disabled", environment: "production", recipient: "ops@example.com", sender: "store@example.com", siteUrl: "https://example.com" })
+}));
+// Keep the observer and business services real; inject only its external ledger.
+vi.mock("./operational-alerts/store", () => ({ createAlertStore: () => ({
+  recordObservation: async (_input: Observation, budget: InspectionBudget) => {
+    alertFaults.records++;
+    if (alertFaults.mode === "record") throw new Error("synthetic ledger failure");
+    if (alertFaults.mode === "timeout") { await new Promise(resolve => setTimeout(resolve, 1500)); budget.reserve(0); }
+    return ["operationalAlerts/synthetic/deliveries/1"];
+  }
+}) }));
+vi.mock("next/server", async importOriginal => ({
+  ...await importOriginal<typeof import("next/server")>(),
+  after: () => {
+    alertFaults.scheduled++; alertFaults.scheduledInsideTransaction ||= alertFaults.insideTransaction;
+    throw new Error("synthetic scheduler failure");
+  }
+}));
 
 // Only the Firestore transport and Stripe SDK reads are replaced. The order,
 // lease, refund, email-job and Printful/Resend HTTP implementations stay real.
@@ -41,6 +64,7 @@ function collection(name: string) {
 let queue = Promise.resolve();
 function transaction(callback: (tx: unknown) => Promise<unknown>) {
   const result = queue.then(async () => {
+    alertFaults.insideTransaction = true;
     const writes: Array<[string, Record<string, unknown>]> = [];
     const value = await callback({
       get: async (ref: { path: string }) => snapshot(ref.path),
@@ -54,6 +78,7 @@ function transaction(callback: (tx: unknown) => Promise<unknown>) {
       }
     });
     for (const [path, data] of writes) state.records.set(path, data);
+    alertFaults.insideTransaction = false;
     return value;
   });
   queue = result.then(() => undefined, () => undefined);
@@ -74,6 +99,8 @@ function refund(status: Stripe.Refund["status"], amount: number): Stripe.Refund 
 
 describe("combined order safety with real services and synthetic transports", () => {
   beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    alertFaults.mode = "disabled"; alertFaults.records = 0; alertFaults.scheduled = 0; alertFaults.insideTransaction = false; alertFaults.scheduledInsideTransaction = false;
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-09-30T12:00:00Z"));
     state.records.clear(); state.records.set("orders/order1", structuredClone(order) as unknown as Record<string, unknown>);
     state.refunds = []; state.emailFails = true; state.creates = 0; state.emails = []; state.createPayloads = []; state.createResponse = null; state.started = null;
@@ -91,7 +118,26 @@ describe("combined order safety with real services and synthetic transports", ()
       throw new Error(`Unexpected synthetic transport URL ${url}`);
     });
   });
-  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it.each(["record", "timeout", "after"] as const)("preserves paid webhook response and provider effects with alert %s failure", async mode => {
+    const service = await import("./order-service"); state.emailFails = false;
+    const baseline = await service.handleStripeWebhook(webhook("evt_alert_fault"), "synthetic-signature");
+    const orderResultWithoutAlerts = { status: baseline.status, body: await baseline.json(), orderStatus: readOrder().status, printfulOrderId: readOrder().printfulOrderId, refundStatus: (readOrder().refundSummary as { status: string }).status, jobStatus: jobs()[0][1].status };
+    const providerCallsWithoutAlerts = { creates: state.creates, emails: state.emails.length, payloads: [...state.createPayloads], emailPayloads: state.emails.map(email => email.body) };
+    state.records.clear(); state.records.set("orders/order1", structuredClone(order) as unknown as Record<string, unknown>);
+    state.creates = 0; state.emails = []; state.createPayloads = []; alertFaults.mode = mode;
+    const pending = service.handleStripeWebhook(webhook("evt_alert_fault"), "synthetic-signature");
+    // Advance synthetic timeout boundaries, including the late rejected ledger read.
+    if (mode === "timeout") await vi.advanceTimersByTimeAsync(20000);
+    const result = await pending;
+    const orderResultWithBrokenAlerts = { status: result.status, body: await result.json(), orderStatus: readOrder().status, printfulOrderId: readOrder().printfulOrderId, refundStatus: (readOrder().refundSummary as { status: string }).status, jobStatus: jobs()[0][1].status };
+    const providerCallsWithBrokenAlerts = { creates: state.creates, emails: state.emails.length, payloads: state.createPayloads, emailPayloads: state.emails.map(email => email.body) };
+    expect(orderResultWithBrokenAlerts).toEqual(orderResultWithoutAlerts);
+    expect(providerCallsWithBrokenAlerts).toEqual(providerCallsWithoutAlerts);
+    expect(alertFaults.records).toBeGreaterThan(0); expect(alertFaults.scheduledInsideTransaction).toBe(false);
+    expect(alertFaults.scheduled).toBe(mode === "after" ? alertFaults.records : 0);
+  });
 
   // Break caught: a locally observed refund waits for canonical reads before
   // claiming the order, allowing a concurrent creator to see an empty list.

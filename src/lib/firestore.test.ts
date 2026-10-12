@@ -17,6 +17,150 @@ const mocks = vi.hoisted(() => ({
   batchCommit: vi.fn()
 }));
 
+const alerts = vi.hoisted(() => ({ observe: vi.fn(), enabled: false }));
+vi.mock("./operational-alerts/observe", () => ({ observeCommittedChange: alerts.observe }));
+vi.mock("./operational-alerts/config", () => ({ readAlertConfig: () => ({ enabled: alerts.enabled }), canRunAlerts: (config: { enabled: boolean }) => config.enabled }));
+
+describe("committed operational observations", () => {
+  const records = new Map<string, Record<string, unknown>>();
+  let inTransaction = false;
+  let replay = false;
+  let readsFail = false;
+  let concurrent = false;
+  let revision = 0;
+  const versions = new Map<string, number>();
+  const version = (number: number) => Timestamp.fromMillis(number);
+  const snapshot = (path: string) => {
+    const data = records.get(path); const captured = data ? { ...data } : undefined;
+    return { id: path.split("/").at(-1), exists: records.has(path), data: () => captured, updateTime: version(versions.get(path) ?? 0) };
+  };
+  const apply = (path: string, patch: Record<string, unknown>, merge = false) => {
+    const next = merge ? { ...records.get(path) } : {};
+    for (const [key, value] of Object.entries(patch)) {
+      if (value instanceof FieldValue && value.isEqual(FieldValue.delete())) delete next[key];
+      else if (value instanceof FieldValue && value.isEqual(FieldValue.serverTimestamp())) next[key] = Timestamp.now();
+      else next[key] = value;
+    }
+    records.set(path, next); versions.set(path, ++revision);
+    return { writeTime: version(revision) };
+  };
+  const ref = (path: string) => ({ path, id: path.split("/").at(-1),
+    get: async () => { if (readsFail) throw new Error("private read error"); return snapshot(path); },
+    set: async (patch: Record<string, unknown>, options?: { merge: boolean }) => {
+      const result = apply(path, patch, options?.merge);
+      if (concurrent) apply(path, { status: "shipped", updatedAt: new Date(Date.now() + 1).toISOString() }, true);
+      return result;
+    }
+  });
+  beforeEach(() => {
+    vi.resetModules(); vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(1_000_000);
+    records.clear(); versions.clear(); revision = 0; replay = false; readsFail = false; concurrent = false; alerts.enabled = true;
+    alerts.observe.mockResolvedValue(undefined);
+    mocks.collection.mockImplementation((name: string) => ({
+      doc: (id: string) => ref(`${name}/${id}`),
+      add: async (data: Record<string, unknown>) => { apply(`${name}/run`, data); return ref(`${name}/run`); },
+      orderBy: () => ({ limit: () => ({ get: async () => ({ docs: [...records].filter(([path]) => path.startsWith(`${name}/`)).map(([path]) => snapshot(path)) }) }) })
+    }));
+    mocks.runTransaction.mockImplementation(async callback => {
+      const execute = async (commit: boolean) => {
+        const writes: Array<() => void> = []; inTransaction = true;
+        try {
+          const result = await callback({ get: async (reference: { path: string }) => snapshot(reference.path), set: (reference: { path: string }, data: Record<string, unknown>, options?: { merge: boolean }) => writes.push(() => { apply(reference.path, data, options?.merge); }) });
+          if (commit) writes.forEach(write => write());
+          return result;
+        } finally { inTransaction = false; }
+      };
+      if (replay) { await execute(false); vi.advanceTimersByTime(1); }
+      return execute(true);
+    });
+  });
+  afterEach(() => { alerts.enabled = false; vi.useRealTimers(); });
+  const seedOrder = () => records.set("orders/one", { status: "paid", updatedAt: new Date(900000).toISOString(), orderProcessingLease: { token: "owner", expiresAtMs: 1120000 } });
+  it("observes only the committed transaction attempt and preserves fulfillment result with a broken observer", async () => {
+    const db = await import("./firestore"); seedOrder(); replay = true;
+    const observedContexts: unknown[] = [];
+    alerts.observe.mockImplementation(async () => { observedContexts.push({ inTransaction, status: records.get("orders/one")?.status }); throw new Error("broken alert"); });
+    expect(await db.completeClaimedFulfillment("one", "owner", { status: "failed" })).toBe(true);
+    expect(alerts.observe).toHaveBeenCalledOnce();
+    expect(observedContexts).toEqual([{ inTransaction: false, status: "failed" }]);
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ source: { status: "failed", sourceVersionMs: 1000001 }, previous: { status: "paid" } });
+    expect(await db.completeClaimedFulfillment("one", "lost", { status: "shipped" })).toBe(false);
+    expect(alerts.observe).toHaveBeenCalledOnce();
+  });
+  it("projects deleted review fields as resolved without observing lease maintenance", async () => {
+    const db = await import("./firestore"); seedOrder();
+    records.get("orders/one")!.refundReviewReason = "private review";
+    expect(await db.updateClaimedOrder("one", "owner", { refundReviewReason: FieldValue.delete() })).toBe(true);
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ source: { refundReview: false, readable: true }, previous: { refundReview: true } });
+    await db.renewOrderProcessing("one", "owner"); await db.releaseOrderProcessing("one", "owner");
+    expect(alerts.observe).toHaveBeenCalledOnce();
+  });
+  it("observes blocked and recovered jobs only after owned writes", async () => {
+    const db = await import("./firestore");
+    records.set("emailJobs/job", { status: "processing", updatedAt: new Date(900000).toISOString(), lease: { token: "owner", expiresAtMs: 1120000 } });
+    expect(await db.finishEmailJob("job", "lost", "blocked")).toBe(false); expect(alerts.observe).not.toHaveBeenCalled();
+    expect(await db.finishEmailJob("job", "owner", "blocked")).toBe(true);
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ source: { kind: "email", status: "blocked", readable: true, leaseExpiresAtMs: null } });
+    records.set("emailJobs/job", { ...records.get("emailJobs/job"), status: "processing", lease: { token: "new", expiresAtMs: 1120000 } });
+    vi.advanceTimersByTime(1); await db.finishEmailJob("job", "new", "accepted");
+    expect(alerts.observe.mock.calls[1][0]).toMatchObject({ source: { status: "accepted" } });
+  });
+  it("observes webhook failures, resolutions and persisted quarantine but not ordinary busy results", async () => {
+    const db = await import("./firestore");
+    const claim = await db.beginWebhookEventProcessing("stripe", "event", {});
+    if (claim.kind !== "claimed") throw new Error("claim required");
+    expect(await db.beginWebhookEventProcessing("stripe", "event", {})).toMatchObject({ kind: "busy" }); expect(alerts.observe).not.toHaveBeenCalled();
+    await db.failWebhookEventProcessing("stripe", "event", claim.lease.token, { type: "Error", message: "private" });
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ source: { status: "failed", errorCode: "processing_failed", leaseExpiresAtMs: null } });
+    const retry = await db.beginWebhookEventProcessing("stripe", "event", {}); if (retry.kind !== "claimed") throw new Error("claim required");
+    vi.advanceTimersByTime(1); await db.finishWebhookEventProcessing("stripe", "event", retry.lease.token);
+    expect(alerts.observe.mock.calls[1][0]).toMatchObject({ source: { status: "processed", errorCode: "none" } });
+    records.set("webhookEvents/stripe:bad", { status: "processing", lease: { broken: true } });
+    await expect(db.beginWebhookEventProcessing("stripe", "bad", {})).rejects.toMatchObject({ retryAfterSeconds: 120 });
+    expect(alerts.observe.mock.calls[2][0]).toMatchObject({ source: { status: "failed", errorCode: "malformed_lease" } });
+  });
+  it("preserves simple write results when reads fail and observes authoritative concurrent state conservatively", async () => {
+    const db = await import("./firestore"); seedOrder(); readsFail = true;
+    await expect(db.updateOrder("one", { status: "failed" })).resolves.toBeUndefined();
+    expect(records.get("orders/one")?.status).toBe("failed"); expect(alerts.observe).not.toHaveBeenCalled();
+    readsFail = false; concurrent = true;
+    await db.updateOrder("one", { status: "manual_review" });
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ previous: "unknown", source: { status: "shipped" } });
+  });
+  it("observes creation and simple updates, and keeps disabled writes free of extra reads", async () => {
+    const db = await import("./firestore");
+    await db.createOrder({ id: "one", status: "failed", updatedAt: new Date().toISOString() } as StoreOrder);
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ previous: null, source: { status: "failed" } });
+    vi.advanceTimersByTime(1); await db.updateOrder("one", { status: "shipped" });
+    expect(alerts.observe.mock.calls[1][0]).toMatchObject({ previous: { status: "failed" }, source: { status: "shipped" } });
+    alerts.enabled = false; readsFail = true; alerts.observe.mockClear();
+    await db.updateOrder("one", { status: "paid" }); expect(alerts.observe).not.toHaveBeenCalled();
+  });
+  it("bounds a stalled pre-read and marks the first observed transition unknown", async () => {
+    const db = await import("./firestore"); seedOrder(); const reference = ref("orders/one");
+    const read = vi.fn().mockImplementationOnce(() => new Promise(() => {})).mockImplementation(() => reference.get());
+    mocks.collection.mockImplementation(() => ({ doc: () => ({ ...reference, get: read }) }));
+    const write = db.updateOrder("one", { status: "failed" });
+    await vi.advanceTimersByTimeAsync(500); await write;
+    expect(records.get("orders/one")?.status).toBe("failed");
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ previous: "unknown", source: { status: "failed" } });
+  });
+  it("performs zero extra source reads when alerts are disabled", async () => {
+    const db = await import("./firestore"); seedOrder(); alerts.enabled = false;
+    const reference = ref("orders/one"); const read = vi.fn(() => reference.get());
+    mocks.collection.mockImplementation(() => ({ doc: () => ({ ...reference, get: read }) }));
+    await db.updateOrder("one", { status: "failed" });
+    expect(read).not.toHaveBeenCalled(); expect(alerts.observe).not.toHaveBeenCalled();
+  });
+  it("uses the stable catalog source and resolved server timestamp for sync outcomes", async () => {
+    const db = await import("./firestore"); await db.createSyncRun({ status: "success" });
+    expect(alerts.observe.mock.calls[0][0]).toMatchObject({ source: { ref: { kind: "catalog", id: "catalog" }, status: "success", sourceVersionMs: 1000000 } });
+    vi.advanceTimersByTime(1); await db.createSyncRun({ status: "failed", error: { message: "private" } });
+    expect(alerts.observe.mock.calls[1][0]).toMatchObject({ source: { status: "failed" } });
+    expect(JSON.stringify(alerts.observe.mock.calls)).not.toContain("private");
+  });
+});
+
 vi.mock("./firebase-admin", () => ({
   getDb: () => ({
     batch: vi.fn(() => ({
