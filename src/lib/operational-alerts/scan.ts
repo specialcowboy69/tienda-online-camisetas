@@ -1,6 +1,6 @@
 import { FieldPath, Timestamp } from "firebase-admin/firestore";
 import type { Firestore, Query } from "firebase-admin/firestore";
-import { projectSource } from "./detect";
+import { detectIncidents, projectSource } from "./detect";
 import type { AlertCategory, AlertDelivery, AlertRecord, AlertStore, CatalogCursor, InspectionBudget, ScanPartition, ScanProgress, ScanResult, SourceRef } from "./types";
 
 const partitions: ScanPartition[] = ["orders", "emailJobs", "webhookEvents", "catalog", "ledger", "deliveries"];
@@ -87,8 +87,8 @@ export async function scanOperationalIncidents(deps: { db: Firestore; store: Ale
       progress.catalog.nextPrefix = true;
     }
     progress.catalog.head = cursor;
-    if (projected.kind === "catalog" && projected.lastSuccessAtMs !== null && projected.lastSuccessAtMs <= deps.now()
-      && projected.sourceVersionMs !== null && projected.sourceVersionMs <= deps.now()) {
+    if (projected.kind === "catalog" && projected.lastSuccessAtMs !== null
+      && !detectIncidents(projected, deps.now()).some(incident => incident.category === "source_unreadable")) {
       progress.catalog.lastSuccessAtMs = projected.lastSuccessAtMs;
       progress.catalog.historyComplete = true; progress.catalog.prefix = null;
     }
@@ -128,8 +128,10 @@ export async function scanOperationalIncidents(deps: { db: Firestore; store: Ale
           const cursor = catalogCursor(doc.id, data.createdAt, version);
           if (!cursor) { unchecked.add("catalog"); throw new Error("invalid_catalog_cursor"); }
           if (prefix && compareCatalogCursor(cursor, prefix.until) <= 0) { progress.catalog.prefix = null; break; }
-          if (projected.kind === "catalog" && projected.lastSuccessAtMs !== null && projected.lastSuccessAtMs <= deps.now()
-            && version !== null && version <= deps.now()) {
+          // Validate against this historical run before moving its evidence to
+          // the newer head, where the original timestamp relationship is lost.
+          if (projected.kind === "catalog" && projected.lastSuccessAtMs !== null
+            && !detectIncidents(projected, deps.now()).some(incident => incident.category === "source_unreadable")) {
             progress.catalog.lastSuccessAtMs = Math.max(progress.catalog.lastSuccessAtMs ?? 0, projected.lastSuccessAtMs); success = true; break;
           }
           if (prefix) prefix.cursor = cursor; else progress.catalog.cursor = cursor;

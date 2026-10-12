@@ -128,6 +128,27 @@ describe("bounded operational scan", () => {
       expect((await h.scan()).counts.source_unreadable).toBe(1);
     }
   });
+  it.each([
+    { status: "failed", lastSuccessAt: T0 - 5000 },
+    { status: "unknown", lastSuccessAt: T0 - 41 * 3600000 }
+  ])("rejects unreadable historical catalog evidence before aggregating it: %j", async history => {
+    const h = harness(); h.documents.delete("syncRuns/latest");
+    h.documents.set("syncRuns/newest-failure", { status: "failed", createdAt: Timestamp.fromMillis(T0 - 1000) });
+    h.documents.set("syncRuns/older-invalid", { status: history.status, createdAt: Timestamp.fromMillis(T0 - 40 * 3600000), lastSuccessAt: Timestamp.fromMillis(history.lastSuccessAt) });
+    expect(await h.scan()).toMatchObject({ partial: true, unchecked: expect.arrayContaining(["catalog"]), counts: { catalog_failed: 1, source_unreadable: 1 } });
+  });
+  it("does not resolve an existing stale alert using a success claimed after its historical run", async () => {
+    const h = harness(); h.documents.delete("syncRuns/latest");
+    await h.store.recordObservation({ source: projectSource({ kind: "catalog", id: "catalog" }, {
+      status: "failed", createdAt: Timestamp.fromMillis(T0 - 2000), lastSuccessAt: Timestamp.fromMillis(T0 - 45 * 3600000)
+    }), previous: "unknown", mode: "daily", observedAtMs: T0 });
+    expect([...h.documents.values()].find(value => value.category === "catalog_stale")).toMatchObject({ status: "active" });
+    h.documents.set("syncRuns/newest-failure", { status: "failed", createdAt: Timestamp.fromMillis(T0 - 1000) });
+    h.documents.set("syncRuns/older-invalid", { status: "failed", createdAt: Timestamp.fromMillis(T0 - 40 * 3600000), lastSuccessAt: Timestamp.fromMillis(T0 - 5000) });
+    const result = await h.scan();
+    expect([...h.documents.values()].find(value => value.category === "catalog_stale")).toMatchObject({ status: "active" });
+    expect(result).toMatchObject({ partial: true, counts: { catalog_failed: 1, catalog_stale: 1, source_unreadable: 1 } });
+  });
   it("continues catalog history by native timestamp and ID and rechecks a new successful head", async () => {
     const h = harness(); h.documents.delete("syncRuns/latest");
     for (let n = 0; n < 1500; n++) h.documents.set(`syncRuns/failure-${String(n).padStart(4, "0")}`, { status: "failed", createdAt: Timestamp.fromMillis(T0 - n - 1000) });
