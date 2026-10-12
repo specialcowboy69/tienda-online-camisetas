@@ -5,7 +5,7 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 12 de octubre de 2026 (alertas integradas; sin activacion)
+**Ultima revision documental:** 12 de octubre de 2026 (registro de stock corregido y verificado; alertas sin activacion)
 
 ## Resumen vigente y fuente de estado
 
@@ -16,10 +16,10 @@ Estar desplegado en Vercel Production no significa tener autorizados pagos live.
 
 | Area | Estado documental; evidencias historicas fechadas |
 | --- | --- |
-| Integracion | Ultimo cambio funcional: PR #29, `d95104e`, desplegado en Vercel Production; conserva el control UE de #27 |
+| Integracion | Ultimo cambio funcional: PR #31, `ff37910`, desplegado en Vercel Production; conserva alertas desactivadas de #29 y control UE de #27 |
 | Envios | Seis destinos previstos US/ES/FR/DE/IT/PT; CA/GB bloqueados por codigo; control preventivo UE integrado y comprobado en cotizaciones publicas |
 | Pagos y pedidos | Evidencia Stripe test, borrador remoto, reembolsos completo/parcial y expiraciones; no acredita ventas live ni fabricacion |
-| Webhook Printful | `order_created` autentico procesado el 8 de octubre; siguen pendientes producto/stock, envio real y confirmacion del evento de cancelacion |
+| Webhook Printful | Registro de stock corregido y confirmado el 12 de octubre: IDs de catalogo 162/317/586/1579, URL/secreto y nueve eventos conservados; sigue pendiente evento nuevo de producto/stock. Evidencia historica de `order_created`, no de envio real |
 | Email | Aceptacion del proveedor comprobada; entrega en bandeja no verificada, aplazada por decision de la persona propietaria |
 | Operacion | Vigilancia manual definida; alertas de #29 desplegadas pero desactivadas; indices, pruebas remotas y activacion pendientes |
 | Legales | Plantillas pendientes de completar, revisar y publicar; no se han publicado paginas por este cambio |
@@ -34,6 +34,18 @@ parte de una tarea documental. La decision vigente es mantener
 pruebas con efectos. La confirmacion de los ocho eventos Stripe y la evidencia
 historica de la transicion de workers siguen pendientes de reconciliar, no se
 marcan completadas por el merge de #27.
+
+## Registro de stock — cierre del 12 de octubre de 2026
+
+El [PR #31](https://github.com/specialcowboy69/tienda-online-camisetas/pull/31)
+esta integrado mediante `ff37910aa1fe6bf704ea331afffa3874f540a5bc`.
+Production `dpl_5xhcQjN9Sgxc8uZQDsMHH2kVxXDA`, `READY`, sirve el dominio canonico.
+708/708 tests, lint, TypeScript y build; revision independiente y fix de su hallazgo
+con RED/GREEN. Registro remoto autenticado `200` y lectura posterior verifican el
+filtro de stock correcto sin cambiar URL, secreto, eventos o parametros ajenos.
+[Evidencia, mappings y limites](verification/2026-10-12-printful-stock-registration.md).
+El evento autentico nuevo y su efecto en catalogo siguen `[ ]`; no se fabricaron,
+cobraron ni modificaron productos para provocar una prueba. Se mantiene `NO-GO`.
 
 ## Alertas operativas — integracion del 12 de octubre de 2026
 
@@ -315,7 +327,10 @@ correo como realizadas basandose en mocks, capturas locales o build.
 - [ ] Confirmar el token y el Store ID de produccion.
 - [ ] Confirmar que el metodo de pago o saldo de Printful puede cubrir pedidos
   reales.
-- [ ] Registrar el webhook de Printful en el dominio final con su secreto.
+- [x] ~~Registrar el webhook de Printful en el dominio final con su secreto.~~
+  - 12 de octubre: configuracion leida antes/despues de registrar con #31;
+    URL/secreto y nueve eventos intactos, IDs de catalogo de stock confirmados.
+    Esto no cierra la prueba de recepcion de un evento nuevo.
 - [x] ~~Comprobar la recepcion de un evento autentico de Printful sin
   fabricacion.~~
   - Borrador sintetico `179951879` con `confirm=0` y `order_created` procesado
