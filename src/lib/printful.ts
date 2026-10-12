@@ -2,6 +2,7 @@ import { env, getPrintfulWebhookTypes, requiredEnv, shouldConfirmPrintfulOrders 
 import { toMinorUnits } from "./money";
 import { CatalogProduct, OrderItem, Recipient, ShippingRate, StoreOrder } from "./types";
 import { readShippingRiskRates, type ShippingRiskPlacement, type ShippingRiskRate } from "./printful-shipping-risk";
+import { z } from "zod";
 
 const PRINTFUL_API_BASE = "https://api.printful.com";
 
@@ -286,20 +287,81 @@ export function appendWebhookSecret(url: string, secret?: string): string {
   return parsed.toString();
 }
 
-export async function configurePrintfulWebhook(publicUrl: string, productIds: number[] = []) {
-  const types = getPrintfulWebhookTypes().filter((type) => productIds.length > 0 || type !== "stock_updated");
+const catalogIdSchema = z.number().int().positive().safe();
+const stockProductSchema = z.object({
+  sync_product: z.object({ id: catalogIdSchema, variants: catalogIdSchema, is_ignored: z.boolean().optional() }),
+  sync_variants: z.array(z.object({
+    is_ignored: z.boolean().optional(),
+    variant_id: catalogIdSchema.optional(),
+    product: z.object({ product_id: catalogIdSchema, variant_id: catalogIdSchema }).optional()
+  })).min(1)
+});
+const webhookConfigSchema = z.object({
+  url: z.string(),
+  types: z.array(z.string().min(1)),
+  // Printful serializes an empty PHP map as []; never accept nonempty arrays.
+  params: z.union([z.record(z.unknown()), z.array(z.never()).length(0)]).optional()
+});
 
-  const params = productIds.length
-    ? {
-        stock_updated: {
-          product_ids: productIds
+async function resolveStockCatalogIds(syncProductIds: number[]): Promise<number[]> {
+  if (!syncProductIds.length || syncProductIds.some(id => !catalogIdSchema.safeParse(id).success)) {
+    throw new Error("A nonempty list of valid sync product IDs is required for stock registration.");
+  }
+  const pending = [...new Set(syncProductIds)];
+  const catalogIds = new Set<number>();
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), 20000);
+  try {
+    await Promise.all(Array.from({ length: Math.min(3, pending.length) }, async () => {
+      while (pending.length) {
+        controller.signal.throwIfAborted();
+        const syncId = pending.shift()!;
+        const response = await printfulFetch<PrintfulResponse<unknown>>(`/store/products/${syncId}`, { signal: controller.signal });
+        const parsed = stockProductSchema.safeParse(response.result);
+        if (!parsed.success || parsed.data.sync_product.id !== syncId || parsed.data.sync_product.is_ignored ||
+            parsed.data.sync_product.variants !== parsed.data.sync_variants.length) {
+          throw new Error("Cannot verify catalog product metadata for stock registration.");
+        }
+        const variants = parsed.data.sync_variants.filter(variant => !variant.is_ignored);
+        if (!variants.length) throw new Error("No synced variants available for stock registration.");
+        for (const variant of variants) {
+          if (!variant.product || variant.product.variant_id !== variant.variant_id) {
+            throw new Error("Cannot verify catalog variant identity for stock registration.");
+          }
+          catalogIds.add(variant.product.product_id);
         }
       }
-    : undefined;
+    }));
+    return [...catalogIds].sort((a, b) => a - b);
+  } finally {
+    controller.abort();
+    clearTimeout(deadline);
+  }
+}
+
+// Callers supply store sync IDs, never catalog IDs. Resolve them before any write.
+export async function configurePrintfulWebhook(publicUrl: string, syncProductIds: number[] = []) {
+  const productIds = await resolveStockCatalogIds(syncProductIds);
+  const current = await printfulFetch<PrintfulResponse<unknown>>("/webhooks");
+  const parsed = webhookConfigSchema.safeParse(current.result);
+  if (!parsed.success) throw new Error("Cannot verify the existing Printful webhook configuration.");
+  const existing = parsed.data;
+  if (existing.url && existing.url !== publicUrl) {
+    // Do not expose the authenticated URL or silently rotate its secret/destination.
+    throw new Error("The existing Printful webhook destination differs. Review it before registering.");
+  }
+  const params = Array.isArray(existing.params) ? {} : (existing.params || {});
+  const stock = z.record(z.unknown()).safeParse(params.stock_updated ?? {});
+  if (!stock.success || params.stock_updated === null) throw new Error("Cannot verify the existing stock webhook parameters.");
+  const types = existing.url ? [...existing.types] : getPrintfulWebhookTypes();
+  if (!types.includes("stock_updated")) types.push("stock_updated");
+  const previousIds = z.array(catalogIdSchema).safeParse(stock.data.product_ids);
+  if (existing.url && existing.types.includes("stock_updated") && previousIds.success &&
+      JSON.stringify([...previousIds.data].sort((a, b) => a - b)) === JSON.stringify(productIds)) return existing;
 
   const data = await printfulFetch<PrintfulResponse<unknown>>("/webhooks", {
     method: "POST",
-    body: JSON.stringify({ url: publicUrl, types, params })
+    body: JSON.stringify({ url: existing.url || publicUrl, types, params: { ...params, stock_updated: { ...stock.data, product_ids: productIds } } })
   });
 
   return data.result;

@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     const url = `${getBaseUrl()}/api/webhooks/printful`;
     const registeredUrl = appendWebhookSecret(url, env.PRINTFUL_WEBHOOK_SECRET);
     const products = await listCatalogProducts();
+    // The provider helper resolves these store IDs to catalog IDs for stock_updated.
     await configurePrintfulWebhook(
       registeredUrl,
       products.map((product) => product.syncProductId)
