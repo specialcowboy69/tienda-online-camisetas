@@ -119,6 +119,15 @@ describe("Printful webhook routes", () => {
     await expect(response.json()).resolves.toEqual({ received: true, duplicate: true });
   });
 
+  it("rejects unauthorized admin registration before reading catalog or contacting Printful", async () => {
+    mocks.isAdminRequest.mockReturnValue(false);
+    const { POST } = await import("../app/api/admin/printful/webhook/route");
+    const response = await POST(new NextRequest("https://store.example/api/admin/printful/webhook", { method: "POST" }));
+    expect(response.status).toBe(401);
+    expect(mocks.listCatalogProducts).not.toHaveBeenCalled();
+    expect(mocks.configurePrintfulWebhook).not.toHaveBeenCalled();
+  });
+
   it("returns only the base webhook URL after registration", async () => {
     vi.stubEnv("NEXT_PUBLIC_BASE_URL", "https://store.example");
     mocks.isAdminRequest.mockReturnValue(true);

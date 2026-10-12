@@ -2,6 +2,104 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mixedPayload, safePayload, syncDtfFixture } from "./__fixtures__/printful-shipping-risk";
 import type { OrderItem, Recipient } from "./types";
 
+describe("Printful stock webhook registration", () => {
+  const destination = "https://store.example/api/webhooks/printful?secret=test-secret";
+  const config = () => ({ url: destination, types: ["package_shipped", "product_updated", "stock_updated"], params: { package_shipped: { custom: "keep" }, stock_updated: { product_ids: [999], custom: "keep-stock" } } });
+  const detail = (id: number, catalogIds: number[]) => ({ sync_product: { id, external_id: String(id), name: "Test tee", variants: catalogIds.length, synced: catalogIds.length, thumbnail_url: "", is_ignored: false }, sync_variants: catalogIds.map((productId, i) => ({ id: id * 10 + i, variant_id: 15114 + i, name: "Test / S", retail_price: "39.99", currency: "USD", files: [], options: [], is_ignored: false, product: { variant_id: 15114 + i, product_id: productId, image: "https://example.com/tee.jpg", name: "Blank tee" } })) });
+  const response = (result: unknown, status = 200) => new Response(JSON.stringify({ code: status, result }), { status });
+  function transport(current: unknown = config(), products: Record<string, unknown> = { "101": detail(101, [586, 586]), "102": detail(102, [162, 317]) }) {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init: RequestInit) => {
+      if (url.endsWith("/webhooks")) return response(init.method === "POST" ? JSON.parse(String(init.body)) : current);
+      const id = url.split("/").at(-1)!;
+      if (!(id in products)) return response({}, 404);
+      return response(products[id]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+  beforeEach(() => { vi.resetModules(); vi.stubEnv("PRINTFUL_API_TOKEN", "test-token"); vi.stubEnv("PRINTFUL_WEBHOOK_TYPES", "package_shipped,stock_updated"); });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
+  it("resolves every catalog model, deduplicates sync/catalog IDs and preserves the other subscription fields", async () => {
+    const fetchMock = transport();
+    const { configurePrintfulWebhook } = await import("./printful");
+    await configurePrintfulWebhook(destination, [101, 102, 101]);
+    const writes = fetchMock.mock.calls.filter(([, init]) => init.method === "POST");
+    expect(writes).toHaveLength(1);
+    expect(JSON.parse(writes[0][1].body)).toEqual({ url: destination, types: ["package_shipped", "product_updated", "stock_updated"], params: { package_shipped: { custom: "keep" }, stock_updated: { product_ids: [162, 317, 586], custom: "keep-stock" } } });
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/store/products/101"))).toHaveLength(1);
+  });
+  it("accepts the provider's empty params array and adds stock without dropping existing events", async () => {
+    const fetchMock = transport({ url: destination, types: ["order_created"], params: [] });
+    const { configurePrintfulWebhook } = await import("./printful");
+    await configurePrintfulWebhook(destination, [101]);
+    expect(JSON.parse(fetchMock.mock.calls.find(([, init]) => init.method === "POST")![1].body)).toEqual({ url: destination, types: ["order_created", "stock_updated"], params: { stock_updated: { product_ids: [586] } } });
+  });
+  it("uses configured defaults for a store with no existing webhook", async () => {
+    const fetchMock = transport({ url: "", types: [], params: [] });
+    const { configurePrintfulWebhook } = await import("./printful");
+    await configurePrintfulWebhook(destination, [101]);
+    expect(JSON.parse(fetchMock.mock.calls.find(([, init]) => init.method === "POST")![1].body)).toEqual({ url: destination, types: ["package_shipped", "stock_updated"], params: { stock_updated: { product_ids: [586] } } });
+  });
+  it("does not rewrite an already correct subscription", async () => {
+    const current = config(); current.params.stock_updated.product_ids = [586, 317, 162];
+    const fetchMock = transport(current);
+    const { configurePrintfulWebhook } = await import("./printful");
+    await configurePrintfulWebhook(destination, [101, 102]);
+    expect(fetchMock.mock.calls.filter(([, init]) => init.method === "POST")).toHaveLength(0);
+  });
+  it.each(["product identity", "variant identity", "missing model", "string model", "empty variants", "ignored product", "only ignored variants"])("never partially subscribes after invalid metadata: %s", async kind => {
+    const broken = detail(102, [162]);
+    if (kind === "product identity") broken.sync_product.id = 999;
+    if (kind === "variant identity") broken.sync_variants[0].product.variant_id = 999;
+    if (kind === "missing model") Object.assign(broken.sync_variants[0], { product: undefined });
+    if (kind === "string model") Object.assign(broken.sync_variants[0].product, { product_id: "162" });
+    if (kind === "empty variants") broken.sync_variants = [];
+    if (kind === "ignored product") broken.sync_product.is_ignored = true;
+    if (kind === "only ignored variants") broken.sync_variants[0].is_ignored = true;
+    const fetchMock = transport(config(), { "101": detail(101, [586]), "102": broken });
+    const { configurePrintfulWebhook } = await import("./printful");
+    await expect(configurePrintfulWebhook(destination, [101, 102])).rejects.toThrow();
+    expect(fetchMock.mock.calls.filter(([, init]) => init.method === "POST")).toHaveLength(0);
+  });
+  it("ignores an explicitly ignored variant without losing other models", async () => {
+    const product = detail(101, [586, 162]); product.sync_variants[1].is_ignored = true;
+    const fetchMock = transport(config(), { "101": product });
+    const { configurePrintfulWebhook } = await import("./printful");
+    await configurePrintfulWebhook(destination, [101]);
+    expect(JSON.parse(fetchMock.mock.calls.find(([, init]) => init.method === "POST")![1].body).params.stock_updated.product_ids).toEqual([586]);
+  });
+  it.each([{ ids: [] }, { ids: [0] }, { ids: [1.5] }, { ids: [NaN] }])("rejects empty or invalid sync IDs before network calls: $ids", async ({ ids }) => {
+    const fetchMock = transport();
+    const { configurePrintfulWebhook } = await import("./printful");
+    await expect(configurePrintfulWebhook(destination, ids)).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each([null, { url: destination, types: "stock_updated", params: {} }, { url: destination, types: [], params: ["unexpected"] }, { url: destination, types: [], params: { stock_updated: null } }, { url: "https://other.example/hook", types: ["stock_updated"], params: {} }])("does not overwrite malformed or different-destination configuration %#", async current => {
+    const fetchMock = transport(current);
+    const { configurePrintfulWebhook } = await import("./printful");
+    await expect(configurePrintfulWebhook(destination, [101])).rejects.toThrow();
+    expect(fetchMock.mock.calls.filter(([, init]) => init.method === "POST")).toHaveLength(0);
+  });
+  it.each([429, 500])("does not register or retry after metadata HTTP %s", async status => {
+    const fetchMock = vi.fn().mockResolvedValue(response({}, status)); vi.stubGlobal("fetch", fetchMock);
+    const { configurePrintfulWebhook } = await import("./printful");
+    await expect(configurePrintfulWebhook(destination, [101])).rejects.toMatchObject({ status });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1].method).not.toBe("POST");
+  });
+  it("bounds metadata concurrency and times out without a registration write", async () => {
+    vi.useFakeTimers(); let active = 0, maximum = 0;
+    const fetchMock = vi.fn().mockImplementation((_url, init) => { active++; maximum = Math.max(maximum, active); return new Promise((_resolve, reject) => init.signal.addEventListener("abort", () => { active--; reject(new DOMException("Aborted", "AbortError")); })); });
+    vi.stubGlobal("fetch", fetchMock);
+    const { configurePrintfulWebhook } = await import("./printful");
+    const assertion = expect(configurePrintfulWebhook(destination, [101, 102, 103, 104])).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(20000); await assertion;
+    expect(maximum).toBe(3); expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls.some(([, init]) => init.method === "POST")).toBe(false);
+  });
+});
+
 describe("Printful shipment customs evidence", () => {
   const recipient: Recipient = { name: "Test", email: "test@example.com", address1: "Test 1", address2: "Unit 2", city: "Madrid", countryCode: "ES", zip: "28014" };
   const item: OrderItem = { productId: "468682936", productName: "Tee", syncVariantId: 5489215132, variantId: 15114, variantName: "S", quantity: 1, unitAmount: 3999, currency: "usd" };

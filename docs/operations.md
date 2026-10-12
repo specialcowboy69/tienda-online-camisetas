@@ -48,6 +48,25 @@ https://tu-dominio.com/api/webhooks/printful
 
 Si `PRINTFUL_WEBHOOK_SECRET` esta configurado, la app registra en Printful una URL con secreto y no devuelve el secreto al navegador.
 
+Para `stock_updated`, el registro resuelve los `syncProductId` de Firestore
+consultando `/store/products/{id}` y usa los IDs de catalogo de
+`sync_variants[].product.product_id`, sin modificar el modelo del catalogo.
+Deduplica todos los modelos de las variantes no ignoradas. Si falta metadata,
+la lista esta vacia o falla el proveedor, no registra una suscripcion parcial.
+
+Antes de escribir, lee `/webhooks`: conserva URL (incluido secreto), eventos y
+parametros ajenos al filtro de stock. Si la URL existente difiere de la configurada,
+se detiene para revision manual; este boton no es una herramienta de rotacion de
+secretos o migracion de dominio. Una suscripcion ya correcta no se vuelve a escribir.
+Tras incorporar nuevos modelos al catalogo, volver a ejecutar el registro y
+comprobar `params.stock_updated.product_ids` sin copiar URLs autenticadas a logs.
+
+Un GET que confirma la suscripcion no acredita la entrega de un evento real.
+Para cerrar esa prueba, registrar un nuevo evento autentico de producto/stock,
+su estado `processed` en `webhookEvents` y el resultado de sincronizacion del
+catalogo. No modificar productos comerciales solo para provocar el evento sin
+autorizacion expresa.
+
 ### Probar Webhook
 
 1. Cambiar algo pequeno en un producto de Printful, como nombre o precio.
