@@ -103,10 +103,10 @@ Incluye:
 
 ### 5. Dominio final en Vercel
 
-Estado: `https://www.funnyteesforall.com` sirve la tienda publica. El deployment
-de #27 fue comprobado contra ese dominio. No es una tarea de alta inicial:
-quedan por verificar la decision canonica/redireccion y el valor efectivo de
-`NEXT_PUBLIC_BASE_URL` segun la checklist.
+Estado: `https://www.funnyteesforall.com` sirve la tienda publica. Canonico,
+redirecciones 308 y `NEXT_PUBLIC_BASE_URL` se comprobaron el 11 de octubre,
+junto con las URLs success/cancel de la nueva compra test. No es una tarea de
+alta inicial; revalidar la configuracion si se cambia el dominio o el deployment.
 
 Objetivo: mantener dominio real, `NEXT_PUBLIC_BASE_URL` y webhooks alineados.
 
