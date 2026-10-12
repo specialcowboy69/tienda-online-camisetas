@@ -1,6 +1,6 @@
 # Roadmap
 
-Revision documental: 11 de octubre de 2026. Esta guia ordena el trabajo;
+Revision documental: 12 de octubre de 2026. Esta guia ordena el trabajo;
 [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md) es la referencia de estados, decisiones
 aplazadas y evidencia fechada. Mantener `NO-GO` hasta cerrar sus criterios.
 
@@ -42,12 +42,13 @@ La tienda ya tiene una base funcional:
 
 ### 1. Webhook de Printful hacia Vercel
 
-Estado: protegido y con un evento autentico `order_created` registrado como
-`processed` el 8 de octubre. Ese borrador sintetico se cancelo sin fabricacion;
-no se observo el evento de cancelacion. La evidencia no cubre envio real ni
-una prueba dedicada de actualizacion de producto/stock.
+Estado: protegido; la [checklist](LAUNCH_CHECKLIST.md) recoge las pruebas reales
+de pedido y de actualizacion de producto, incluida su restauracion. La evidencia
+de producto no cubre un cambio de stock ni un envio real.
 
-Objetivo: cambiar algo en Printful y confirmar que `/api/webhooks/printful` actualiza Firestore.
+Siguiente objetivo: observar un `stock_updated` autentico y verificar su efecto
+en Firestore; comprobar los eventos de envio sin equiparar una simulacion a una
+expedicion fisica.
 
 Resultado esperado:
 
@@ -57,9 +58,9 @@ Resultado esperado:
 
 ### 2. Resend para emails transaccionales
 
-Estado: integrado con jobs durables; registros de dominio y aceptacion de un
-email por el proveedor documentados. Entrega en bandeja aplazada por decision
-de la persona propietaria; no declarar entregado a partir de `accepted`.
+Estado: jobs durables y dos correos de prueba recibidos en Gmail segun capturas
+del propietario del 12 de octubre (confirmacion y recuperacion). Pendientes
+correo de envio, rebotes y canal de soporte; `accepted` por si solo no prueba entrega.
 
 Objetivo: asegurar emails de confirmacion, envio y estados importantes.
 
@@ -177,9 +178,9 @@ Checklist:
   Vitest/Tinypool (desarrollo): evaluar/remediar por separado, sin considerarlos
   cubiertos por la aceptacion productiva anterior.
 - Admin: valorar autenticacion mas robusta si el panel crece.
-- Tests: mantener regresiones y ampliar la evidencia faltante de pending real,
-  recuperacion de email y envio; no confundir la compra test previa con una
-  compra end-to-end posterior a #27.
+- Tests: E2E posterior a #27, pending real y recuperacion de email ya cuentan
+  con evidencia del 11 de octubre. Ampliar aceptacion perdida, cutoff/legacy,
+  concurrencia y envio real; consultar limites en la checklist antes de repetir.
 - Observabilidad: vigilancia manual ya definida en [operations.md](operations.md);
   alertas integradas y desplegadas desactivadas en #29 (12 de octubre de 2026).
   Quedan indices, pruebas aisladas y activacion; no hay guardia automatica de Codex.

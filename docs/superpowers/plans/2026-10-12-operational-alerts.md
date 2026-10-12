@@ -12,9 +12,9 @@
 
 **Estado:** Plan aprobado el 2026-10-12 para ejecucion con subagentes por tarea y revision independiente. Activacion remota separada.
 
-Implementacion local y evidencia: [informe del 12 de octubre](../../verification/2026-10-12-operational-alerts.md).
-Los pasos siguientes conservan el plan aprobado; no certifican activacion,
-publicacion ni integracion. Las puertas remotas siguen pendientes.
+Implementacion integrada y desplegada desactivada en #29: [informe del 12 de octubre](../../verification/2026-10-12-operational-alerts.md).
+Los pasos siguientes conservan el plan aprobado como historial, no ordenan
+reimplementar lo desplegado. Indice, pruebas remotas y activacion siguen pendientes.
 
 ## Global Constraints
 

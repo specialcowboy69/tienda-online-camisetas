@@ -5,7 +5,7 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 12 de octubre de 2026 (registro de stock corregido y verificado; alertas sin activacion)
+**Ultima revision documental:** 12 de octubre de 2026 (product_updated autentico y restauracion verificados; stock real pendiente; alertas sin activacion)
 
 ## Resumen vigente y fuente de estado
 
@@ -18,22 +18,50 @@ Estar desplegado en Vercel Production no significa tener autorizados pagos live.
 | --- | --- |
 | Integracion | Ultimo cambio funcional: PR #31, `ff37910`, desplegado en Vercel Production; conserva alertas desactivadas de #29 y control UE de #27 |
 | Envios | Seis destinos previstos US/ES/FR/DE/IT/PT; CA/GB bloqueados por codigo; control preventivo UE integrado y comprobado en cotizaciones publicas |
-| Pagos y pedidos | Evidencia Stripe test, borrador remoto, reembolsos completo/parcial y expiraciones; no acredita ventas live ni fabricacion |
-| Webhook Printful | Registro de stock corregido y confirmado el 12 de octubre: IDs de catalogo 162/317/586/1579, URL/secreto y nueve eventos conservados; sigue pendiente evento nuevo de producto/stock. Evidencia historica de `order_created`, no de envio real |
-| Email | Aceptacion del proveedor comprobada; entrega en bandeja no verificada, aplazada por decision de la persona propietaria |
+| Pagos y pedidos | E2E test posterior a #27; reembolso pending autentico seguido de full, parcial historico y dos borradores cancelados con permiso. No acredita ventas live ni fabricacion |
+| Webhook Printful | Registro de stock corregido: IDs de catalogo 162/317/586/1579. Dos eventos product_updated autenticos procesados el 12 de octubre; cambio interno y restauracion reflejados en Firestore. Sigue pendiente stock_updated y envio real |
+| Email | Confirmacion y recuperacion recibidas en Gmail, capturas del propietario del 12 de octubre. Correo de envio, rebotes y canal de soporte pendientes |
 | Operacion | Vigilancia manual definida; alertas de #29 desplegadas pero desactivadas; indices, pruebas remotas y activacion pendientes |
 | Legales | Plantillas pendientes de completar, revisar y publicar; no se han publicado paginas por este cambio |
 | Riesgo residual | Aceptacion productiva del 8 de octubre; audit repetido el 11 y avisos de desarrollo pendientes en SECURITY.md, sin ampliar la aceptacion |
 
-**Aplazado, no completado:** la compra real controlada, la comprobacion del
-buzon y el trabajo fiscal se han pospuesto por decision de la persona propietaria.
+**Aplazado, no completado:** la compra real controlada y el trabajo fiscal
+se han pospuesto por decision de la persona propietaria. La recepcion de los dos
+correos de prueba si quedo acreditada por las capturas aportadas el 12 de octubre.
 Se conserva su estado `[ ]`; aplazarlos no elimina riesgos, obligaciones ni los
 criterios de GO. No ejecutar compra live, activar fabricacion o Stripe Tax como
 parte de una tarea documental. La decision vigente es mantener
 `STRIPE_TAX_ENABLED=false`; los valores efectivos deben verificarse al retomar
-pruebas con efectos. La confirmacion de los ocho eventos Stripe y la evidencia
-historica de la transicion de workers siguen pendientes de reconciliar, no se
-marcan completadas por el merge de #27.
+pruebas con efectos. Las ocho suscripciones Stripe test se comprobaron el 11
+de octubre; no equivale a probar todos los tipos ni configurar live. La transicion
+historica de workers sigue pendiente de acreditar.
+
+### Cierre tecnico posterior a #28 — 11 de octubre
+
+La [evidencia detallada](verification/2026-10-11-launch-checks.md) distingue
+proveedores reales, fallo de email simulado, limites y registros conservados.
+Se verifico una compra test a ES con envio incluido, reembolso pendiente que
+paso a completo, recuperacion del email por Vercel y cancelacion autorizada de
+los borradores `179691582` y `180436734`, sin fabricacion. Los snapshots
+historicos de abajo se conservan; sus pendientes de pending/email/borrador
+quedan actualizados por esta prueba, no borrados retrospectivamente.
+
+Home y catalogo se revisaron en movil/escritorio; dominio canonico y accesos
+sin autenticar comprobados. Tests 477/477, TypeScript y build correctos.
+Lint del codigo pasa excluyendo `.superpowers/**`; el comando estandar falla
+por helpers locales ignorados preexistentes. Audit no esta limpio. La revision
+de los criticos del tooling esta documentada, pero su solucion/aceptacion sigue
+pendiente. No se activaron live, Tax, alertas automaticas ni se ejecuto rollback.
+
+### Tracking y recepcion de correo — 12 de octubre
+
+La [verificacion fechada](verification/2026-10-12-webhooks-tracking-operations.md)
+recoge las capturas de Gmail y la simulacion aislada de tracking/enlace, replay,
+segundo paquete y recuperacion tras 503. No acredita un envio fisico ni un email
+de tracking real. El hallazgo inicial de registro de stock se corrigio despues
+con #31; los resultados posteriores se registran a continuacion. El preview
+compartia metadata de credenciales con Production: el ensayo de rollback sigue
+pendiente de un entorno aislado, no se ejecuto sobre datos comerciales.
 
 ## Registro de stock — cierre del 12 de octubre de 2026
 
@@ -44,8 +72,20 @@ Production `dpl_5xhcQjN9Sgxc8uZQDsMHH2kVxXDA`, `READY`, sirve el dominio canonic
 con RED/GREEN. Registro remoto autenticado `200` y lectura posterior verifican el
 filtro de stock correcto sin cambiar URL, secreto, eventos o parametros ajenos.
 [Evidencia, mappings y limites](verification/2026-10-12-printful-stock-registration.md).
-El evento autentico nuevo y su efecto en catalogo siguen `[ ]`; no se fabricaron,
-cobraron ni modificaron productos para provocar una prueba. Se mantiene `NO-GO`.
+En ese primer cierre, el evento autentico nuevo y su efecto en catalogo seguian
+`[ ]`; no se fabricaron, cobraron ni modificaron productos para esa comprobacion
+del registro. La prueba posterior autorizada se detalla a continuacion.
+
+## Producto actualizado — prueba remota del 12 de octubre de 2026
+
+Dos eventos autenticos `product_updated`, generados por Printful tras cambiar y
+restaurar un identificador interno de Falling apart, quedaron `processed` sin
+reintentos. Firestore reflejo ambos valores; las 35 variantes y los datos
+comerciales e imagenes del catalogo permanecieron iguales. El PDP respondio 200.
+Deployment `dpl_MBy67mxbAQ4jmK4b6e6JBbEauJSq`, SHA `41f9e3a`.
+[Eventos, tiempos, restauracion y limites](verification/2026-10-12-product-updated-live.md).
+Se cierra la prueba de producto, no la de stock. Sin pedidos, pagos ni fabricacion;
+`stock_updated`, alertas, tracking y rollback conservan sus pendientes. Se mantiene `NO-GO`.
 
 ## Alertas operativas — integracion del 12 de octubre de 2026
 
@@ -75,7 +115,7 @@ No cambia `NO-GO` ni acredita vigilancia automatica o envios de correo operativo
 - [ ] Comprobar aviso TEST ONLY, recibo y recepcion por separado, primera
   invocacion cron autentica y repeticion deduplicada.
 
-Stock/productos, tracking genuino, rollback aislado, soporte, fiscalidad y
+Stock autentico, tracking genuino, rollback aislado, soporte, fiscalidad y
 compra live siguen siendo tareas separadas. No se completan con estas pruebas.
 
 ## Seguridad de pedidos: implementacion y prueba controlada
@@ -97,7 +137,9 @@ proveedor y un reembolso completo reflejado en Stripe y Firestore. Una primera
 compra de prueba quedo en `manual_review` cuando Stripe cambio materialmente
 la direccion; se reembolso completamente y no se creo pedido remoto ni se
 acepto email de confirmacion. No se observo fabricacion.
-La entrega en bandeja del email y la compra live siguen sin verificarse. El
+En aquella prueba no se verificaron bandeja ni compra live. Las capturas del
+12 de octubre acreditan despues los dos correos del test del dia 11, no los
+correos de esta prueba historica ni una compra live. El
 estado global permanece `NO-GO`.
 
 El 8 de octubre se comprobo otro checkout Stripe test expirado sin pago:
@@ -137,17 +179,22 @@ El 7 de octubre de 2026, `npm.cmd test` paso 365/365 tests sobre el SHA base
 - [ ] Recuperar y registrar la evidencia de la transicion original de workers
   sin fencing; no se da por acreditada aqui. Para futuros cambios de protocolo
   o rollback a una version incompatible, aplicar el drenaje de DEPLOYMENT.md.
-- [ ] Confirmar los ocho eventos Stripe primero en test, sin backfill masivo.
+- [x] ~~Confirmar las ocho suscripciones Stripe primero en test, sin backfill masivo.~~
+  - Lectura del endpoint enabled el 11 de octubre; ver evidencia detallada.
 - [ ] Prueba sandbox del flujo completo, eventos concurrentes/repetidos,
   reembolso parcial y pending, recuperacion de emails y lease busy 503.
   - Verificado parcialmente: pago completo, reembolsos completo y parcial,
     expiracion de checkout, y dos eventos concurrentes recuperados al reenviar
-    el mismo ID. Pending real y recuperacion de emails siguen pendientes.
+    el mismo ID. El 11 de octubre se anaden pending real, nuevo E2E a ES y
+    recuperacion de email tras 503 simulado localmente. No cubre todos los
+    fallos/leases, aceptacion perdida ni condiciones de concurrencia.
 - [ ] Verificar entrega de email/rebotes por separado de aceptacion Resend.
 - [ ] Revisar legacy sin jobs, confirmaciones faltantes y cutoff de 23 horas,
   sin mensajes historicos automaticos; asignar responsable de recuperacion.
-- [ ] Revisar procedimiento de reembolso manual Stripe y cancelacion Printful
-  por separado; no desbloquear latches ni estados terminales mediante Retry.
+- [x] ~~Revisar procedimiento de reembolso manual Stripe y cancelacion Printful
+  por separado; no desbloquear latches ni estados terminales mediante Retry.~~
+  - El 11 de octubre se concilio el refund y se cancelaron por separado dos
+    borradores autorizados. No se probo cancelacion de fabricacion en curso.
 - [x] ~~Registrar la aceptacion expresa de los advisories actuales.~~
   - El 8 de octubre `npm.cmd audit --omit=dev --json` conto **9 paquetes**:
     0 critical, 5 high y 4 moderate. La aceptacion temporal consta en
@@ -187,11 +234,13 @@ correo como realizadas basandose en mocks, capturas locales o build.
 - [x] ~~Confirmar que Vercel ha desplegado el commit mergeado desde `main`.~~
   - Evidencia: deployment de produccion `Ready`; los despliegues posteriores
     de `main` conservan el storefront.
-- [ ] Revisar visualmente home y `/products` en produccion, tanto en escritorio
-  como en movil.
-- [ ] Confirmar funcionalmente que el PDP y el checkout no han sufrido
-  regresiones tras el despliegue. El smoke test HTTP esta correcto, pero no
-  sustituye una compra de prueba.
+- [x] ~~Revisar visualmente home y `/products` en produccion, tanto en escritorio
+  como en movil.~~
+  - Chromium, 1440x900 y 390x844, el 11 de octubre. No acredita Safari/Firefox
+    ni auditoria exhaustiva de accesibilidad o rendimiento.
+- [x] ~~Comprobar una compra representativa desde PDP hasta checkout tras el despliegue.~~
+  - Falling apart Black S a ES, Stripe test; evidencia detallada. Pendiente
+    ampliar a todos los PDP, destinos y carrito mixto.
 
 ## 2. Acceso publico y dominio
 
@@ -212,10 +261,10 @@ correo como realizadas basandose en mocks, capturas locales o build.
   - Evidencia: un webhook Stripe test firmado respondio `200`; Printful sin
     credenciales devolvio `401`. El 8 de octubre un `order_created` autentico
     de Printful quedo `processed` en Firestore; ver seccion 5.
-- [ ] Elegir el dominio canonico —recomendado: `www.funnyteesforall.com`— y
-  redirigir el otro dominio hacia el.
-- [ ] Configurar `NEXT_PUBLIC_BASE_URL` con el dominio canonico en Vercel
-  Production.
+- [x] ~~Elegir `www.funnyteesforall.com` como canonico y redirigir el otro host.~~
+  - Redirects HTTP/HTTPS 308 comprobados el 11 de octubre.
+- [x] ~~Configurar `NEXT_PUBLIC_BASE_URL` con el dominio canonico en Vercel Production.~~
+  - Valor publico exportado y URLs success/cancel de la sesion nueva coinciden.
 
 ## 3. Dependencias y seguridad
 
@@ -247,6 +296,9 @@ correo como realizadas basandose en mocks, capturas locales o build.
   - No se usaron credenciales validas ni se crearon pedidos, sesiones de Stripe
     o escrituras de prueba.
 - [ ] Verificar que no hay secretos reales versionados en Git.
+  - Escaneo heuristico del 11 de octubre sin coincidencias en la muestra; limites
+    y accesos administrativos comprobados en [SECURITY.md](SECURITY.md). No
+    equivale a auditoria exhaustiva ni exige rotar secretos sin exposicion probada.
 - [ ] Rotar los secretos de produccion que se hayan compartido o utilizado
   durante pruebas.
   - `ADMIN_SECRET`
@@ -335,8 +387,14 @@ correo como realizadas basandose en mocks, capturas locales o build.
   fabricacion.~~
   - Borrador sintetico `179951879` con `confirm=0` y `order_created` procesado
     en `webhookEvents`; el borrador se cancelo. El evento de cancelacion no se
-    observo, y un evento de producto/stock o envio real sigue pendiente.
-- [ ] Probar un evento real de actualizacion de producto o stock.
+    observo; la prueba de producto posterior se documenta a continuacion. No
+    acredita un envio real.
+- [x] ~~Probar un evento real de actualizacion de producto o stock.~~
+  - 12 de octubre: dos `product_updated` autenticos, `processed`, y cambio de
+    identificador interno/restauracion verificados en Firestore. Sin cambios
+    comerciales. [Evidencia](verification/2026-10-12-product-updated-live.md).
+- [ ] Observar por separado un `stock_updated` autentico del proveedor y
+  comprobar su efecto; no queda demostrado por la prueba de producto.
 - [ ] Mantener `ORDER_CONFIRM_PRINTFUL=false` durante las pruebas previas a la
   compra real controlada.
 
@@ -360,7 +418,10 @@ correo como realizadas basandose en mocks, capturas locales o build.
   email de confirmacion desde el deployment probado.~~
   - Evidencia: job `accepted` con un intento e ID del proveedor. Volver a
     comprobar la configuracion vigente antes de activar ventas live.
-- [ ] Enviar y recibir correctamente un email transaccional de prueba.
+- [x] ~~Enviar y recibir correctamente un email transaccional de prueba.~~
+  - Capturas de Gmail aportadas por la persona propietaria el 12 de octubre:
+    confirmacion #8FA67DCC y prueba TEST ONLY de recuperacion del dia 11 en
+    Recibidos. No acredita email de envio ni recepcion del canal de soporte.
 - [ ] Confirmar que los emails de pedido y envio se muestran correctamente en
   movil y escritorio.
 - [ ] Anadir un registro DMARC; empezar con una politica de observacion si
@@ -480,12 +541,15 @@ correo como realizadas basandose en mocks, capturas locales o build.
     confirmar fabricacion.
 - [x] ~~Confirmar que el job de email de pedido fue aceptado por el proveedor.~~
   - Evidencia: `emailJobs` registro `accepted`, un intento y un ID del proveedor.
-- [ ] Comprobar entrega real del email, rebotes y visualizacion en bandeja.
+- [x] ~~Comprobar entrega y visualizacion en bandeja de los dos emails de prueba.~~
+  - Capturas de Gmail del propietario, verificadas el 12 de octubre; ver evidencia.
+- [ ] Comprobar rebotes y entrega/visualizacion de un email de envio.
 - [x] ~~Probar la pagina de exito despues del pago test.~~
   - Evidencia: `/success` respondio `200`, mostro el estado de pago recibido y
     la URL de retorno no expuso el ID interno del pedido.
-- [ ] Probar visualmente la pagina de cancelacion; la expiracion del checkout
-  y su webhook si se han comprobado en Stripe test y Firestore.
+- [x] ~~Probar visualmente la pagina de cancelacion.~~
+  - `/cancel` revisada en movil/escritorio el 11 de octubre por acceso directo;
+    no se confunde con cancelar un pago. Expiraciones conservan prueba anterior.
 - [x] ~~Probar un reembolso completo en Stripe test y su reconciliacion.~~
   - Evidencia: Stripe y Firestore registraron el importe completo reembolsado;
     `refundSummary.status=full`. Un `503` temporal por eventos concurrentes se
@@ -494,13 +558,13 @@ correo como realizadas basandose en mocks, capturas locales o build.
   - Evidencia: un solo refund de 500 centavos sobre 3999, recibo canonico,
     `refundSummary.status=partial` y bloqueo de fulfillment. Un
     `refund.updated` ocupado quedo `processed` tras replay del mismo ID.
-- [ ] Probar un reembolso `pending` autentico de Stripe con una tarjeta de
-  prueba especifica; por ahora solo esta cubierto por tests sinteticos.
-- [ ] Revisar manualmente el borrador remoto que quedo de la prueba reembolsada
-  y cancelarlo o eliminarlo solo tras identificarlo y autorizar esa accion.
-  - Identificado el 8 de octubre: Printful `179691582`, `draft`, ID externo
-    `4bdf700f49af4a8ba54d409b8696aa96`, sin envios. Reconsultar estado antes
-    de actuar; la revision documental no acredita su limpieza ni estado actual.
+- [x] ~~Probar un reembolso `pending` autentico de Stripe con tarjeta de prueba.~~
+  - El 11 de octubre: pending real, Firestore no lo conto como completado;
+    posteriormente succeeded y full por 3999 centavos, un solo refund.
+- [x] ~~Revisar y cancelar el borrador remoto de la prueba reembolsada con permiso.~~
+  - `179691582` y el nuevo `180436734`: canceled confirmado por API el 11 de
+    octubre, cero envios, registros financieros y emails conservados.
+    No se recibio evento de cancelacion; snapshot local puede seguir draft.
 
 ### Compra real controlada
 
@@ -549,6 +613,9 @@ por esta actualizacion; requiere permiso nuevo al retomarla y sigue sin verifica
 - [ ] Verificar que no aparecen textos de desarrollo, placeholders ni datos
   inventados.
 - [ ] Preparar un rollback hacia el deployment estable anterior de Vercel.
+  - Candidato historico identificado en la evidencia del 11/12 de octubre; no
+    ensayado. Revalidar compatibilidad, variables y aislamiento antes de usarlo.
+    La metadata de Preview compartida no demuestra un sandbox seguro.
 - [ ] Confirmar que existe una persona responsable de vigilar el primer dia de
   ventas.
 - [ ] Realizar la revision final de esta checklist.

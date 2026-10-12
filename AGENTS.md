@@ -109,22 +109,25 @@ Consultar primero `docs/LAUNCH_CHECKLIST.md`: es la referencia de estado y
 evidencia. `docs/ROADMAP.md` ordena prioridades y `docs/operations.md` describe
 procedimientos; no reconstruir pendientes desde listas historicas aisladas.
 
-Al cierre del 11 de octubre de 2026, la tienda publica esta desplegada en Vercel
-y el control preventivo de envios UE de #27 esta integrado. Hay pruebas Stripe
-test, un `order_created` autentico de Printful y aceptacion de email por Resend;
-esto no acredita pagos live, fabricacion, eventos de envio ni entrega en bandeja.
+Al cierre documental del 12 de octubre de 2026 estan integrados el control UE
+#27, las alertas #29 (desactivadas) y el registro de stock #31. Hay E2E Stripe
+test posterior a #27, pending real, recuperacion de email y cancelacion de dos
+borradores. Las capturas del propietario acreditan dos correos recibidos en Gmail;
+product_updated autentico y restauracion estan verificados en Firestore. Esto
+no acredita pagos live, fabricacion, stock_updated ni envio/tracking reales.
 
 1. Completar y revisar las plantillas legales y el canal de soporte antes de
    publicar las paginas; no rellenar datos del negocio por suposicion.
 2. Mantener US/ES/FR/DE/IT/PT como alcance acordado y CA/GB bloqueados. No
    desactivar la comprobacion UE ni prometer DDP para desbloquear una seleccion.
-3. Conservar la vigilancia manual definida; distinguirla de alertas automaticas
-   aun pendientes. Codex no supervisa en segundo plano sin un mecanismo explicito.
+3. Conservar la vigilancia manual. Las alertas estan desplegadas desactivadas;
+   indice, pruebas remotas y activacion siguen pendientes. Codex no supervisa
+   en segundo plano sin un mecanismo explicito.
 4. Revisar accesos, secretos y riesgo residual con `docs/SECURITY.md`. La
    aceptacion fechada no cubre avisos nuevos ni significa que esten corregidos.
-5. Mantener Stripe Tax desactivado. El trabajo fiscal, la compra real y la
-   comprobacion del buzon estan aplazados, no completados. No ejecutarlos sin
-   retomar el alcance con la persona propietaria; no cambiar `NO-GO` a `GO`.
+5. Mantener Stripe Tax desactivado. El trabajo fiscal y la compra real estan
+   aplazados, no completados. Retomar su alcance con permiso; no cambiar `NO-GO`
+   a `GO`. Las capturas de dos correos no validan el buzon de soporte ni tracking.
 6. Verificar configuracion vigente, eventos pendientes y evidencias de despliegue
    antes de cualquier futura activacion live o de fabricacion.
 
