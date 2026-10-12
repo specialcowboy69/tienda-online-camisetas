@@ -29,7 +29,7 @@ To: [TO COMPLETE: verified legal seller name]
 
 Postal address: [TO COMPLETE: verified full address for withdrawal notices]
 
-Email: [TO COMPLETE: verified withdrawal email]
+Email: orders@funnyteesforall.com
 
 I/We (*) hereby give notice that I/we (*) withdraw from my/our (*) contract of
 sale of the following goods:

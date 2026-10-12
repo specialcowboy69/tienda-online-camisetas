@@ -155,10 +155,9 @@ export const productPolicies = {
   shipping: {
     summary: "Standard shipping is included for eligible orders to the US, Spain, France, Germany, Italy, and Portugal. Delivery availability depends on your selected items and address and is checked before payment. Some orders may be fulfilled outside your country. Options flagged for possible import charges to our EU destinations are currently unavailable.",
     details: [
-      "US standard shipping: 3-4 business days after processing.",
-      "US express shipping: 1-3 business days after processing.",
-      "International standard shipping: 5-20 business days after processing.",
-      "Shipping times start after the order has been processed for fulfillment."
+      "Production usually takes 2-5 business days before dispatch. Shipping time is additional.",
+      "Transit time depends on your items, delivery address, and the available shipping service. Check the delivery estimate for your selected option where available.",
+      "Production and delivery estimates can change, especially during busy periods. They are not guaranteed arrival dates and do not limit your legal rights if delivery is late."
     ]
   },
   returns: {
@@ -166,7 +165,7 @@ export const productPolicies = {
       "For help with your order, email No Context Club at orders@funnyteesforall.com. We may ask for your order number, a short description, and reasonable photos of the issue.",
     details: [
       "If your item is damaged on arrival, has a manufacturing or printing defect, is the wrong item, or has another error attributable to us, you can request a refund or choose another legally available remedy.",
-      "We cover necessary return or replacement costs when the problem is our responsibility. No short reporting deadline reduces your legal rights.",
+      "For a confirmed issue caused by us, you can choose a replacement at no cost or a refund for the affected item, including delivery costs where applicable. You do not need to return the item, and we do not arrange collection. No short reporting deadline reduces your legal rights.",
       "EU consumers buying from our standard catalog have 14 days from delivery to notify us of withdrawal, then another 14 days to return the items after notifying us.",
       "For change-of-mind withdrawal, you pay direct return costs only if you were informed before purchase, unless applicable law or our agreement says otherwise.",
       "Outside those rights, other returns and exchanges depend on applicable law and the circumstances."

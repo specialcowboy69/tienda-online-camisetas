@@ -85,7 +85,10 @@ describe("product content", () => {
     expect(returnsCopy).toMatch(/another error attributable to us/i);
     expect(returnsCopy).toMatch(/request a refund/i);
     expect(returnsCopy).toMatch(/choose another legally available remedy/i);
-    expect(returnsCopy).toMatch(/we cover necessary return or replacement costs/i);
+    expect(returnsCopy).toMatch(/for a confirmed issue caused by us/i);
+    expect(returnsCopy).toMatch(/choose a replacement at no cost or a refund/i);
+    expect(returnsCopy).toMatch(/you do not need to return the item/i);
+    expect(returnsCopy).toMatch(/we do not arrange collection/i);
     expect(returnsCopy).not.toMatch(/printful|production partner|supplier/i);
   });
 

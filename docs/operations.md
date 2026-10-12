@@ -374,6 +374,15 @@ comprobaciones remotas y activacion. El snapshot anterior no deshace esos avance
 
 ### Reembolsos manuales y cancelacion de fabricacion
 
+Decisión de política del propietario, 13 de octubre de 2026: ante defecto,
+daño o error de la tienda confirmado, registrar la incidencia y la elección del
+cliente entre reposición sin coste o reembolso, sin exigir devolver la prenda ni
+organizar recogida. No hacer depender esa solución de una compensación del
+proveedor. No es un automatismo nuevo ni una autorización para fabricar o
+reembolsar sin revisar el pedido concreto. El desistimiento por cambio de
+opinión conserva su circuito de devolución y derechos independientes.
+Plantilla vigente: [incidencias y devoluciones](legal-templates/returns-refunds-and-product-issues.md).
+
 1. Identificar el pedido, su Checkout/PaymentIntent persistido y el importe
    capturado en Stripe. Consultar pagos, reembolsos y estado Printful actuales.
 2. Si se acuerda un reembolso, ejecutarlo manualmente en Stripe Dashboard con

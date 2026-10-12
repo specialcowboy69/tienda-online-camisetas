@@ -5,7 +5,7 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 12 de octubre de 2026 (product_updated autentico y restauracion verificados; stock real pendiente; alertas sin activacion)
+**Ultima revision documental:** 13 de octubre de 2026 (politica de incidencias y borradores legales actualizados localmente; sin publicacion ni activaciones)
 
 ## Resumen vigente y fuente de estado
 
@@ -22,7 +22,7 @@ Estar desplegado en Vercel Production no significa tener autorizados pagos live.
 | Webhook Printful | Registro de stock corregido: IDs de catalogo 162/317/586/1579. Dos eventos product_updated autenticos procesados el 12 de octubre; cambio interno y restauracion reflejados en Firestore. Sigue pendiente stock_updated y envio real |
 | Email | Confirmacion y recuperacion recibidas en Gmail, capturas del propietario del 12 de octubre. Correo de envio, rebotes y canal de soporte pendientes |
 | Operacion | Vigilancia manual definida; alertas de #29 desplegadas pero desactivadas; indices, pruebas remotas y activacion pendientes |
-| Legales | Plantillas pendientes de completar, revisar y publicar; no se han publicado paginas por este cambio |
+| Legales | Borradores locales de privacidad/cookies y decision de reposicion o reembolso sin retorno para incidencias confirmadas; identidad y resto de pendientes en pausa, no completados; sin paginas publicadas |
 | Riesgo residual | Aceptacion productiva del 8 de octubre; audit repetido el 11 y avisos de desarrollo pendientes en SECURITY.md, sin ampliar la aceptacion |
 
 **Aplazado, no completado:** la compra real controlada y el trabajo fiscal
@@ -35,6 +35,45 @@ parte de una tarea documental. La decision vigente es mantener
 pruebas con efectos. Las ocho suscripciones Stripe test se comprobaron el 11
 de octubre; no equivale a probar todos los tipos ni configurar live. La transicion
 historica de workers sigue pendiente de acreditar.
+
+### Textos de incidencias y borradores legales — 13 de octubre de 2026
+
+Aplicación local de la decisión del propietario, sin desplegar: defectos o
+errores de la tienda confirmados se resuelven mediante reposición sin coste o
+reembolso a elección del cliente, sin devolución ni recogida. El desistimiento
+por cambio de opinión permanece separado y conserva sus derechos.
+
+- [x] Actualizar el texto breve de PDP y la plantilla de incidencias, manteniendo
+  los derechos legales y sin mencionar al proveedor en ese texto público.
+- [x] Reutilizar orders@funnyteesforall.com como contacto en las plantillas;
+  no inventar identidad, domicilio, teléfono ni plazos de respuesta.
+- [x] Incorporar estimación general de producción de 2-5 días laborables,
+  separada del transporte; no atribuir rangos de tarifa plana a cotizaciones API.
+- [x] Preparar [privacidad](legal-templates/privacy-policy.md) y
+  [cookies](legal-templates/cookie-policy.md) según el código actual,
+  distinguiendo datos comprobados de campos pendientes.
+- [ ] Completar/revisar/publicar las plantillas: en pausa por decisión del
+  propietario. La preparación de borradores no cierra este requisito.
+- [ ] Verificar entrada de soporte y solicitudes de derechos. Las capturas
+  anteriores acreditan correo saliente recibido, no recepción en este canal.
+- [ ] Si se retoma GA4/Google Ads: inventario real, consentimiento, implementación
+  y pruebas antes de activar. No hay etiquetas ni CMP nuevas en esta entrega.
+
+Verificación local: prueba de política RED (falla con el texto anterior) y GREEN;
+708/708 tests, TypeScript y build correctos. El primer intento de suite también
+tuvo un timeout incidental en order-safety; 22/22 pruebas focalizadas y la nueva
+suite completa pasaron sin cambiar código de pedidos ni ampliar timeouts.
+`npm.cmd run lint` sigue fallando por cuatro errores `no-require-imports` en
+los auxiliares locales ignorados `.superpowers/eu-quotes.cjs` y
+`.superpowers/eu-risk-contract.cjs`; no se modifican ni se incluyen en Git.
+`npx.cmd eslint . --ignore-pattern '.superpowers/**'` pasa. No se presenta el
+lint estándar como verde.
+
+Entrega mediante la rama `codex/legal-policy-drafts`, para revisión por PR
+contra `main`. El merge y el deployment de producción quedan pendientes de
+aprobación; las plantillas siguen siendo internas. No crea páginas públicas, no altera
+checkout, cotización, alertas, pedidos ni devoluciones automáticas. Stripe Tax,
+pagos live y fabricación no se activan; estado global `NO-GO` sin cambios.
 
 ### Cierre tecnico posterior a #28 — 11 de octubre
 
