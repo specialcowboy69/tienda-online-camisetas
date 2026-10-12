@@ -39,12 +39,16 @@ marcan completadas por el merge de #27.
 
 Rama `codex/operational-alerts`; [SHA, comandos y alcance de evidencia](verification/2026-10-12-operational-alerts.md).
 El flag queda desactivado por defecto. No hay PR ni deployment de esta funcion
-acreditados por este trabajo; la revision independiente y la auditoria AGENTS
-preceden cualquier declaracion de rama lista. No cambia `NO-GO`.
+acreditados por este trabajo. La revision independiente, sus correcciones y la
+auditoria AGENTS local estan cerradas; deben refrescarse antes de publicar o
+integrar. No cambia `NO-GO`.
 
 - [x] Implementacion y prueba sintetica local del ciclo de alertas, sin efectos
   Stripe/Printful ni email real; configuracion y procedimiento en
   [operations.md](operations.md#alertas-operativas-implementacion-local-desactivada).
+- [x] Revision independiente y re-revision de las correcciones; 681/681 tests,
+  lint, TypeScript y build verdes sobre `77fc58c`. Audit no limpio: 5 altos y
+  4 moderados, sin nueva aceptacion ni cambios de dependencias.
 - [ ] Integrar y registrar PR/SHA y deployment real de la funcion.
 - [ ] Verificar contencion/transacciones e indices en Firestore aislado,
   dos workers, timeout y desactivacion; los mocks no acreditan estos puntos.

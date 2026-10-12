@@ -164,10 +164,35 @@ a este SHA son documentales. La revision independiente del fix y la auditoria
 de integracion corresponden al controlador; estos gates no acreditan Firestore
 real, activacion, cron desplegado, proveedor, buzon ni nuevos permisos comerciales.
 
+## Cierre independiente local — 12 de octubre de 2026
+
+La revision completa de la rama y la re-revision acotada del rango
+`872a263..77fc58c` estan completadas. El revisor independiente verifico los
+hallazgos de leases/contradicciones, vencimiento de prepare y cursores nativos;
+todos atendidos, sin nuevos hallazgos criticos/importantes ni observaciones
+adicionales fuera de alcance.
+
+El controlador repitio sobre `77fc58c63cdeb2da5d1488de167c1c3f9d5178dd`:
+`npm.cmd test` (44 archivos, 681/681; 18:51:42, 8.54 s),
+`npm.cmd run lint`, `npx.cmd tsc --noEmit --incremental false` y
+`npm.cmd run build`, todos codigo 0. No hubo cambios entre los gates;
+permanecen solo las dos advertencias conocidas del fixture de aduanas. El
+audit productivo repetido por el controlador termino con 5 altos/4 moderados
+tras un primer intento con ECONNRESET; no se interpreto el error de red como
+resultado limpio.
+
+La auditoria AGENTS se refresco con fetch, PRs abiertos, ramas por ascendencia
+y los tres worktrees. El checkout de implementacion estaba limpio; los cambios
+documentales ajenos permanecieron intactos. El inventario vigente se comunica
+en la entrega, no se replica como una lista durable de pendientes en esta guia.
+Los cambios posteriores a ese SHA para registrar el cierre son solo documentales.
+No se publico, integro, configuro ni activo ningun servicio.
+
 ## Puertas pendientes antes de activar
 
-- [ ] Revision independiente final de los cinco puntos Review Focus y auditoria
-  AGENTS completa antes de declarar la rama lista, crear PR o integrar.
+- [x] Revision independiente final de los cinco puntos Review Focus,
+  correcciones y auditoria AGENTS local. Refrescar inventario y checks antes de
+  crear PR o integrar; esta evidencia no autoriza acciones remotas.
 - [ ] Integracion autorizada; registrar PR/SHA y deployment realmente observado.
   Este documento no constituye inventario vigente de otras ramas/PRs.
 - [ ] Firestore en emulador o entorno dedicado realmente aislado: indices,
