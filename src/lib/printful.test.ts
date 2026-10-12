@@ -62,6 +62,13 @@ describe("Printful stock webhook registration", () => {
     await expect(configurePrintfulWebhook(destination, [101, 102])).rejects.toThrow();
     expect(fetchMock.mock.calls.filter(([, init]) => init.method === "POST")).toHaveLength(0);
   });
+  it.each([1, 3])("refuses a partial or inconsistent variant list against declared count %s", async count => {
+    const product = detail(101, [586, 162]); product.sync_product.variants = count;
+    const fetchMock = transport(config(), { "101": product });
+    const { configurePrintfulWebhook } = await import("./printful");
+    await expect(configurePrintfulWebhook(destination, [101])).rejects.toThrow();
+    expect(fetchMock.mock.calls.some(([, init]) => init.method === "POST")).toBe(false);
+  });
   it("ignores an explicitly ignored variant without losing other models", async () => {
     const product = detail(101, [586, 162]); product.sync_variants[1].is_ignored = true;
     const fetchMock = transport(config(), { "101": product });

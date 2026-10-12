@@ -289,7 +289,7 @@ export function appendWebhookSecret(url: string, secret?: string): string {
 
 const catalogIdSchema = z.number().int().positive().safe();
 const stockProductSchema = z.object({
-  sync_product: z.object({ id: catalogIdSchema, is_ignored: z.boolean().optional() }),
+  sync_product: z.object({ id: catalogIdSchema, variants: catalogIdSchema, is_ignored: z.boolean().optional() }),
   sync_variants: z.array(z.object({
     is_ignored: z.boolean().optional(),
     variant_id: catalogIdSchema.optional(),
@@ -318,7 +318,8 @@ async function resolveStockCatalogIds(syncProductIds: number[]): Promise<number[
         const syncId = pending.shift()!;
         const response = await printfulFetch<PrintfulResponse<unknown>>(`/store/products/${syncId}`, { signal: controller.signal });
         const parsed = stockProductSchema.safeParse(response.result);
-        if (!parsed.success || parsed.data.sync_product.id !== syncId || parsed.data.sync_product.is_ignored) {
+        if (!parsed.success || parsed.data.sync_product.id !== syncId || parsed.data.sync_product.is_ignored ||
+            parsed.data.sync_product.variants !== parsed.data.sync_variants.length) {
           throw new Error("Cannot verify catalog product metadata for stock registration.");
         }
         const variants = parsed.data.sync_variants.filter(variant => !variant.is_ignored);
