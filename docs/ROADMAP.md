@@ -181,7 +181,8 @@ Checklist:
   recuperacion de email y envio; no confundir la compra test previa con una
   compra end-to-end posterior a #27.
 - Observabilidad: vigilancia manual ya definida en [operations.md](operations.md);
-  quedan alertas automaticas y su verificacion, no una guardia automatica de Codex.
+  alertas integradas y desplegadas desactivadas en #29 (12 de octubre de 2026).
+  Quedan indices, pruebas aisladas y activacion; no hay guardia automatica de Codex.
 - Envios: investigar la configuracion v2 no verificable de la muestra crop
   `49803` y renovar evidencia de cobertura. No sustituir tecnica ni eliminar
   el bloqueo preventivo. No existe revalidacion automatica de ruta postpago.

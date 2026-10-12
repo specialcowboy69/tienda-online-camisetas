@@ -399,12 +399,13 @@ respuestas arbitrarias de proveedores a logs, capturas o tickets. Los nuevos
 diagnosticos de email y lectura de reembolsos son genericos; los registros y
 errores operativos existentes requieren acceso restringido.
 
-## Alertas operativas: implementacion local desactivada
+## Alertas operativas: implementacion desactivada
 
-El 12 de octubre se implemento la funcion en la rama local
-`codex/operational-alerts`. No esta publicada, integrada ni activada por este
-trabajo. La [evidencia local y puertas de activacion](verification/2026-10-12-operational-alerts.md)
-no acredita cron real, aceptacion de Resend ni recepcion en bandeja. La vigilancia
+El 12 de octubre se integro la funcion mediante PR #29, merge `d95104e`, y se
+verifico Vercel Production `READY` sobre ese SHA y el dominio canonico.
+La funcion sigue desactivada: no se configuraron flag ni destinatario.
+La [evidencia y puertas de activacion](verification/2026-10-12-operational-alerts.md)
+no acredita cron real, aceptacion de Resend ni recepcion de alertas en bandeja. La vigilancia
 manual de la siguiente seccion sigue vigente y el lanzamiento permanece `NO-GO`.
 
 ### Configuracion y cobertura
@@ -491,7 +492,7 @@ no acredita que el indice de produccion exista. Sin el indice, la ronda queda
 `partial` con `deliveries` sin comprobar: no equivale a cero incidencias.
 No se ha aplicado ningun cambio de indices por publicar la funcion desactivada.
 
-Antes de activar: integrar con auditoria AGENTS, revisar seguridad y verificar
+Antes de activar: revisar seguridad y verificar
 indices/transacciones con emulador o entorno realmente aislado, dos workers,
 timeout, cron repetido y desactivacion. No usar un Preview con credenciales
 compartidas. Confirmar configuracion vigente y autorizar destinatario, sender,

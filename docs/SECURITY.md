@@ -28,7 +28,7 @@ Si alguno se pego en chats, capturas, logs o pruebas compartidas, hay que rotarl
 Endpoints admin:
 
 - `/api/catalog/sync`
-- `/api/operations/digest` (implementacion local, desactivada por defecto)
+- `/api/operations/digest` (desplegado en #29, alertas desactivadas por defecto)
 - `/api/admin/orders`
 - `/api/admin/orders/[orderId]/retry-printful`
 - `/api/admin/printful/webhook`
@@ -198,11 +198,13 @@ de compatibilidad. Estos avisos de desarrollo no quedan aceptados por la
 decision productiva del 8 de octubre. No hubo upgrade, overrides ni `--force`;
 esta lectura no modifica la fecha limite ni amplia la aceptacion anterior.
 
-## Alertas operativas — superficie local del 12 de octubre de 2026
+## Alertas operativas — despliegue desactivado del 12 de octubre de 2026
 
-Funcion local en `codex/operational-alerts`, sin publicacion ni activacion.
+Funcion integrada en PR #29, merge `d95104e`, y desplegada en Production, sin activacion.
 El [informe de verificacion](verification/2026-10-12-operational-alerts.md)
-recoge SHA, pruebas, audit y pendientes; no acredita Firestore ni Vercel reales.
+recoge SHA, pruebas, audit y deployment real `READY`; no acredita indices,
+contencion Firestore, cron ejecutado ni transporte de alertas reales.
+El endpoint publico sin credenciales devuelve 401. No se cambiaron secretos.
 
 Autenticacion cron/admin precede cualquier lectura en la ruta de resumen.
 El flag exige exactamente `true`, entorno Production y configuracion valida;
