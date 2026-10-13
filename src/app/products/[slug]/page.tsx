@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AnalyticsPageRegistration } from "@/components/analytics-page";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/product-card";
@@ -81,6 +82,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   return (
     <main className="ncc-page">
+      <AnalyticsPageRegistration path={`/products/${getProductSlug(product)}`} title="Product" />
       <SiteHeader />
       <nav className="ncc-breadcrumb" aria-label="Breadcrumb">
         <Link href="/products">Shop all</Link>

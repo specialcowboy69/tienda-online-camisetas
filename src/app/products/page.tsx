@@ -19,6 +19,7 @@ export default async function ProductsPage() {
 
   return (
     <main className="ncc-page">
+      <AnalyticsPageRegistration path="/products" title="Products" />
       <SiteHeader />
       <section className="ncc-products-hero">
         <p className="ncc-microcopy">The First Drop</p>
@@ -39,3 +40,4 @@ export default async function ProductsPage() {
     </main>
   );
 }
+import { AnalyticsPageRegistration } from "@/components/analytics-page";
