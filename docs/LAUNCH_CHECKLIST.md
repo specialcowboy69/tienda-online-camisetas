@@ -5,9 +5,24 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 12 de octubre de 2026 (product_updated autentico y restauracion verificados; stock real pendiente; alertas sin activacion)
+**Ultima revision documental:** 13 de octubre de 2026 (GA4 local apagado y probado;
+estado operativo del 12 de octubre conservado: product_updated autentico y
+restauracion verificados; stock real pendiente; alertas sin activacion)
 
 ## Resumen vigente y fuente de estado
+
+### Analítica opcional — implementación local del 13 de octubre
+
+- [x] Preparar consentimiento previo de GA4 `G-4JDZCBK8SY`, rechazo/retirada,
+  caducidad, exclusión de rutas sensibles y pruebas locales de navegador.
+- [ ] Integrar y desplegar esta rama (entrega con analítica apagada).
+- [ ] Publicar/revisar información legal y añadir enlaces reales en ajustes.
+- [ ] Verificar ajustes de GA4, SDK real, cookies y revocación; después autorizar
+  activación y acreditar recepción en Realtime/DebugView.
+
+[Evidencia local y límites](verification/2026-10-13-ga4-consent.md) y
+[procedimiento](analytics-and-consent.md). No cambia NO-GO ni activa Ads, Tax,
+conversiones o pagos. Los estados históricos de abajo conservan su fecha.
 
 Esta checklist es la referencia principal de avances y pendientes. El roadmap
 ordena el trabajo; el runbook explica como operarlo. Las pruebas historicas se

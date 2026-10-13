@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { AnalyticsConsentProvider } from "@/components/analytics-consent";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><AnalyticsConsentProvider enabled={process.env.NEXT_PUBLIC_ANALYTICS_ENABLED} measurementId={process.env.NEXT_PUBLIC_GA4_ID} deployment={process.env.VERCEL_ENV}>{children}</AnalyticsConsentProvider></body>
     </html>
   );
 }
