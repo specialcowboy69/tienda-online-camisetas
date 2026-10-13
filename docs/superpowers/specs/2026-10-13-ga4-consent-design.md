@@ -2,9 +2,9 @@
 
 Fecha: 13 de octubre de 2026.
 Estado: especificación aprobada por el propietario el 13 de octubre de 2026.
-No implementado, no publicado y sin datos enviados a Google.
+Implementado localmente; no publicado y sin datos enviados a Google.
 Plan asociado: [implementación de GA4](../plans/2026-10-13-ga4-consent.md),
-pendiente de revisión y elección del método de ejecución.
+aprobado para ejecución directa con revisión independiente final.
 
 ## 1. Objetivo y alcance aprobado
 
@@ -238,5 +238,5 @@ Checklist de esta fase:
 - [x] Comparar enfoques y recibir aprobación del alcance conversacional.
 - [x] Escribir especificación y revisar coherencia, límites y aceptación.
 - [x] Revisión y aprobación del propietario de esta especificación (13 de octubre).
-- [ ] Elaborar y revisar el plan de implementación; elegir su ejecución.
+- [x] Elaborar y revisar el plan de implementación; ejecución directa aprobada.
 - [ ] Implementar, probar y entregar el cambio según el plan aprobado.
