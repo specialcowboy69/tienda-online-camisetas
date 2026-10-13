@@ -5,17 +5,20 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 13 de octubre de 2026 (GA4 local apagado y probado;
+**Ultima revision documental:** 13 de octubre de 2026 (GA4 integrado y desplegado apagado;
 estado operativo del 12 de octubre conservado: product_updated autentico y
 restauracion verificados; stock real pendiente; alertas sin activacion)
 
 ## Resumen vigente y fuente de estado
 
-### Analítica opcional — implementación local del 13 de octubre
+### Analítica opcional — entrega del 13 de octubre
 
 - [x] Preparar consentimiento previo de GA4 `G-4JDZCBK8SY`, rechazo/retirada,
   caducidad, exclusión de rutas sensibles y pruebas locales de navegador.
-- [ ] Integrar y desplegar esta rama (entrega con analítica apagada).
+- [x] Integrar y desplegar apagado: PR #35, merge `2bd0f7a`, Vercel Production
+  `dpl_GgYD23Vk8F5vd2mDA6RhvcjBAG5J` READY. Dominio público verificado en home,
+  catálogo y PDP a 390/1440 px: ajustes indican Analytics off, sin etiqueta ni
+  solicitudes a Google incluso con una aceptación previa en el navegador.
 - [ ] Publicar/revisar información legal y añadir enlaces reales en ajustes.
 - [ ] Verificar ajustes de GA4, SDK real, cookies y revocación; después autorizar
   activación y acreditar recepción en Realtime/DebugView.

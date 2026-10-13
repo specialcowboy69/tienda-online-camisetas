@@ -2,8 +2,10 @@
 
 ## Estado y alcance
 
-Implementación local del 13 de octubre de 2026, **apagada por defecto**.
-No equivale a integración en main, despliegue, activación ni recepción en GA4.
+Integrado y desplegado el 13 de octubre de 2026 mediante PR #35, merge `2bd0f7a`,
+**apagado**. Vercel Production `dpl_GgYD23Vk8F5vd2mDA6RhvcjBAG5J` READY;
+verificación del dominio público en móvil/escritorio sin carga de Analytics.
+Esto no equivale a activación ni recepción en GA4.
 Consultar la [evidencia](verification/2026-10-13-ga4-consent.md) y la
 [checklist](LAUNCH_CHECKLIST.md) antes de activar. NO-GO no cambia.
 
