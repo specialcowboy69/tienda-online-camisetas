@@ -1,8 +1,10 @@
 # GA4 con consentimiento previo — diseño
 
 Fecha: 13 de octubre de 2026.
-Estado: alcance conversacional aprobado; especificación pendiente de revisión
-del propietario. No implementado, no publicado y sin datos enviados a Google.
+Estado: especificación aprobada por el propietario el 13 de octubre de 2026.
+No implementado, no publicado y sin datos enviados a Google.
+Plan asociado: [implementación de GA4](../plans/2026-10-13-ga4-consent.md),
+pendiente de revisión y elección del método de ejecución.
 
 ## 1. Objetivo y alcance aprobado
 
@@ -19,7 +21,8 @@ Google Ads permanece desactivado. No incluye conversiones de compra.
 Este es un subsistema nuevo: el código revisado no contiene GA4, GTM ni un
 gestor de consentimiento. Se sigue la ruta arquitectónica de `brainstorming`:
 diseño escrito, revisión del propietario, plan de implementación y ejecución.
-La aprobación del alcance no se presenta como aprobación de este documento.
+Tras revisar este documento, el propietario respondió «sí» a su aprobación.
+Esa aprobación permite elaborar el plan; no acredita implementación ni activación.
 
 ## 2. Contexto comprobado y alternativas
 
@@ -234,6 +237,6 @@ Checklist de esta fase:
 - [x] Revisar implementación, documentación y alcance con el propietario.
 - [x] Comparar enfoques y recibir aprobación del alcance conversacional.
 - [x] Escribir especificación y revisar coherencia, límites y aceptación.
-- [ ] Revisión y aprobación del propietario de esta especificación.
+- [x] Revisión y aprobación del propietario de esta especificación (13 de octubre).
 - [ ] Elaborar y revisar el plan de implementación; elegir su ejecución.
 - [ ] Implementar, probar y entregar el cambio según el plan aprobado.
