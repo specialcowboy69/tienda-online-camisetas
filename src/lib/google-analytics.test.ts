@@ -121,7 +121,15 @@ describe("consent-gated analytics runtime", () => {
   });
   it("pauses on browser history popstate", () => {
     const b = browser(); b.runtime.sync({ consent: b.accept(), page: home }); b.load();
+    b.win.location.pathname = "/success";
     b.events.get("popstate")?.();
     expect((b.win as unknown as Record<string, unknown>)[`ga-disable-${id}`]).toBe(true);
+  });
+  it("does not pause or count query-only browser back navigation", () => {
+    const b = browser(); b.runtime.sync({ consent: b.accept(), page: home }); b.load();
+    b.win.location.search = "?email=private";
+    b.events.get("popstate")?.();
+    expect((b.win as unknown as Record<string, unknown>)[`ga-disable-${id}`]).toBe(false);
+    expect(b.views()).toHaveLength(1);
   });
 });

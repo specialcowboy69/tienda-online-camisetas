@@ -129,7 +129,9 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
       return original.apply(this, args);
     };
   }
-  browser.addEventListener("popstate", () => stop({ clearCookies: false }));
+  browser.addEventListener("popstate", () => {
+    if (!allowedPage()) stop({ clearCookies: false });
+  });
   const runtime = { sync, stop };
   const byId = instances.get(document) ?? new Map<string, AnalyticsRuntime>();
   byId.set(config.measurementId, runtime);

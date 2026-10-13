@@ -3675,6 +3675,7 @@ label {
 .ncc-consent-banner { position: fixed; z-index: 90; bottom: 0; left: 0; right: 0; padding: 1rem clamp(1rem, 4vw, 3rem); background: #fff4df; color: #171717; border-top: 2px solid #171717; box-shadow: 0 -4px 20px #0002; max-height: 45dvh; overflow-y: auto; }
 .ncc-consent-banner p, .ncc-consent-dialog p { font: 400 1rem/1.55 Arial, sans-serif; margin: 0 0 1rem; }
 .ncc-consent-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+.ncc-consent-banner .ncc-consent-actions button:nth-child(-n+2) { min-width: 10.5rem; }
 .ncc-consent-actions button, .ncc-consent-heading button { min-height: 44px; padding: .65rem 1rem; border: 2px solid #171717; border-radius: .25rem; background: #fff4df; color: #171717; font: 700 1rem/1.3 Arial, sans-serif; cursor: pointer; }
 .ncc-consent-actions button:hover, .ncc-consent-heading button:hover { background: #e5e9ff; }
 .ncc-consent-banner button:focus-visible, .ncc-consent-dialog :focus-visible, .ncc-consent-footer button:focus-visible { outline: 3px solid #234de8; outline-offset: 3px; }

@@ -23,6 +23,17 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
   const [storageWarning, setStorageWarning] = useState(false);
   const [settings, setSettings] = useState(false);
   const trigger = useRef<HTMLElement | null>(null);
+  const banner = useRef<HTMLElement | null>(null);
+  const [bannerHeight, setBannerHeight] = useState(0);
+  const showBanner = ready && !!config && !consent;
+
+  useEffect(() => {
+    if (!showBanner || !banner.current) { setBannerHeight(0); return; }
+    const element = banner.current;
+    const observer = new ResizeObserver(() => setBannerHeight(element.getBoundingClientRect().height));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [showBanner]);
 
   const sync = useCallback(() => {
     runtime.current?.sync({ consent: choice.current, page: resolveAnalyticsPage(window.location.pathname, page.current?.descriptor ?? null) });
@@ -100,7 +111,8 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
   return <RegistrationContext.Provider value={register}>
     {children}
     <footer className="ncc-consent-footer"><button type="button" onClick={openSettings}>Cookie settings</button></footer>
-    {ready && config && !consent && <section className="ncc-consent-banner" aria-label="Analytics preferences">
+    {showBanner && <div aria-hidden="true" style={{ height: bannerHeight }} />}
+    {showBanner && <section ref={banner} className="ncc-consent-banner" aria-label="Analytics preferences">
       <p>We use optional Google Analytics cookies to understand visits to our store. Analytics stays off unless you accept. You can change your choice at any time using Cookie settings. Advertising tracking is off.</p>
       <div className="ncc-consent-actions">
         <button type="button" onClick={() => decide("granted")}>Accept analytics</button>
@@ -118,21 +130,22 @@ function ConsentDialog({ available, granted, warning, onClose, onSave }: {
   const dialog = useRef<HTMLDialogElement>(null);
   const [checked, setChecked] = useState(granted);
   useEffect(() => { dialog.current?.showModal(); dialog.current?.querySelector<HTMLButtonElement>("button")?.focus(); }, []);
-  return <dialog ref={dialog} className="ncc-consent-dialog" aria-labelledby="ncc-consent-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onKeyDown={(event) => {
+  function close() { dialog.current?.close(); onClose(); }
+  return <dialog ref={dialog} className="ncc-consent-dialog" aria-labelledby="ncc-consent-title" onCancel={(event) => { event.preventDefault(); close(); }} onKeyDown={(event) => {
     if (event.key !== "Tab") return;
     const controls = Array.from(dialog.current?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), a[href]") ?? []);
     const first = controls[0], last = controls[controls.length - 1];
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }}>
-    <div className="ncc-consent-heading"><h2 id="ncc-consent-title">Cookie settings</h2><button type="button" onClick={onClose} aria-label="Close cookie settings">Close</button></div>
+    <div className="ncc-consent-heading"><h2 id="ncc-consent-title">Cookie settings</h2><button type="button" onClick={close} aria-label="Close cookie settings">Close</button></div>
     <p>We store your choice for 180 days. Necessary store features work whether you accept or reject analytics.</p>
     {available ? <label className="ncc-consent-toggle"><input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)} />Allow Google Analytics</label> : <p>Analytics is currently off on this site.</p>}
     <p>Advertising tracking is off. We do not enable Google Ads tracking through these settings.</p>
     {warning && <p role="status">Your choice could not be saved. It will apply until you leave this page.</p>}
     <div className="ncc-consent-actions">
-      {available && <button type="button" onClick={() => onSave(checked)}>Save preferences</button>}
-      <button type="button" onClick={onClose}>Cancel</button>
+      {available && <button type="button" onClick={() => { dialog.current?.close(); onSave(checked); }}>Save preferences</button>}
+      <button type="button" onClick={close}>Cancel</button>
     </div>
   </dialog>;
 }
