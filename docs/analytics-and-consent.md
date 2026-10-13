@@ -33,7 +33,9 @@ caducan a los 180 días; visitar no renueva el plazo. Datos inválidos, futuros,
 caducados o lectura inaccesible deniegan por defecto. Si falla guardar, la
 elección dura en memoria hasta abandonar la página; ajustes muestra el aviso.
 Se revalida al recuperar foco, en cambios de otra pestaña, al medir y con timer
-en tramos de máximo 24 horas. Retirar cancela inmediatamente la medición.
+en tramos de máximo 24 horas. Los eventos de otra pestaña provocan releer el
+registro vigente; no restauran la aceptación de un evento atrasado. Retirar
+cancela inmediatamente la medición.
 
 Consent Mode básico: antes de aceptar no se solicita gtag.js ni se envían pings.
 `analytics_storage` puede concederse; los tres permisos publicitarios siguen
@@ -66,7 +68,8 @@ técnicos propios: no afirmar que todo el tráfico será únicamente page_view.
    Apagar Enhanced Measurement **incluidos cambios de historial**, formularios,
    scroll, búsqueda, descargas, vídeo y clics. `send_page_view:false` no basta.
 3. Con autorización separada, probar gtag.js real con colectores interceptados:
-   retirada, rutas excluidas, parámetros sensibles y cookies reales. Cualquier
+   retirada, rutas excluidas, parámetros sensibles, cookies reales y restauración
+   desde suspensión/BFCache. Cualquier
    ping no permitido mantiene la activación bloqueada.
 4. Con permiso específico, enviar una visita controlada y comprobar recepción
    en Realtime/DebugView. Script cargado o respuesta 204 no acreditan recepción.

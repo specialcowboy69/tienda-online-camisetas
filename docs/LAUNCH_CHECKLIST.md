@@ -5,7 +5,9 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 12 de octubre de 2026 (product_updated autentico y restauracion verificados; stock real pendiente; alertas sin activacion)
+**Ultima revision documental:** 13 de octubre de 2026 (GA4 local apagado y probado;
+estado operativo del 12 de octubre conservado: product_updated autentico y
+restauracion verificados; stock real pendiente; alertas sin activacion)
 
 ## Resumen vigente y fuente de estado
 

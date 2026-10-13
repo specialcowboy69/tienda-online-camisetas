@@ -173,6 +173,25 @@ try {
       await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await settle(page);
       assert.equal(traffic.hits.length, 2); await context.close();
     });
+    await test("stale storage acceptance cannot override current rejection", async () => {
+      const { page, context, traffic } = await fixture(viewport); await visit(page); await save(page, true); await countHits(page, traffic, 1);
+      const oldGrant = await page.evaluate(key => localStorage.getItem(key), key);
+      await save(page, false);
+      await page.evaluate(({ key, oldGrant }) => window.dispatchEvent(new StorageEvent("storage", { key, newValue: oldGrant, storageArea: localStorage })), { key, oldGrant });
+      await settle(page);
+      assert.equal(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).choice, key), "denied");
+      assert.equal(await page.evaluate(id => window[`ga-disable-${id}`], id), true);
+      assert.equal(traffic.hits.length, 1);
+      assert.equal((await context.cookies()).some(c => c.name.startsWith("ncc_ga")), false);
+      // A storage notification must also fail closed when the latest record cannot be read.
+      await page.evaluate(({ key, oldGrant }) => {
+        Storage.prototype.getItem = () => { throw new Error("test storage denied"); };
+        window.dispatchEvent(new StorageEvent("storage", { key, newValue: oldGrant, storageArea: localStorage }));
+      }, { key, oldGrant });
+      await settle(page);
+      assert.equal(await page.evaluate(id => window[`ga-disable-${id}`], id), true);
+      assert.equal(traffic.hits.length, 1); await context.close();
+    });
     await test("expired permission blocks an already open page", async () => {
       const now = Date.now();
       const { page, context, traffic } = await fixture(viewport, { storage: JSON.stringify({ version: 1, choice: "granted", decidedAt: now - 15552000000 + 5000 }) });

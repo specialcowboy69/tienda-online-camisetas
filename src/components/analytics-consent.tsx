@@ -82,8 +82,8 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
     function external(event: StorageEvent) {
       if (event.key !== CONSENT_STORAGE_KEY && event.key !== null) return;
       memoryOnly.current = false;
-      apply(parseConsent(event.newValue, Date.now()));
-      schedule();
+      // Queued events may contain an older grant than the current stored rejection.
+      refresh();
     }
     schedule();
     window.addEventListener("storage", external);

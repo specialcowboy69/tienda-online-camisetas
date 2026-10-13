@@ -239,4 +239,5 @@ Checklist de esta fase:
 - [x] Escribir especificación y revisar coherencia, límites y aceptación.
 - [x] Revisión y aprobación del propietario de esta especificación (13 de octubre).
 - [x] Elaborar y revisar el plan de implementación; ejecución directa aprobada.
-- [ ] Implementar, probar y entregar el cambio según el plan aprobado.
+- [x] Implementar, probar y entregar localmente según el plan aprobado; revisión
+  independiente y corrección documentadas en la evidencia. Sin activar ni publicar.
