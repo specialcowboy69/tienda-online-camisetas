@@ -5,9 +5,28 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 13 de octubre de 2026 (politica de incidencias y borradores legales actualizados localmente; sin publicacion ni activaciones)
+**Ultima revision documental:** 14 de octubre de 2026 (PR #34 actualizado con main;
+borradores legales internos y GA4 integrado y desplegado apagado;
+estado operativo del 12 de octubre conservado: product_updated autentico y
+restauracion verificados; stock real pendiente; alertas sin activacion)
 
 ## Resumen vigente y fuente de estado
+
+### Analítica opcional — entrega del 13 de octubre
+
+- [x] Preparar consentimiento previo de GA4 `G-4JDZCBK8SY`, rechazo/retirada,
+  caducidad, exclusión de rutas sensibles y pruebas locales de navegador.
+- [x] Integrar y desplegar apagado: PR #35, merge `2bd0f7a`, Vercel Production
+  `dpl_GgYD23Vk8F5vd2mDA6RhvcjBAG5J` READY. Dominio público verificado en home,
+  catálogo y PDP a 390/1440 px: ajustes indican Analytics off, sin etiqueta ni
+  solicitudes a Google incluso con una aceptación previa en el navegador.
+- [ ] Publicar/revisar información legal y añadir enlaces reales en ajustes.
+- [ ] Verificar ajustes de GA4, SDK real, cookies y revocación; después autorizar
+  activación y acreditar recepción en Realtime/DebugView.
+
+[Evidencia local y límites](verification/2026-10-13-ga4-consent.md) y
+[procedimiento](analytics-and-consent.md). No cambia NO-GO ni activa Ads, Tax,
+conversiones o pagos. Los estados históricos de abajo conservan su fecha.
 
 Esta checklist es la referencia principal de avances y pendientes. El roadmap
 ordena el trabajo; el runbook explica como operarlo. Las pruebas historicas se
@@ -16,7 +35,7 @@ Estar desplegado en Vercel Production no significa tener autorizados pagos live.
 
 | Area | Estado documental; evidencias historicas fechadas |
 | --- | --- |
-| Integracion | Ultimo cambio funcional: PR #31, `ff37910`, desplegado en Vercel Production; conserva alertas desactivadas de #29 y control UE de #27 |
+| Integracion | GA4 de #35 integrado y desplegado apagado; registro de stock de #31, alertas desactivadas de #29 y control UE de #27 conservados. Entrega legal de #34 en verificacion |
 | Envios | Seis destinos previstos US/ES/FR/DE/IT/PT; CA/GB bloqueados por codigo; control preventivo UE integrado y comprobado en cotizaciones publicas |
 | Pagos y pedidos | E2E test posterior a #27; reembolso pending autentico seguido de full, parcial historico y dos borradores cancelados con permiso. No acredita ventas live ni fabricacion |
 | Webhook Printful | Registro de stock corregido: IDs de catalogo 162/317/586/1579. Dos eventos product_updated autenticos procesados el 12 de octubre; cambio interno y restauracion reflejados en Firestore. Sigue pendiente stock_updated y envio real |
@@ -56,10 +75,12 @@ por cambio de opinión permanece separado y conserva sus derechos.
   propietario. La preparación de borradores no cierra este requisito.
 - [ ] Verificar entrada de soporte y solicitudes de derechos. Las capturas
   anteriores acreditan correo saliente recibido, no recepción en este canal.
-- [ ] Si se retoma GA4/Google Ads: inventario real, consentimiento, implementación
-  y pruebas antes de activar. No hay etiquetas ni CMP nuevas en esta entrega.
+- [x] Actualizar los borradores al estado posterior a #35: consentimiento GA4
+  y Cookie settings implementados, con Analytics desplegado apagado.
+- [ ] Antes de activar GA4: inventario del SDK real, información legal revisada,
+  ajustes de propiedad, pruebas y autorización separada. Ads no implementado.
 
-Verificación local: prueba de política RED (falla con el texto anterior) y GREEN;
+Verificación histórica del 13 de octubre: prueba de política RED (falla con el texto anterior) y GREEN;
 708/708 tests, TypeScript y build correctos. El primer intento de suite también
 tuvo un timeout incidental en order-safety; 22/22 pruebas focalizadas y la nueva
 suite completa pasaron sin cambiar código de pedidos ni ampliar timeouts.
@@ -69,9 +90,10 @@ los auxiliares locales ignorados `.superpowers/eu-quotes.cjs` y
 `npx.cmd eslint . --ignore-pattern '.superpowers/**'` pasa. No se presenta el
 lint estándar como verde.
 
-Entrega mediante la rama `codex/legal-policy-drafts`, para revisión por PR
-contra `main`. El merge y el deployment de producción quedan pendientes de
-aprobación; las plantillas siguen siendo internas. No crea páginas públicas, no altera
+Actualización del 14 de octubre: el propietario autorizó actualizar y mergear
+el PR #34 contra `main`, tras las verificaciones. Merge y deployment todavía
+pendientes de acreditar en este registro; las plantillas siguen siendo internas.
+No crea páginas públicas, no altera
 checkout, cotización, alertas, pedidos ni devoluciones automáticas. Stripe Tax,
 pagos live y fabricación no se activan; estado global `NO-GO` sin cambios.
 
@@ -627,8 +649,10 @@ por esta actualizacion; requiere permiso nuevo al retomarla y sigue sin verifica
 - [ ] Anadir `metadataBase`, canonical, Open Graph y Twitter metadata.
 - [ ] Confirmar metadatos unicos para cada producto.
 - [ ] Configurar Search Console y enviar el sitemap.
-- [ ] Decidir la herramienta de analitica.
-- [ ] Implementar consentimiento si la medicion utiliza cookies que lo requieran.
+- [x] Elegir GA4 e implementar consentimiento previo y retirada en #35,
+  desplegado apagado; evidencia y límites en la sección de analítica opcional.
+- [ ] Completar las puertas de activación de GA4 (legales, propiedad, SDK real
+  y recepción verificada); Google Ads queda fuera del alcance implementado.
 - [ ] Configurar monitorizacion de errores y revisar logs de Vercel.
 - [x] ~~Definir una revision periodica manual para pedidos en `manual_review`,
   webhooks fallidos y solicitudes de clientes.~~

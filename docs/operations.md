@@ -14,6 +14,12 @@ Este documento recoge los pasos practicos que han ido saliendo durante la puesta
 
 ## Flujo De Git
 
+Para analítica opcional, seguir [analytics-and-consent.md](analytics-and-consent.md).
+El código se entrega apagado: verificar información legal, propiedad GA4 y SDK
+real antes de pedir autorización de activación. Un build local con tráfico
+interceptado no confirma recepción en Google. Desactivar requiere flag false y
+redeploy; no borra eventos anteriores ni detiene pestañas ya abiertas.
+
 1. Crear rama desde `main`:
 
 ```powershell

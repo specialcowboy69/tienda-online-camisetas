@@ -19,13 +19,18 @@ pausa por decisión del propietario, no resueltos por suposición.
 | Emails transaccionales | Destinatario, contenido renderizado, referencia de pedido, recibo de proveedor e intentos; `email.ts`, `email-jobs.ts` | Resend; recepción del buzón de soporte y su proveedor pendientes de auditar |
 | Web e imágenes | Peticiones, metadatos técnicos y recursos de imágenes externos | Vercel y Cloudflare R2; verificar logs, localizaciones y conservación configurados |
 | Protección | Límites de abuso, validación de pago/dirección y elegibilidad de envío | Código propio y datos de servicios; no equivale a un perfil publicitario |
+| Preferencias de analítica (revisión del 14 de octubre) | `ncc.analytics-consent.v1`: versión, elección y fecha en localStorage, caducidad de 180 días; `analytics-consent.ts` | Preferencia del navegador; GA4 implementado pero desplegado apagado, Ads no implementado |
 
 No se ha verificado una política de borrado/TTL ni conservación uniforme de
 payloads o emails. La caducidad de un lease no elimina un pedido. Revisar acceso,
 minimización, plazos por categoría y eliminación real antes de prometerlos.
 Tampoco se han acreditado en esta tarea regiones de almacenamiento, entidades
 contratantes, acuerdos de tratamiento o garantías de transferencias concretas.
-GA4 y Google Ads no están integrados en el código revisado; no se activan aquí.
+La revisión posterior al PR #35 confirma GA4 implementado con consentimiento
+previo y retirada, desplegado apagado. Google Ads no está integrado. Antes de
+activar medición siguen pendientes inventario del SDK real, configuración de
+propiedad, información legal y autorización separada; ver
+[analítica y consentimiento](../analytics-and-consent.md). No se activan aquí.
 
 ## Borrador para cliente: completar y revisar antes de publicar
 
@@ -48,6 +53,12 @@ provider rather than in our own order form. We retain order and payment-status
 records, transactional email content and delivery records to operate the store.
 Website requests and security checks also involve technical information such as
 IP addresses, request details and diagnostic records.
+
+Cookie settings in the store footer explains the current analytics status.
+When analytics is available, it lets you change or withdraw your choice. The
+preference record contains the choice, its version and decision date in your
+browser; a choice is valid for 180 days. This record does not itself enable
+tracking; analytics is currently off. See [TO COMPLETE: final reviewed cookie policy URL].
 
 ### Why we use it
 

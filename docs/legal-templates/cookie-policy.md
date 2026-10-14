@@ -4,16 +4,24 @@
 
 ## Notas internas: no publicar
 
-Revisión del código, 13 de octubre de 2026: no se han encontrado integraciones
-GA4/Google Ads/GTM ni escrituras explícitas de cookies, localStorage o
-sessionStorage en `src`. El carrito usa estado de React. `layout.tsx` no carga
-scripts de medición. Esto **no acredita que todo el dominio, hosting, recursos
-externos o Checkout de Stripe carezcan de cookies**. Falta inventario real en
-navegador; no declarar "cookie-free" ni inventar cookies o duraciones.
+Revisión actualizada el 14 de octubre de 2026, posterior al PR #35: el código
+incluye consentimiento previo para GA4, retirada y un diálogo accesible desde
+Cookie settings en el footer. GA4 está desplegado **apagado**; Google Ads y GTM
+no están integrados. El estado anterior sin integración queda sustituido por
+esta revisión. Véanse el [procedimiento](../analytics-and-consent.md) y la
+[evidencia fechada](../verification/2026-10-13-ga4-consent.md).
 
-Este archivo no instala etiquetas ni crea un banner/CMP. La intención futura
-del propietario es usar GA4 y Google Ads donde corresponda; ambos permanecen
-fuera de esta entrega.
+El código guarda las decisiones mediante `ncc.analytics-consent.v1` en
+localStorage (versión, elección y fecha; caducidad de 180 días). No equivale a
+una cookie de medición. Las cookies GA4 con prefijo `ncc` y duración solicitada
+de 180 días son configuración del adaptador, **no un inventario observado del
+SDK real**. Falta verificar ese inventario antes de activar. El carrito usa
+estado de React. No declarar "cookie-free": hosting, recursos externos y
+Checkout de Stripe requieren su propia comprobación.
+
+Este archivo no activa etiquetas ni modifica consentimiento o configuración.
+La publicación legal, las pruebas con el SDK real y la activación requieren
+sus verificaciones y autorización separadas.
 
 ## Borrador para cliente: completar y revisar antes de publicar
 
@@ -41,10 +49,11 @@ You can manage or remove cookies through your browser settings. Blocking
 technologies required for a service may affect that service. Browser settings
 do not replace any consent choice we must offer before optional tracking.
 
-If we introduce analytics or advertising, we will update this information and
-provide the required choices before activating those technologies. We will not
-treat browsing or buying as consent to optional measurement or advertising.
-There is currently no store analytics preference centre to link to.
+You can open Cookie settings from the store footer. Analytics is currently off;
+the settings explain that status and do not offer an option to enable it.
+Before enabling optional analytics, we will update this information and provide
+the required choices. Advertising is not enabled. Browsing or buying does not
+constitute consent to optional measurement or advertising.
 
 ### Contact
 
@@ -53,26 +62,28 @@ personal information is handled: [TO COMPLETE: final reviewed privacy policy URL
 
 Last updated: [TO COMPLETE: reviewed publication date].
 
-## Diseño futuro acordado: no está implementado
+## Estado implementado y verificaciones pendientes
 
 - Inventariar primero qué etiquetas/cookies se pretenden usar, para qué, quién
   recibe datos y qué plazos se configuran. No reutilizar nombres/duraciones
   estándar como si fueran observaciones de esta web.
-- Dar opciones claras de aceptar, rechazar o configurar; rechazar debe ser tan
+- Implementado para GA4 en #35, sin activar: opciones de aceptar, rechazar o
+  configurar cuando la medición esté habilitada; rechazar debe ser tan
   accesible como aceptar, sin casillas opcionales premarcadas. Separar analítica
   de publicidad y permitir retirar el consentimiento fácilmente.
-- Criterio conservador: bloquear GA4 y Google Ads antes del consentimiento
-  correspondiente para todos los visitantes. Consent Mode básico, sin carga de
+- GA4 usa Consent Mode básico y está bloqueado antes del consentimiento
+  correspondiente para todos los visitantes, sin carga de
   etiquetas ni pings de medición previos. No usar el modo avanzado como si
   equivaliera a no enviar datos cuando el consentimiento está denegado.
-- Si se implementa: respetar `analytics_storage`, `ad_storage`, `ad_user_data`
-  y `ad_personalization` según elección; no enviar email, nombre o dirección
-  como parámetros de medición. Revisar aparte cualquier conversión mejorada.
+- El código concede únicamente `analytics_storage` tras aceptación; mantiene
+  `ad_storage`, `ad_user_data` y `ad_personalization` denegados. Ads y conversiones
+  mejoradas no están implementados; no se envían datos de formulario a Analytics.
 - Probar primera visita, rechazo, aceptación por categorías, retirada y cambio
   de preferencias en móvil/escritorio mediante red y almacenamiento reales.
   Actualizar esta política, privacidad y la información por capas antes de activar.
-- Mantener estas acciones pendientes. No instalar CMP ni activar analítica por
-  aprobar únicamente este borrador.
+- Pruebas locales de consentimiento y revisión pública con Analytics apagado
+  ya documentadas; no confundirlas con verificación del SDK o recepción en GA4.
+  Mantener pendientes las puertas de activación. Aprobar este borrador no las cierra.
 
 Fuentes de revisión: [AEPD: guía de cookies](https://www.aepd.es/guias/guia-cookies.pdf)
 y [Google: Consent Mode, básico frente a avanzado](https://developers.google.com/tag-platform/security/concepts/consent-mode).
