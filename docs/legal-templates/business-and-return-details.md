@@ -18,12 +18,12 @@ identidad, domicilio o teléfono de la marca, del dominio o del proveedor.
 | Dirección de reclamaciones si distinta | [TO COMPLETE: complaints address or confirm it equals the seller address] |
 | Registro y datos de inscripción aplicables | [TO COMPLETE: verified register and registration details, or reviewed non-applicability] |
 | Identificador fiscal / IVA y publicación exigida | [TO COMPLETE: verified applicable tax identifier and disclosure requirement] |
-| Email de atención y reclamaciones | [TO COMPLETE: verified customer support email] |
-| Email para comunicar desistimiento | [TO COMPLETE: verified withdrawal email, or confirm use of the support email] |
+| Email de atención y reclamaciones | orders@funnyteesforall.com; dirección existente, confirmada para este uso por el propietario |
+| Email para comunicar desistimiento y privacidad | orders@funnyteesforall.com; mismo canal aprobado el 13 de octubre de 2026 |
 | Teléfono operativo | [TO COMPLETE: verified customer contact telephone including country code] |
 | Horario y zona horaria | [TO COMPLETE: actual support hours and time zone] |
 | Responsable y plazo de respuesta | [TO COMPLETE: internal owner and verified support response target] |
-| Dominio y enlaces finales | [TO COMPLETE: final public domain and policy URLs] |
+| Dominio y enlaces finales | https://www.funnyteesforall.com; [TO COMPLETE: final published policy URLs] |
 | Fecha/versión de publicación | [TO COMPLETE: reviewed publication date and version] |
 
 ## Registro interno de devoluciones
@@ -35,9 +35,14 @@ identidad, domicilio o teléfono de la marca, del dominio o del proveedor.
 | Mercados desde los que admite devoluciones | [TO COMPLETE: verified returns coverage for US, ES, FR, DE, IT and PT] |
 | Requisitos de envío y referencia de pedido | [TO COMPLETE: verified return shipping instructions without restricting statutory rights] |
 | Coste directo informado antes de contratar | [TO COMPLETE: actual change-of-mind return cost information, including estimates where required] |
-| Etiquetas / recogida para incidencias de la tienda | [TO COMPLETE: shop-paid necessary return or collection process] |
+| Incidencias confirmadas de la tienda | Elección del cliente: reposición sin coste o reembolso, sin devolución ni recogida; decisión del propietario de 13 de octubre de 2026 |
 | Recepción, inspección y prueba de envío | [TO COMPLETE: process for recording receipt and dispatch evidence] |
 | Responsable del reembolso | [TO COMPLETE: refund operator and original-payment process] |
+
+La dirección sigue siendo necesaria para desistimiento y otras devoluciones;
+la decisión de no recoger prendas con incidencias confirmadas no resuelve ese
+circuito. La recepción de solicitudes entrantes en el email elegido todavía
+debe comprobarse: la entrega de emails salientes de prueba no la acredita.
 
 La dirección de devolución no tiene por qué ser el domicilio del vendedor.
 Confirmar expresamente su autorización y capacidad para recibir prendas. No
@@ -61,7 +66,7 @@ Business registration: [TO COMPLETE: applicable verified registration disclosure
 
 Tax identification: [TO COMPLETE: applicable verified tax identification disclosure].
 
-For customer support and complaints, email [TO COMPLETE: verified customer support email]
+For customer support and complaints, email orders@funnyteesforall.com
 or call [TO COMPLETE: verified customer telephone including country code].
 Our support hours are [TO COMPLETE: actual support hours and time zone].
 
@@ -73,7 +78,7 @@ Return recipient: [TO COMPLETE: authorised return recipient].
 
 Return address: [TO COMPLETE: authorised full return address or reviewed destination-specific addresses].
 
-You can notify us of withdrawal at [TO COMPLETE: verified withdrawal email]
+You can notify us of withdrawal at orders@funnyteesforall.com
 or [TO COMPLETE: verified postal address for withdrawal notices].
 For instructions on returning an item, see [TO COMPLETE: final returns policy URL].
 Your withdrawal notice does not require our prior approval.

@@ -9,6 +9,12 @@ No supeditar derechos del cliente a la aceptación, compensación o plazo de
 reclamación del proveedor. Confirmar la capacidad operativa para cumplir la
 oferta de reembolso ante incidencias que se establece a continuación.
 
+Decisión del propietario, 13 de octubre de 2026: ante defecto o error de la
+tienda confirmado, el cliente elige reposición sin coste o reembolso, sin
+devolver la prenda ni organizar recogida. No extender esta exención de retorno
+automáticamente al desistimiento por cambio de opinión. El texto breve de PDP
+se actualiza en la misma rama; esta plantilla sigue sin publicar.
+
 Completar la dirección autorizada de devolución antes de vender. No copiar la
 dirección de Printful ni exigir autorización previa para comunicar desistimiento.
 No publicar una política de "replacement only", "all sales final" o una
@@ -19,21 +25,22 @@ exclusión de desistimiento basada únicamente en producir después del pedido.
 ### If something is wrong with your order
 
 If your item is defective, damaged, misprinted, incorrect, or affected by another
-error on our part, contact [TO COMPLETE: verified customer support email]. Please
+error on our part, contact orders@funnyteesforall.com. Please
 include your order number, a description of the problem and, where reasonably
 possible, photos that help us understand it. If photos are not possible, tell us
 so we can arrange another way to assess the issue.
 
-You can request a refund. For a confirmed issue of this kind, we offer a refund
-for the affected goods; a replacement is not your only option. You can also ask
+For a confirmed issue of this kind, you can choose a replacement at no cost or
+a refund for the affected goods, including delivery costs where applicable.
+You do not need to return the affected item, and we do not arrange collection.
+A replacement is not your only option. You can also ask
 for another available remedy. Your rights to repair, replacement, a price
 reduction or termination/refund under applicable law remain available where
 their legal conditions are met.
 
-We cover the necessary costs of resolving an issue for which we are responsible,
-including return shipping or collection where needed. We will explain the
-shop-paid return or collection arrangements before you send anything back.
-You do not have to negotiate with our production or shipping partners.
+We cover the necessary costs of resolving an issue for which we are responsible.
+We do not make a refund for a confirmed issue conditional on sending the item
+back. This no-return arrangement is separate from change-of-mind withdrawal below.
 
 Please let us know promptly so that we can help. This request is not a short
 claim deadline and does not shorten or extinguish your statutory rights. The
@@ -52,7 +59,7 @@ of several goods delivered separately, it runs from receipt of the last good;
 for a good delivered in multiple lots or pieces, from receipt of the last lot
 or piece.
 
-To withdraw, send a clear statement to [TO COMPLETE: verified withdrawal email]
+To withdraw, send a clear statement to orders@funnyteesforall.com
 or [TO COMPLETE: verified postal address for withdrawal notices]. You may use
 our [TO COMPLETE: final model withdrawal form URL], but the form is optional.
 Sending your notice before the period expires is sufficient. You do not need
@@ -112,7 +119,7 @@ Exchange availability: [TO COMPLETE: reviewed operational exchange arrangements 
 
 For requests outside the EU withdrawal rules, including requests from the
 United States or after the change-of-mind period, contact
-[TO COMPLETE: verified customer support email]. We assess the request under
+orders@funnyteesforall.com. We assess the request under
 applicable law and the circumstances. There is no blanket exclusion of rights
 because of your location, a supplier policy or the fact that an item was produced
 after ordering.
@@ -138,8 +145,11 @@ Last updated: [TO COMPLETE: reviewed publication date].
   existir el flujo real; el formulario de `withdrawal-form.md` no lo sustituye.
 - Revisar y publicar el aviso armonizado de garantía con el formato oficial;
   este Markdown no lo implementa. Ver controles y fechas en `README.md`.
-- Probar etiquetas/recogida, recepción de prueba de envío, reembolso al medio
-  original y gestión de pedidos parciales. Registrar avisos y su fecha.
+- Registrar la incidencia confirmada y la elección del cliente; no solicitar
+  devolución ni crear etiquetas/recogidas en ese caso. Ejecutar reembolso al
+  medio original o reposición con controles de duplicado; no automatizarlo aquí.
+- Para desistimiento, comprobar dirección, instrucciones, recepción/prueba de
+  envío y reembolso, incluidos pedidos parciales. Registrar avisos y su fecha.
 - No introducir un plazo de 30 días del proveedor como límite de los derechos
   del consumidor; mantenerlo, si aplica, solo en el proceso interno de recobro.
 

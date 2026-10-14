@@ -5,7 +5,8 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 13 de octubre de 2026 (GA4 integrado y desplegado apagado;
+**Ultima revision documental:** 14 de octubre de 2026 (PR #34 actualizado con main;
+borradores legales internos y GA4 integrado y desplegado apagado;
 estado operativo del 12 de octubre conservado: product_updated autentico y
 restauracion verificados; stock real pendiente; alertas sin activacion)
 
@@ -34,13 +35,13 @@ Estar desplegado en Vercel Production no significa tener autorizados pagos live.
 
 | Area | Estado documental; evidencias historicas fechadas |
 | --- | --- |
-| Integracion | Ultimo cambio funcional: PR #31, `ff37910`, desplegado en Vercel Production; conserva alertas desactivadas de #29 y control UE de #27 |
+| Integracion | GA4 de #35 integrado y desplegado apagado; registro de stock de #31, alertas desactivadas de #29 y control UE de #27 conservados. Entrega legal de #34 en verificacion |
 | Envios | Seis destinos previstos US/ES/FR/DE/IT/PT; CA/GB bloqueados por codigo; control preventivo UE integrado y comprobado en cotizaciones publicas |
 | Pagos y pedidos | E2E test posterior a #27; reembolso pending autentico seguido de full, parcial historico y dos borradores cancelados con permiso. No acredita ventas live ni fabricacion |
 | Webhook Printful | Registro de stock corregido: IDs de catalogo 162/317/586/1579. Dos eventos product_updated autenticos procesados el 12 de octubre; cambio interno y restauracion reflejados en Firestore. Sigue pendiente stock_updated y envio real |
 | Email | Confirmacion y recuperacion recibidas en Gmail, capturas del propietario del 12 de octubre. Correo de envio, rebotes y canal de soporte pendientes |
 | Operacion | Vigilancia manual definida; alertas de #29 desplegadas pero desactivadas; indices, pruebas remotas y activacion pendientes |
-| Legales | Plantillas pendientes de completar, revisar y publicar; no se han publicado paginas por este cambio |
+| Legales | Borradores locales de privacidad/cookies y decision de reposicion o reembolso sin retorno para incidencias confirmadas; identidad y resto de pendientes en pausa, no completados; sin paginas publicadas |
 | Riesgo residual | Aceptacion productiva del 8 de octubre; audit repetido el 11 y avisos de desarrollo pendientes en SECURITY.md, sin ampliar la aceptacion |
 
 **Aplazado, no completado:** la compra real controlada y el trabajo fiscal
@@ -53,6 +54,48 @@ parte de una tarea documental. La decision vigente es mantener
 pruebas con efectos. Las ocho suscripciones Stripe test se comprobaron el 11
 de octubre; no equivale a probar todos los tipos ni configurar live. La transicion
 historica de workers sigue pendiente de acreditar.
+
+### Textos de incidencias y borradores legales — 13 de octubre de 2026
+
+Aplicación local de la decisión del propietario, sin desplegar: defectos o
+errores de la tienda confirmados se resuelven mediante reposición sin coste o
+reembolso a elección del cliente, sin devolución ni recogida. El desistimiento
+por cambio de opinión permanece separado y conserva sus derechos.
+
+- [x] Actualizar el texto breve de PDP y la plantilla de incidencias, manteniendo
+  los derechos legales y sin mencionar al proveedor en ese texto público.
+- [x] Reutilizar orders@funnyteesforall.com como contacto en las plantillas;
+  no inventar identidad, domicilio, teléfono ni plazos de respuesta.
+- [x] Incorporar estimación general de producción de 2-5 días laborables,
+  separada del transporte; no atribuir rangos de tarifa plana a cotizaciones API.
+- [x] Preparar [privacidad](legal-templates/privacy-policy.md) y
+  [cookies](legal-templates/cookie-policy.md) según el código actual,
+  distinguiendo datos comprobados de campos pendientes.
+- [ ] Completar/revisar/publicar las plantillas: en pausa por decisión del
+  propietario. La preparación de borradores no cierra este requisito.
+- [ ] Verificar entrada de soporte y solicitudes de derechos. Las capturas
+  anteriores acreditan correo saliente recibido, no recepción en este canal.
+- [x] Actualizar los borradores al estado posterior a #35: consentimiento GA4
+  y Cookie settings implementados, con Analytics desplegado apagado.
+- [ ] Antes de activar GA4: inventario del SDK real, información legal revisada,
+  ajustes de propiedad, pruebas y autorización separada. Ads no implementado.
+
+Verificación histórica del 13 de octubre: prueba de política RED (falla con el texto anterior) y GREEN;
+708/708 tests, TypeScript y build correctos. El primer intento de suite también
+tuvo un timeout incidental en order-safety; 22/22 pruebas focalizadas y la nueva
+suite completa pasaron sin cambiar código de pedidos ni ampliar timeouts.
+`npm.cmd run lint` sigue fallando por cuatro errores `no-require-imports` en
+los auxiliares locales ignorados `.superpowers/eu-quotes.cjs` y
+`.superpowers/eu-risk-contract.cjs`; no se modifican ni se incluyen en Git.
+`npx.cmd eslint . --ignore-pattern '.superpowers/**'` pasa. No se presenta el
+lint estándar como verde.
+
+Actualización del 14 de octubre: el propietario autorizó actualizar y mergear
+el PR #34 contra `main`, tras las verificaciones. Merge y deployment todavía
+pendientes de acreditar en este registro; las plantillas siguen siendo internas.
+No crea páginas públicas, no altera
+checkout, cotización, alertas, pedidos ni devoluciones automáticas. Stripe Tax,
+pagos live y fabricación no se activan; estado global `NO-GO` sin cambios.
 
 ### Cierre tecnico posterior a #28 — 11 de octubre
 
@@ -606,8 +649,10 @@ por esta actualizacion; requiere permiso nuevo al retomarla y sigue sin verifica
 - [ ] Anadir `metadataBase`, canonical, Open Graph y Twitter metadata.
 - [ ] Confirmar metadatos unicos para cada producto.
 - [ ] Configurar Search Console y enviar el sitemap.
-- [ ] Decidir la herramienta de analitica.
-- [ ] Implementar consentimiento si la medicion utiliza cookies que lo requieran.
+- [x] Elegir GA4 e implementar consentimiento previo y retirada en #35,
+  desplegado apagado; evidencia y límites en la sección de analítica opcional.
+- [ ] Completar las puertas de activación de GA4 (legales, propiedad, SDK real
+  y recepción verificada); Google Ads queda fuera del alcance implementado.
 - [ ] Configurar monitorizacion de errores y revisar logs de Vercel.
 - [x] ~~Definir una revision periodica manual para pedidos en `manual_review`,
   webhooks fallidos y solicitudes de clientes.~~
