@@ -5,8 +5,8 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 14 de octubre de 2026 (PR #34 actualizado con main;
-borradores legales internos y GA4 integrado y desplegado apagado;
+**Ultima revision documental:** 14 de octubre de 2026 (PR #34 integrado y PDP
+verificado en producción; borradores legales internos y GA4 desplegado apagado;
 estado operativo del 12 de octubre conservado: product_updated autentico y
 restauracion verificados; stock real pendiente; alertas sin activacion)
 
@@ -35,13 +35,13 @@ Estar desplegado en Vercel Production no significa tener autorizados pagos live.
 
 | Area | Estado documental; evidencias historicas fechadas |
 | --- | --- |
-| Integracion | GA4 de #35 integrado y desplegado apagado; registro de stock de #31, alertas desactivadas de #29 y control UE de #27 conservados. Entrega legal de #34 en verificacion |
+| Integracion | Textos PDP e internos de #34 integrados y verificados en Production (`23c4940`); GA4 de #35 apagado. Registro de stock de #31, alertas desactivadas de #29 y control UE de #27 conservados |
 | Envios | Seis destinos previstos US/ES/FR/DE/IT/PT; CA/GB bloqueados por codigo; control preventivo UE integrado y comprobado en cotizaciones publicas |
 | Pagos y pedidos | E2E test posterior a #27; reembolso pending autentico seguido de full, parcial historico y dos borradores cancelados con permiso. No acredita ventas live ni fabricacion |
 | Webhook Printful | Registro de stock corregido: IDs de catalogo 162/317/586/1579. Dos eventos product_updated autenticos procesados el 12 de octubre; cambio interno y restauracion reflejados en Firestore. Sigue pendiente stock_updated y envio real |
 | Email | Confirmacion y recuperacion recibidas en Gmail, capturas del propietario del 12 de octubre. Correo de envio, rebotes y canal de soporte pendientes |
 | Operacion | Vigilancia manual definida; alertas de #29 desplegadas pero desactivadas; indices, pruebas remotas y activacion pendientes |
-| Legales | Borradores locales de privacidad/cookies y decision de reposicion o reembolso sin retorno para incidencias confirmadas; identidad y resto de pendientes en pausa, no completados; sin paginas publicadas |
+| Legales | Borradores internos integrados de privacidad/cookies y texto PDP de reposicion o reembolso sin retorno para incidencias confirmadas; identidad y resto de pendientes en pausa, no completados; sin paginas legales publicadas |
 | Riesgo residual | Aceptacion productiva del 8 de octubre; audit repetido el 11 y avisos de desarrollo pendientes en SECURITY.md, sin ampliar la aceptacion |
 
 **Aplazado, no completado:** la compra real controlada y el trabajo fiscal
@@ -57,7 +57,8 @@ historica de workers sigue pendiente de acreditar.
 
 ### Textos de incidencias y borradores legales — 13 de octubre de 2026
 
-Aplicación local de la decisión del propietario, sin desplegar: defectos o
+Aplicación inicial el 13 de octubre de la decisión del propietario, entonces
+solo local (cierre de integración del 14 de octubre debajo): defectos o
 errores de la tienda confirmados se resuelven mediante reposición sin coste o
 reembolso a elección del cliente, sin devolución ni recogida. El desistimiento
 por cambio de opinión permanece separado y conserva sus derechos.
@@ -90,10 +91,19 @@ los auxiliares locales ignorados `.superpowers/eu-quotes.cjs` y
 `npx.cmd eslint . --ignore-pattern '.superpowers/**'` pasa. No se presenta el
 lint estándar como verde.
 
-Actualización del 14 de octubre: el propietario autorizó actualizar y mergear
-el PR #34 contra `main`, tras las verificaciones. Merge y deployment todavía
-pendientes de acreditar en este registro; las plantillas siguen siendo internas.
-No crea páginas públicas, no altera
+**Cierre verificado del 14 de octubre:** [PR #34](https://github.com/specialcowboy69/tienda-online-camisetas/pull/34)
+`MERGED`, SHA `23c49402a311d8e7eccdbdcfd8ee0c91edfb6892` contenido en `origin/main`.
+Vercel Production `dpl_Gx9B9rUCt51j3ZTeQoGeHEtdYaqg` READY, sirviendo
+`www.funnyteesforall.com`; el árbol coincide con el head revisado `7322a4a`.
+773/773 tests, TypeScript y build correctos. Lint completo pasa sobre exportación
+limpia del árbol exacto; el checkout conserva los cuatro errores de helpers
+ignorados descritos arriba. Revisión independiente sin bloqueos técnicos.
+Seis comprobaciones públicas (home/catálogo/PDP, 390/1440 px): textos nuevos
+visibles, sin desbordamiento horizontal en PDP y Analytics apagado, incluso con
+consentimiento previo guardado. Cero solicitudes Google y escrituras comerciales.
+[Evidencia, comandos y límites](verification/2026-10-14-legal-policy-delivery.md).
+
+Las plantillas siguen siendo internas. No crea páginas legales públicas, no altera
 checkout, cotización, alertas, pedidos ni devoluciones automáticas. Stripe Tax,
 pagos live y fabricación no se activan; estado global `NO-GO` sin cambios.
 
