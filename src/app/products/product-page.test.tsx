@@ -94,6 +94,26 @@ describe("public product page", () => {
     const metadata = await generateMetadata({ ...props, searchParams: Promise.resolve({ variant: "22" }) });
     expect(metadata.alternates?.canonical).toBe("https://www.funnyteesforall.com/products/falling-apart-cat-graphic-tee");
   });
+  it("renders ProductGroup only for a public PDP with exactly selectable priced variant links", async () => {
+    vi.mocked(getCatalogProduct).mockResolvedValue(variantProduct);
+    vi.mocked(listCatalogProducts).mockResolvedValue([]);
+    const page = await ProductPage({ ...props, searchParams: Promise.resolve({ variant: "22" }) });
+    const scripts = findElements(page, JsonLd).map(node => node.props.data as Record<string, unknown>);
+    expect(scripts.map(data => data["@type"])).toEqual(["BreadcrumbList", "ProductGroup"]);
+    const group = scripts[1];
+    const variants = group.hasVariant as Array<{ sku: string; image: string; offers: { url: string; price: string } }>;
+    expect(variants.map(variant => variant.sku)).toEqual(["11", "22"]);
+    expect(variants[1].offers).toMatchObject({ url: "https://www.funnyteesforall.com/products/falling-apart-cat-graphic-tee?variant=22", price: "31.00" });
+    expect(variants[1].image).toBe("https://example.com/blue.webp");
+    expect(findElements(page, ProductPurchasePanel)[0].props.initialVariantId).toBe(22);
+    expect(findElements(page, ProductGallery)[0].props.initialImageSrc).toBe(variants[1].image);
+  });
+  it("keeps breadcrumb but omits ProductGroup when no safe offer remains", async () => {
+    vi.mocked(getCatalogProduct).mockResolvedValue({ ...variantProduct, variants: [{ ...variantProduct.variants[0], retailPrice: "NaN" }] });
+    vi.mocked(listCatalogProducts).mockResolvedValue([]);
+    const page = await ProductPage(props);
+    expect(findElements(page, JsonLd).map(node => (node.props.data as Record<string, unknown>)["@type"])).toEqual(["BreadcrumbList"]);
+  });
   it("uses fresh keyed instances on query navigation and falls back for invalid requests", async () => {
     vi.mocked(getCatalogProduct).mockResolvedValue(variantProduct);
     vi.mocked(listCatalogProducts).mockResolvedValue([]);

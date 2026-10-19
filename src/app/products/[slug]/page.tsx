@@ -1,5 +1,5 @@
 import { JsonLd } from "@/components/json-ld";
-import { breadcrumbJsonLd } from "@/lib/structured-data";
+import { breadcrumbJsonLd, productGroupJsonLd } from "@/lib/structured-data";
 import { productMetadata } from "@/lib/seo";
 import { filterPublicProducts, getPublicProductBySlug } from "@/lib/storefront-publication";
 import type { Metadata } from "next";
@@ -78,10 +78,12 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
       ? `${price.isRange ? "From " : ""}${formatPrice(price.min, price.currency)}`
       : "Unavailable";
   const defaultCountry = getDefaultShippingCountry();
+  const productGroup = productGroupJsonLd(product);
 
   return (
     <main className="ncc-page">
       <JsonLd data={breadcrumbJsonLd(product)} />
+      {productGroup ? <JsonLd data={productGroup} /> : null}
       <AnalyticsPageRegistration path={`/products/${getProductSlug(product)}`} title="Product" />
       <SiteHeader />
       <nav className="ncc-breadcrumb" aria-label="Breadcrumb">
