@@ -30,6 +30,9 @@ function exactUsdPrice(value: string): string | null {
   const [whole, fraction = ""] = value.split(".");
   const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
   if (cents <= 0n || cents > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  const visiblePrice = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value));
+  const exactDisplay = `$${(cents / 100n).toLocaleString("en-US")}.${String(cents % 100n).padStart(2, "0")}`;
+  if (visiblePrice !== exactDisplay) return null;
   return `${whole}.${fraction.padEnd(2, "0")}`;
 }
 

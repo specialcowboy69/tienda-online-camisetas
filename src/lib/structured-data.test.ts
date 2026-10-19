@@ -50,6 +50,18 @@ describe("structured data", () => {
     }
     expect(productGroupJsonLd({ ...variantProduct, variants: [{ ...black, retailPrice: "" }] })).toBeNull();
   });
+  it("omits prices whose displayed USD cents differ from the Offer", () => {
+    for (const retailPrice of ["90071992547409.91", "70368744177664.01", "70368744177664.04"]) {
+      const graph = productGroupJsonLd({ ...variantProduct, variants: [black, { ...blue, retailPrice }] });
+      expect(graph?.hasVariant, retailPrice).toHaveLength(1);
+      expect(productGroupJsonLd({ ...variantProduct, variants: [{ ...black, retailPrice }] }), retailPrice).toBeNull();
+    }
+    for (const retailPrice of ["90071992547409.90", "70368744177664.02", "70368744177664.03", "0.01", "29.5"]) {
+      const graph = productGroupJsonLd({ ...variantProduct, variants: [{ ...black, retailPrice }] });
+      const offer = (graph?.hasVariant as Array<{ offers: { price: string } }> | undefined)?.[0].offers;
+      expect(offer?.price, retailPrice).toBe(retailPrice === "29.5" ? "29.50" : retailPrice);
+    }
+  });
   it("omits unsafe images, IDs and ambiguous or inactive variants", () => {
     const invalid = [
       { ...blue, image: undefined }, { ...blue, image: "javascript:alert(1)" },
