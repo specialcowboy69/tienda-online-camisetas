@@ -76,6 +76,14 @@ describe("structured data", () => {
     expect(productGroupJsonLd({ ...variantProduct, variants: [black, { ...blue, color: "Black", size: "M" }] })).toBeNull();
     expect(productGroupJsonLd({ ...variantProduct, variants: [] })).toBeNull();
   });
+  it("omits offers whose color or size collides after the buttons trim their labels", () => {
+    const padded = { ...blue, syncVariantId: 33, color: " Blue ", size: " L " };
+    const graph = productGroupJsonLd({ ...variantProduct, variants: [black, blue, padded] });
+    expect((graph?.hasVariant as Array<{ sku: string }>).map(variant => variant.sku)).toEqual(["11"]);
+    expect(JSON.stringify(graph)).not.toContain("?variant=22");
+    expect(JSON.stringify(graph)).not.toContain("?variant=33");
+    expect(productGroupJsonLd({ ...variantProduct, variants: [blue, padded] })).toBeNull();
+  });
   it("rejects the entire group for mixed active currencies, including case differences in USD", () => {
     expect(productGroupJsonLd({ ...variantProduct, variants: [black, { ...blue, currency: "EUR" }] })).toBeNull();
     expect(productGroupJsonLd({ ...variantProduct, variants: [black, { ...blue, currency: "eur", isIgnored: true }] })?.hasVariant).toHaveLength(1);

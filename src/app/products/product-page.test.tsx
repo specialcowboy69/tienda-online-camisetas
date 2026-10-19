@@ -145,4 +145,18 @@ describe("public product page", () => {
     expect(findElements(page, ProductFinalCallout)[0].props.priceLabel).toBe("$29.00");
     expect(findElements(page, ProductGallery)[0].props.initialImageSrc).toBeUndefined();
   });
+  it("falls back to the visible first option for a whitespace-colliding variant URL", async () => {
+    const first = { ...variantProduct.variants[0], color: "Blue", size: "M" };
+    const padded = { ...variantProduct.variants[1], color: " Blue ", size: "M" };
+    vi.mocked(getCatalogProduct).mockResolvedValue({ ...variantProduct, variants: [first, padded] });
+    vi.mocked(listCatalogProducts).mockResolvedValue([]);
+    const page = await ProductPage({ ...props, searchParams: Promise.resolve({ variant: "22" }) });
+    const panel = findElements(page, ProductPurchasePanel)[0];
+    expect(panel.props.initialVariantId).toBeUndefined();
+    expect(renderToStaticMarkup(panel)).toContain('<button aria-pressed="true" class="ncc-choice" type="button">Blue</button>');
+    expect(renderToStaticMarkup(panel)).toContain("$29.00");
+    expect(findElements(page, ProductFinalCallout)[0].props.priceLabel).toBe("$29.00");
+    expect(findElements(page, ProductGallery)[0].props.initialImageSrc).toBeUndefined();
+    expect(findElements(page, JsonLd).map(node => (node.props.data as Record<string, unknown>)["@type"])).toEqual(["BreadcrumbList"]);
+  });
 });

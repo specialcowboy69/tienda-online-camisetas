@@ -11,7 +11,10 @@ export function selectUrlVariant(product: CatalogProduct, value: string | string
   const matches = active.filter(variant => variant.syncVariantId === id);
   if (matches.length !== 1) return undefined;
   const candidate = matches[0];
-  if (active.filter(variant => variant.color === candidate.color && variant.size === candidate.size).length !== 1) return undefined;
+  const displayedColor = candidate.color?.trim() || "";
+  const displayedSize = candidate.size?.trim() || "";
+  if ((candidate.color || "") !== displayedColor || (candidate.size || "") !== displayedSize) return undefined;
+  if (active.filter(variant => (variant.color?.trim() || "") === displayedColor && (variant.size?.trim() || "") === displayedSize).length !== 1) return undefined;
   const first = active[0];
   const color = candidate.color || first.color || "";
   const size = candidate.size || first.size || "";

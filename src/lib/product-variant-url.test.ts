@@ -51,4 +51,21 @@ describe("product variant URLs", () => {
     const first = { ...black, size: undefined };
     expect(selectUrlVariant({ ...product, variants: [first, blue] }, "11")).toEqual(first);
   });
+
+  it("rejects raw whitespace in a candidate's displayed color or size", () => {
+    const paddedColor = { ...blue, color: " Blue " };
+    const paddedSize = { ...blue, size: " L " };
+    expect(selectUrlVariant({ ...product, variants: [black, paddedColor] }, "22")).toBeUndefined();
+    expect(selectUrlVariant({ ...product, variants: [black, paddedSize] }, "22")).toBeUndefined();
+    expect(() => variantUrl({ ...product, variants: [black, paddedColor] }, paddedColor)).toThrow("Variant is not uniquely selectable");
+  });
+
+  it("rejects a clean candidate when another active variant has the same displayed color and size", () => {
+    const padded = { ...blue, syncVariantId: 33, color: " Blue ", size: " L " };
+    const mixed = { ...product, variants: [black, blue, padded] };
+    expect(selectUrlVariant(mixed, "22")).toBeUndefined();
+    expect(selectUrlVariant(mixed, "33")).toBeUndefined();
+    expect(() => variantUrl(mixed, blue)).toThrow("Variant is not uniquely selectable");
+    expect(() => variantUrl(mixed, padded)).toThrow("Variant is not uniquely selectable");
+  });
 });
