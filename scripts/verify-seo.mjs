@@ -17,9 +17,12 @@ export function allowedAuditUrl(value) {
     return [...u.searchParams].every(([k, v]) => k === 'utm_source' && v === 'seo-smoke');
   } catch { return false; }
 }
+function renderedMarkup(html) {
+  return html.replace(/<!--[\s\S]*?-->/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+}
 export function inspectHtml(html) {
   // Inspect rendered tags only; inert scripts/comments must not look like real metadata.
-  const markup = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+  const markup = renderedMarkup(html);
   const tags = name => [...markup.matchAll(new RegExp(`<${name}\\b[^>]*>`, 'gi'))].map(m => attrs(m[0]));
   const jsonLd = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)].filter(m => attrs(m[1]).type?.toLowerCase() === 'application/ld+json').map(m => {
     try { return JSON.parse(m[2]); } catch { throw new Error('Invalid JSON-LD'); }
@@ -36,7 +39,7 @@ export function checkPage(html, path, noindex = false) {
   if (info.canonicals.length !== 1 || (info.canonicals[0] !== ORIGIN + path && !(path === '/' && info.canonicals[0] === ORIGIN))) errors.push('Incorrect or duplicate canonical');
   if (!info.title) errors.push('Missing title');
   if (info.robots.some(r => /\bnoindex\b/i.test(r))) errors.push('Public page has noindex');
-  if ((html.match(/<h1\b/gi) ?? []).length !== 1 && (path === '/' || path.startsWith('/products'))) errors.push('Expected one commercial H1');
+  if ((renderedMarkup(html).match(/<h1\b/gi) ?? []).length !== 1 && (path === '/' || path.startsWith('/products'))) errors.push('Expected one commercial H1');
   return errors;
 }
 export async function safeGet(value, { method = 'GET', fetcher = fetch } = {}) {

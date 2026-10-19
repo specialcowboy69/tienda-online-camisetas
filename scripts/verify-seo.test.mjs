@@ -67,3 +67,12 @@ test('rejects protected output directories case-insensitively on Windows', () =>
 test('accepts equivalent root canonical serialization emitted by Next', () => {
   assert.deepEqual(checkPage(`<title>Home</title><link rel="canonical" href="https://www.funnyteesforall.com"><h1>Shop</h1>`, '/'), []);
 });
+test('rejects a commercial page whose only H1 is inside a comment or script', () => {
+  const metadata = `<title>Shop</title><link rel="canonical" href="https://www.funnyteesforall.com/products">`;
+  for (const inert of ['<!-- <h1>Invisible</h1> -->', '<script>const example = "<h1>Invisible</h1>";</script>']) {
+    assert.ok(checkPage(metadata + inert, '/products').includes('Expected one commercial H1'));
+  }
+});
+test('accepts one real commercial H1 despite fictitious H1s in comments and scripts', () => {
+  assert.deepEqual(checkPage(html('/products') + '<!-- <h1>Invisible</h1> --><script>const example = "<h1>Invisible</h1>";</script>', '/products'), []);
+});
