@@ -17,7 +17,9 @@ ProductGroup/Offers seguros en `9f3f0e2` y `47f21fa`. El smoke B se añadió en
 espacios podían crear una URL y una Offer ambiguas; `0d812843` las excluye.
 **Código revisado: `0d812843de2942d650447d174f1ef183d1b19062`.** Las
 revisiones independientes de A, B y el arreglo final terminaron sin hallazgos
-abiertos.
+abiertos. Después se incorporó el `origin/main` que contiene el PR #39
+(`255b1c1`) en el merge local `19af136626ad15cf9434b39c2ab714c7e7948a31`,
+sin conflictos.
 
 El schema usa solo productos publicables y variantes que el panel puede
 seleccionar. Omite ofertas con precio, moneda, imagen o ID no fiables; no
@@ -64,6 +66,10 @@ productos. Por tanto **no hubo HTTP de PDP ni de variante**: los checks de
 precio/imagen B están implementados y probados con mock, pero no validados
 contra Firestore real o producción. No se copiaron credenciales para
 desbloquearlo. El reporte JSON local está ignorado por Git en `.superpowers/`.
+Tras incorporar `origin/main`, se repitió el smoke contra un build nuevo en
+`127.0.0.1:3220`: 12 GET, los mismos estados y **exit 1** por sitemap 503,
+sin fichas ni variantes HTTP. Reporte ignorado:
+`.superpowers/sdd/2026-10-19-camisetas-seo-foundation/seo-http-final-merge.json`.
 
 El CLI acepta solo GET a loopback o al origen HTTPS exacto
 `https://www.funnyteesforall.com`, sin credenciales ni fragmento. Su allowlist
