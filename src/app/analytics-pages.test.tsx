@@ -20,7 +20,7 @@ function nodes(node: React.ReactNode, type: unknown): ReactElement<Record<string
   if (!React.isValidElement<Record<string, unknown>>(node)) return [];
   return [...(node.type === type ? [node] : []), ...React.Children.toArray(node.props.children as React.ReactNode).flatMap(child => nodes(child, type))];
 }
-const product: CatalogProduct = { id: "468682936", syncProductId: 468682936, name: "Private arbitrary title", variants: [], updatedAt: "2026-10-13" };
+const product: CatalogProduct = { id: "468682936", syncProductId: 468682936, name: "Private arbitrary title", storefrontImage: "https://example.com/tee.webp", variants: [], updatedAt: "2026-10-13" };
 
 describe("analytics page boundary", () => {
   it("mounts one provider without catalog reads", () => {

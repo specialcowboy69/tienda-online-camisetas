@@ -131,7 +131,7 @@ describe("HomePageContent", () => {
     expect(html).toContain('href="/products"');
   });
 
-  it("keeps a mapped product usable when no catalog image exists", () => {
+  it("excludes a mapped product when no catalog image exists", () => {
     const productWithoutImage = {
       ...productWithSlugAndImage,
       storefrontImage: undefined,
@@ -140,8 +140,8 @@ describe("HomePageContent", () => {
     };
     const html = renderHome({ products: [productWithoutImage], status: "available" });
 
-    expect(html).toContain('href="/products/falling-apart-cat-graphic-tee"');
-    expect(html).toContain("ncc-product-card");
+    expect(html).not.toContain('href="/products/falling-apart-cat-graphic-tee"');
+    expect(html).not.toContain("ncc-product-card");
     expect(html).not.toContain("product view");
     expect(html).not.toContain('src="undefined"');
   });
@@ -239,4 +239,11 @@ describe("home CSS layout contract", () => {
     const cta = declarationsAt(width, [".ncc-home-drop .ncc-product-card__cta"]);
     expect(parseFloat(cta["min-height"])).toBeGreaterThanOrEqual(44);
   });
+});
+
+it("counts and features only public products even with an unfiltered catalog", () => {
+  const html = renderHome({ products: [productWithSlugAndImage, { ...productWithSlugAndImage, isIgnored: true, name: "Hidden design" }, productWithoutSlug], status: "available" });
+  expect(html).toContain("One design. Zero need to explain it.");
+  expect(html).not.toContain("Hidden design");
+  expect(html).not.toContain("New design");
 });

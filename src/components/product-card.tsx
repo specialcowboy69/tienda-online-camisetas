@@ -1,3 +1,4 @@
+import { isPublicProduct } from "@/lib/storefront-publication";
 import Link from "next/link";
 import { getCatalogProductImage } from "@/lib/catalog-images";
 import { getProductSlug } from "@/lib/product-slugs";
@@ -26,11 +27,12 @@ type ProductCardProps = {
 };
 
 export function ProductCard({ product, ctaLabel = "View product", showMeta = true }: ProductCardProps) {
+  if (!isPublicProduct(product)) return null;
   const slug = getProductSlug(product);
   const image = getCatalogProductImage(product);
   const price = getProductPriceSummary(product);
   const priceLabel = price ? `${price.isRange ? "From " : ""}${formatPrice(price.min, price.currency)}` : "Unavailable";
-  const href = slug ? `/products/${slug}` : `/products`;
+  const href = `/products/${slug}`;
 
   return (
     <article className="ncc-product-card">

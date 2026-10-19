@@ -1,3 +1,4 @@
+import { filterPublicProducts } from "@/lib/storefront-publication";
 import { ProductCard } from "@/components/product-card";
 import { SiteHeader } from "@/components/site-header";
 import { getPublicCatalog } from "@/lib/public-catalog";
@@ -16,6 +17,7 @@ function CatalogState({ kind }: { kind: "empty" | "unavailable" }) {
 
 export default async function ProductsPage() {
   const catalog = await getPublicCatalog();
+  const products = filterPublicProducts(catalog.products);
 
   return (
     <main className="ncc-page">
@@ -28,11 +30,11 @@ export default async function ProductsPage() {
       </section>
       {catalog.status === "unavailable" ? (
         <CatalogState kind="unavailable" />
-      ) : catalog.products.length === 0 ? (
+      ) : products.length === 0 ? (
         <CatalogState kind="empty" />
       ) : (
         <section className="ncc-products-grid" aria-label="Products">
-          {catalog.products.map((product) => (
+          {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </section>

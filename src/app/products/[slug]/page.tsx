@@ -1,3 +1,4 @@
+import { filterPublicProducts, getPublicProductBySlug } from "@/lib/storefront-publication";
 import type { Metadata } from "next";
 import { AnalyticsPageRegistration } from "@/components/analytics-page";
 import Link from "next/link";
@@ -8,9 +9,9 @@ import { ProductGallery } from "@/components/product-gallery";
 import { ProductPurchasePanel } from "@/components/product-purchase-panel";
 import { SiteHeader } from "@/components/site-header";
 import { getAllowedShippingCountries, getDefaultShippingCountry } from "@/lib/env";
-import { getCatalogProduct, listCatalogProducts } from "@/lib/firestore";
+import { listCatalogProducts } from "@/lib/firestore";
 import { getCatalogProductGallery } from "@/lib/product-gallery";
-import { getProductIdBySlug, getProductSlug } from "@/lib/product-slugs";
+import { getProductSlug } from "@/lib/product-slugs";
 import { productContentById } from "@/lib/product-content";
 import { getActiveProductVariants, getProductPriceSummary } from "@/lib/product-view";
 import { getSizeGuideForProduct } from "@/lib/size-guides";
@@ -38,36 +39,21 @@ function formatPrice(price?: string, currency?: string) {
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const productId = getProductIdBySlug(slug);
-  if (!productId) {
-    return {};
-  }
-
-  const product = await getCatalogProduct(productId);
-  if (!product) {
-    return {};
-  }
-
+  const product = await getPublicProductBySlug(slug);
+  if (!product) notFound();
   return {
     title: `${product.name} | No Context Club`,
-    description: productContentById[product.id]?.summary || "Funny graphic apparel from No Context Club."
+    description: productContentById[product.id].summary
   };
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
-  const productId = getProductIdBySlug(slug);
-  if (!productId) {
-    notFound();
-  }
-
-  const product = await getCatalogProduct(productId);
-  if (!product || product.isIgnored) {
-    notFound();
-  }
+  const product = await getPublicProductBySlug(slug);
+  if (!product) notFound();
 
   const allProducts = await listCatalogProducts();
-  const relatedProducts = allProducts.filter((candidate) => candidate.id !== product.id).slice(0, 3);
+  const relatedProducts = filterPublicProducts(allProducts).filter((candidate) => candidate.id !== product.id).slice(0, 3);
   const content = productContentById[product.id];
   const gallery = getCatalogProductGallery(product);
   const sizeGuide = getSizeGuideForProduct(product);
@@ -131,8 +117,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <ProductContext content={content} images={gallery} />
 
       <ProductFinalCallout content={content} images={gallery} priceLabel={priceLabel} productName={product.name} sizeGuide={sizeGuide} />
-
-      {!getProductSlug(product) ? <p className="notice">This product needs a public slug before launch.</p> : null}
     </main>
   );
 }
