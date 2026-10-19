@@ -376,6 +376,7 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
           <button className="ncc-secondary-button ncc-form-wide" type="submit" disabled={cart.length === 0 || loading}>
             Calculate shipping
           </button>
+          <p className="ncc-form-wide">We use your contact and delivery details to calculate shipping and process your order. See our <a href="/privacy">Privacy policy</a>.</p>
         </form>
       ) : null}
 

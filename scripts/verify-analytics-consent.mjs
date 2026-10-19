@@ -97,7 +97,17 @@ try {
       await test(`flag off ${viewport.width}`, async () => {
         const { page, context, traffic } = await fixture(viewport);
         await visit(page); assert.equal(await page.getByRole("button", { name: "Accept analytics" }).count(), 0);
+        const footer = page.getByRole("contentinfo", { name: "Legal information" });
+        assert.equal(await footer.getByRole("button", { name: "Cookie settings" }).evaluate(el => getComputedStyle(el).color), await footer.evaluate(el => getComputedStyle(el).color));
         await settings(page); assert.equal(await page.getByText("Analytics is currently off on this site.").isVisible(), true);
+        await page.getByRole("button", { name: "Close cookie settings" }).click();
+        for (const [path, heading] of [["/privacy", "Privacy policy"], ["/cookies", "Cookie policy"]]) {
+          await page.getByRole("contentinfo", { name: "Legal information" }).getByRole("link", { name: heading }).click();
+          await page.waitForURL(canonical + path);
+          assert.equal(await page.getByRole("heading", { level: 1, name: heading }).isVisible(), true);
+          await noOverflow(page);
+          await page.screenshot({ path: join(output, `${path.slice(1)}-${viewport.width}.png`), fullPage: true });
+        }
         assert.equal(traffic.scripts, 0); assert.equal(traffic.hits.length, 0); await context.close();
       });
       continue;

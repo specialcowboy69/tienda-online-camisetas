@@ -12,6 +12,8 @@ describe("analytics server shell", () => {
     const html = renderToStaticMarkup(<AnalyticsConsentProvider enabled={enabled} measurementId="G-4JDZCBK8SY" deployment="production"><input defaultValue="keep my cart" /></AnalyticsConsentProvider>);
     expect(html).toContain("keep my cart");
     expect(html).toContain("Cookie settings");
+    expect(html).toContain('href="/privacy"');
+    expect(html).toContain('href="/cookies"');
     expect(html).not.toMatch(/<script|preconnect|googletagmanager|Accept analytics/);
   });
   it("allows page rendering without a provider and exposes no tracking markup", () => {

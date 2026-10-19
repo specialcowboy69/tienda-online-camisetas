@@ -110,7 +110,11 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
 
   return <RegistrationContext.Provider value={register}>
     {children}
-    <footer className="ncc-consent-footer"><button type="button" onClick={openSettings}>Cookie settings</button></footer>
+    <footer className="ncc-consent-footer" aria-label="Legal information">
+      <a href="/privacy">Privacy policy</a>
+      <a href="/cookies">Cookie policy</a>
+      <button type="button" onClick={openSettings}>Cookie settings</button>
+    </footer>
     {showBanner && <div aria-hidden="true" style={{ height: bannerHeight }} />}
     {showBanner && <section ref={banner} className="ncc-consent-banner" aria-label="Analytics preferences">
       <p>We use optional Google Analytics cookies to understand visits to our store. Analytics stays off unless you accept. You can change your choice at any time using Cookie settings. Advertising tracking is off.</p>
@@ -142,6 +146,7 @@ function ConsentDialog({ available, granted, warning, onClose, onSave }: {
     <p>We store your choice for 180 days. Necessary store features work whether you accept or reject analytics.</p>
     {available ? <label className="ncc-consent-toggle"><input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)} />Allow Google Analytics</label> : <p>Analytics is currently off on this site.</p>}
     <p>Advertising tracking is off. We do not enable Google Ads tracking through these settings.</p>
+    <p>Read our <a href="/privacy">Privacy policy</a> and <a href="/cookies">Cookie policy</a>.</p>
     {warning && <p role="status">Your choice could not be saved. It will apply until you leave this page.</p>}
     <div className="ncc-consent-actions">
       {available && <button type="button" onClick={() => { dialog.current?.close(); onSave(checked); }}>Save preferences</button>}
