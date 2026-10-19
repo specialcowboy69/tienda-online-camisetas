@@ -307,7 +307,7 @@ Antes de incorporar un asset, confirmar:
 ## SEO foundation A — estado local del 19 de octubre de 2026
 
 La rama aislada incorpora publicación pública coherente, canonical limpio,
-metadata inglesa, noindex operativo, sitemap/robots y schema Organization,
-WebSite y BreadcrumbList. [Verificación local y límites](verification/2026-10-19-seo-foundation.md).
+metadata inglesa, noindex operativo, sitemap/robots y schema Organization y
+BreadcrumbList. [Verificación local y límites](verification/2026-10-19-seo-foundation.md).
 No acredita despliegue ni resultados de Google. La selección de variantes y
 ProductGroup/Offer (B) siguen pendientes; no se publican categorías hipotéticas.

@@ -12,6 +12,11 @@ test('extracts metadata regardless of quotes and attribute order and unique prod
   assert.deepEqual(result, { title: 'A & B', canonicals: ['/a', '/b'], robots: ['noindex, nofollow'], jsonLd: [{ '@type': 'Organization' }], productPaths: ['/products/tee'] });
   assert.throws(() => inspectHtml('<script type="application/ld+json">{bad}</script>'), /JSON-LD/);
 });
+test('ignores JSON-LD inside HTML comments while checking rendered scripts', () => {
+  const result = inspectHtml('<!-- <script type="application/ld+json">{bad}</script> --><script type="application/ld+json">{"@type":"Organization"}</script>');
+  assert.deepEqual(result.jsonLd, [{ '@type': 'Organization' }]);
+  assert.throws(() => inspectHtml('<!-- <script type="application/ld+json">{"@type":"Organization"}</script> --><script type="application/ld+json">{bad}</script>'), /JSON-LD/);
+});
 test('detects duplicate/wrong canonical and missing noindex', () => {
   assert.deepEqual(checkPage(html('/products'), '/products'), []);
   assert.match(checkPage(html('/wrong'), '/products').join(), /canonical/);

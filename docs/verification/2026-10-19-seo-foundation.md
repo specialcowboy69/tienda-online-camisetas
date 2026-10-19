@@ -7,7 +7,7 @@ merge, deployment, GSC submission, Rich Results result or Google indexing claim.
 
 Foundation commits through `85c9576` implement publication filtering, shared
 public product resolution, clean canonical metadata, operational noindex,
-sitemap/robots, Organization/WebSite and BreadcrumbList. This gate adds
+sitemap/robots, Organization and BreadcrumbList. This gate adds
 `scripts/verify-seo.mjs` and its standalone Node tests. The gate commit is the
 commit introducing this document (`git log -1 --format=%H -- scripts/verify-seo.mjs`).
 

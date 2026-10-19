@@ -17,14 +17,17 @@ export function allowedAuditUrl(value) {
     return [...u.searchParams].every(([k, v]) => k === 'utm_source' && v === 'seo-smoke');
   } catch { return false; }
 }
+function stripComments(html) {
+  return html.replace(/<!--[\s\S]*?-->/g, '');
+}
 function renderedMarkup(html) {
-  return html.replace(/<!--[\s\S]*?-->/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+  return stripComments(html).replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
 }
 export function inspectHtml(html) {
   // Inspect rendered tags only; inert scripts/comments must not look like real metadata.
   const markup = renderedMarkup(html);
   const tags = name => [...markup.matchAll(new RegExp(`<${name}\\b[^>]*>`, 'gi'))].map(m => attrs(m[0]));
-  const jsonLd = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)].filter(m => attrs(m[1]).type?.toLowerCase() === 'application/ld+json').map(m => {
+  const jsonLd = [...stripComments(html).matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)].filter(m => attrs(m[1]).type?.toLowerCase() === 'application/ld+json').map(m => {
     try { return JSON.parse(m[2]); } catch { throw new Error('Invalid JSON-LD'); }
   });
   const productPaths = [...new Set(tags('a').flatMap(a => {
