@@ -4,12 +4,23 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getCatalogProduct, listCatalogProducts } from "@/lib/firestore";
 import { ProductCard } from "@/components/product-card";
+import { ProductGallery } from "@/components/product-gallery";
+import { ProductPurchasePanel } from "@/components/product-purchase-panel";
+import { ProductFinalCallout } from "@/components/product-details";
 import ProductPage, { generateMetadata } from "./[slug]/page";
 import type { CatalogProduct } from "@/lib/types";
 vi.mock("@/lib/firestore", () => ({ getCatalogProduct: vi.fn(), listCatalogProducts: vi.fn() }));
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("NOT_FOUND"); } }));
 const product: CatalogProduct = { id: "468682936", syncProductId: 468682936, name: "Falling apart", storefrontImage: "https://example.com/tee.webp", variants: [], updatedAt: "2026-10-19T00:00:00Z" };
 const props = { params: Promise.resolve({ slug: "falling-apart-cat-graphic-tee" }) };
+const variantProduct: CatalogProduct = { ...product, storefrontImages: ["https://example.com/other.webp"], variants: [
+  { syncVariantId: 11, variantId: 111, name: "Black / M", color: "Black", size: "M", retailPrice: "29", currency: "USD", image: "https://example.com/black.webp" },
+  { syncVariantId: 22, variantId: 222, name: "Blue / L", color: "Blue", size: "L", retailPrice: "31", currency: "USD", image: "https://example.com/blue.webp" }
+] };
+function findElements(node: React.ReactNode, type: unknown): React.ReactElement<Record<string, unknown>>[] {
+  if (!React.isValidElement<Record<string, unknown>>(node)) return [];
+  return [...(node.type === type ? [node] : []), ...React.Children.toArray(node.props.children as React.ReactNode).flatMap(child => findElements(child, type))];
+}
 beforeAll(() => vi.stubGlobal("React", React));
 beforeEach(() => vi.resetAllMocks());
 describe("public product page", () => {
@@ -67,5 +78,39 @@ describe("public product page", () => {
     expect(html).toContain('<span aria-current="page">Falling apart</span>');
     expect((data.itemListElement as { name: string }[]).map(item => item.name)).toEqual(["Shop all", "Falling apart"]);
     expect(JSON.stringify(data)).not.toMatch(/"@type":"(?:Product|Offer)"/);
+  });
+  it("uses the URL-selected variant for buybox, final price and initial gallery image", async () => {
+    vi.mocked(getCatalogProduct).mockResolvedValue(variantProduct);
+    vi.mocked(listCatalogProducts).mockResolvedValue([]);
+    const page = await ProductPage({ ...props, searchParams: Promise.resolve({ variant: "22" }) });
+    const panel = findElements(page, ProductPurchasePanel)[0];
+    const gallery = findElements(page, ProductGallery)[0];
+    const callout = findElements(page, ProductFinalCallout)[0];
+    expect(panel.props.initialVariantId).toBe(22);
+    expect(renderToStaticMarkup(panel)).toContain("$31.00");
+    expect(gallery.props.initialImageSrc).toBe("https://example.com/blue.webp");
+    expect(renderToStaticMarkup(gallery)).toContain('src="https://example.com/blue.webp"');
+    expect(callout.props.priceLabel).toBe("$31.00");
+    const metadata = await generateMetadata({ ...props, searchParams: Promise.resolve({ variant: "22" }) });
+    expect(metadata.alternates?.canonical).toBe("https://www.funnyteesforall.com/products/falling-apart-cat-graphic-tee");
+  });
+  it("uses fresh keyed instances on query navigation and falls back for invalid requests", async () => {
+    vi.mocked(getCatalogProduct).mockResolvedValue(variantProduct);
+    vi.mocked(listCatalogProducts).mockResolvedValue([]);
+    const blue = await ProductPage({ ...props, searchParams: Promise.resolve({ variant: "22" }) });
+    const black = await ProductPage({ ...props, searchParams: Promise.resolve({ variant: "11" }) });
+    const invalid = await ProductPage({ ...props, searchParams: Promise.resolve({ variant: ["22", "11"] }) });
+    for (const component of [ProductPurchasePanel, ProductGallery]) {
+      expect(findElements(blue, component)[0].key).not.toBe(findElements(black, component)[0].key);
+    }
+    expect(findElements(black, ProductPurchasePanel)[0].props.initialVariantId).toBe(11);
+    expect(findElements(invalid, ProductPurchasePanel)[0].props.initialVariantId).toBeUndefined();
+    expect(findElements(invalid, ProductFinalCallout)[0].props.priceLabel).toBe("$29.00");
+    expect(findElements(invalid, ProductGallery)[0].props.initialImageSrc).toBeUndefined();
+  });
+  it("keeps existing gallery images when the selected variant image was absent", () => {
+    const html = renderToStaticMarkup(<ProductGallery productName="Falling apart" images={[{ src: "https://example.com/tee.webp", alt: "Main" }]} initialImageSrc="https://example.com/blue.webp" />);
+    expect(html).toContain('<img src="https://example.com/blue.webp"');
+    expect(html).toContain('src="https://example.com/tee.webp"');
   });
 });

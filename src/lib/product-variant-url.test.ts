@@ -1,0 +1,35 @@
+import { describe, expect, it } from "vitest";
+import { selectUrlVariant, variantUrl } from "./product-variant-url";
+import type { CatalogProduct, CatalogVariant } from "./types";
+
+const black: CatalogVariant = { syncVariantId: 11, variantId: 111, name: "Black / M", color: "Black", size: "M", retailPrice: "29", currency: "USD", image: "https://example.com/black.webp" };
+const blue: CatalogVariant = { syncVariantId: 22, variantId: 222, name: "Blue / L", color: "Blue", size: "L", retailPrice: "31", currency: "USD", image: "https://example.com/blue.webp" };
+const product: CatalogProduct = { id: "468682936", syncProductId: 468682936, name: "Falling apart", storefrontImage: "https://example.com/tee.webp", variants: [black, blue], updatedAt: "2026-10-19" };
+
+describe("product variant URLs", () => {
+  it("selects only the active variant with the exact sync ID", () => {
+    expect(selectUrlVariant(product, "22")).toEqual(blue);
+    expect(selectUrlVariant(product, "11")).toEqual(black);
+    expect(variantUrl(product, blue)).toBe("https://www.funnyteesforall.com/products/falling-apart-cat-graphic-tee?variant=22");
+  });
+
+  it.each([undefined, ["22"], ["22", "11"], "", "0", "-22", "22.0", "2.2e1", " 22", "22 ", "+22", "022", "23", "9007199254740992"])(
+    "rejects absent, repeated, malformed, foreign or unsafe ID %j",
+    value => expect(selectUrlVariant(product, value)).toBeUndefined()
+  );
+
+  it.each(["out_of_stock", "discontinued"])("rejects %s variants", availabilityStatus => {
+    expect(selectUrlVariant({ ...product, variants: [{ ...blue, availabilityStatus }] }, "22")).toBeUndefined();
+  });
+
+  it("rejects ignored variants, duplicate sync IDs and ambiguous color/size", () => {
+    expect(selectUrlVariant({ ...product, variants: [{ ...blue, isIgnored: true }] }, "22")).toBeUndefined();
+    expect(selectUrlVariant({ ...product, variants: [blue, { ...blue, name: "Second" }] }, "22")).toBeUndefined();
+    expect(selectUrlVariant({ ...product, variants: [blue, { ...blue, syncVariantId: 33 }] }, "22")).toBeUndefined();
+    expect(selectUrlVariant({ ...product, variants: [blue, { ...blue, syncVariantId: 33 }] }, "33")).toBeUndefined();
+  });
+
+  it("rejects unsafe catalog IDs even when requested text is decimal", () => {
+    expect(selectUrlVariant({ ...product, variants: [{ ...blue, syncVariantId: Number.MAX_SAFE_INTEGER + 1 }] }, String(Number.MAX_SAFE_INTEGER + 1))).toBeUndefined();
+  });
+});

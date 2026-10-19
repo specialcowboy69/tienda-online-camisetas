@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductPurchasePanel } from "./product-purchase-panel";
 import type { CatalogProduct } from "@/lib/types";
 
-const hooks = vi.hoisted(() => ({ values: [] as unknown[], index: 0, refs: [] as { current: unknown }[], refIndex: 0 }));
+const hooks = vi.hoisted(() => ({ values: [] as unknown[], index: 0, refs: [] as { current: unknown }[], refIndex: 0, cleanups: [] as Array<() => void> }));
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
-  return { ...actual, useMemo: (factory: () => unknown) => factory(), useRef: (initial: unknown) => { const i = hooks.refIndex++; return hooks.refs[i] ??= { current: initial }; }, useState: (initial: unknown) => {
+  return { ...actual, useMemo: (factory: () => unknown) => factory(), useEffect: (effect: () => void | (() => void)) => { const cleanup = effect(); if (cleanup) hooks.cleanups.push(cleanup); }, useRef: (initial: unknown) => { const i = hooks.refIndex++; return hooks.refs[i] ??= { current: initial }; }, useState: (initial: unknown) => {
     const index = hooks.index++;
     if (!(index in hooks.values)) hooks.values[index] = initial;
     return [hooks.values[index], (next: unknown) => { hooks.values[index] = typeof next === "function" ? next(hooks.values[index]) : next; }];
@@ -20,7 +20,16 @@ function renderPanel() {
   hooks.refIndex = 0;
   return ProductPurchasePanel({ product, allowedCountries: ["US", "ES"], defaultCountry: "US" });
 }
-type ElementProps = { children?: ReactNode; value?: unknown; required?: boolean; disabled?: boolean; onChange?: (event: { target: { value: string } }) => void; onClick?: () => void; onSubmit?: (event: { preventDefault: () => void }) => Promise<void> };
+const variantProduct: CatalogProduct = { ...product, variants: [
+  { syncVariantId: 11, variantId: 111, name: "Black / M", color: "Black", size: "M", retailPrice: "29", currency: "USD", image: "https://example.com/black.webp" },
+  { syncVariantId: 22, variantId: 222, name: "Blue / L", color: "Blue", size: "L", retailPrice: "31", currency: "USD", image: "https://example.com/blue.webp" }
+] };
+function renderVariantPanel(initialVariantId?: number) {
+  hooks.index = 0;
+  hooks.refIndex = 0;
+  return ProductPurchasePanel({ product: variantProduct, allowedCountries: ["US"], defaultCountry: "US", initialVariantId });
+}
+type ElementProps = { children?: ReactNode; value?: unknown; required?: boolean; disabled?: boolean; "aria-pressed"?: boolean; onChange?: (event: { target: { value: string } }) => void; onClick?: () => void; onSubmit?: (event: { preventDefault: () => void }) => Promise<void> };
 function elements(node: ReactNode): ReactElement<ElementProps>[] {
   if (Array.isArray(node)) return node.flatMap(elements);
   if (!React.isValidElement<ElementProps>(node)) return [];
@@ -40,6 +49,7 @@ describe("ProductPurchasePanel recipient wiring through real rendered handlers",
   beforeEach(() => {
     vi.stubGlobal("React", React);
     hooks.values = []; hooks.index = 0; hooks.refs = []; hooks.refIndex = 0;
+    hooks.cleanups = [];
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(JSON.stringify({ rates: [{ id: "STANDARD", name: "Standard", rate: "0", currency: "usd" }] }))));
     button("Add to bag").props.onClick!();
   });
@@ -140,5 +150,63 @@ describe("ProductPurchasePanel recipient wiring through real rendered handlers",
     const old = quote(); button("M").props.onClick!();
     pending.resolve(success()); await old;
     expect(button("Pay with Stripe")?.props.disabled ?? true).toBe(true);
+  });
+});
+
+describe("ProductPurchasePanel URL variant selection", () => {
+  beforeEach(() => {
+    vi.stubGlobal("React", React);
+    hooks.values = []; hooks.index = 0; hooks.refs = []; hooks.refIndex = 0;
+    hooks.cleanups = [];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ rates: [{ id: "STANDARD", name: "Standard", rate: "0", currency: "USD" }] }))));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("initially selects Blue/L, shows its price and sends exactly variant 22 to the bag quote", async () => {
+    const html = renderToStaticMarkup(renderVariantPanel(22));
+    expect(html).toContain("$31.00");
+    expect(elements(renderVariantPanel(22)).find(entry => entry.type === "button" && entry.props.children === "Blue")?.props["aria-pressed"]).toBe(true);
+    expect(elements(renderVariantPanel(22)).find(entry => entry.type === "button" && entry.props.children === "L")?.props["aria-pressed"]).toBe(true);
+    const add = elements(renderVariantPanel(22)).find(entry => entry.type === "button" && renderToStaticMarkup(entry).includes("Add to bag"))!;
+    add.props.onClick!();
+    const form = elements(renderVariantPanel(22)).find(entry => entry.type === "form")!;
+    await form.props.onSubmit!({ preventDefault() {} });
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string).items).toEqual([{ productId: "test-product", syncVariantId: 22, quantity: 1 }]);
+  });
+
+  it("starts a fresh keyed instance without the previous bag or payable quote", async () => {
+    elements(renderVariantPanel(22)).find(entry => entry.type === "button" && renderToStaticMarkup(entry).includes("Add to bag"))!.props.onClick!();
+    await elements(renderVariantPanel(22)).find(entry => entry.type === "form")!.props.onSubmit!({ preventDefault() {} });
+    expect(renderToStaticMarkup(renderVariantPanel(22))).toContain("Pay with Stripe");
+    hooks.values = []; hooks.refs = [];
+    const html = renderToStaticMarkup(renderVariantPanel(11));
+    expect(html).toContain("$29.00");
+    expect(html).not.toContain("Pay with Stripe");
+    expect(html).not.toContain("Calculate shipping");
+  });
+
+  it("aborts an old quote on unmount so its result cannot become payable", async () => {
+    const pending = deferred();
+    vi.mocked(fetch).mockReturnValueOnce(pending.promise);
+    elements(renderVariantPanel(22)).find(entry => entry.type === "button" && renderToStaticMarkup(entry).includes("Add to bag"))!.props.onClick!();
+    const old = elements(renderVariantPanel(22)).find(entry => entry.type === "form")!.props.onSubmit!({ preventDefault() {} });
+    const signal = vi.mocked(fetch).mock.calls[0][1]!.signal;
+    hooks.cleanups.forEach(cleanup => cleanup());
+    expect(signal?.aborted).toBe(true);
+    pending.resolve(success());
+    await old;
+  });
+
+  it("ignores a checkout response from a panel unmounted during query navigation", async () => {
+    vi.stubGlobal("window", { location: { href: "original" } });
+    elements(renderVariantPanel(22)).find(entry => entry.type === "button" && renderToStaticMarkup(entry).includes("Add to bag"))!.props.onClick!();
+    await elements(renderVariantPanel(22)).find(entry => entry.type === "form")!.props.onSubmit!({ preventDefault() {} });
+    const pending = deferred();
+    vi.mocked(fetch).mockReturnValueOnce(pending.promise);
+    const checkout = elements(renderVariantPanel(22)).find(entry => entry.type === "button" && renderToStaticMarkup(entry).includes("Pay with Stripe"))!.props.onClick!();
+    hooks.cleanups.forEach(cleanup => cleanup());
+    pending.resolve(new Response(JSON.stringify({ checkoutUrl: "https://checkout.example/session" })));
+    await expect(checkout).resolves.toBeUndefined();
+    expect(window.location.href).toBe("original");
   });
 });

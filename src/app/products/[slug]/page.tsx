@@ -17,10 +17,12 @@ import { getCatalogProductGallery } from "@/lib/product-gallery";
 import { getProductSlug } from "@/lib/product-slugs";
 import { productContentById } from "@/lib/product-content";
 import { getActiveProductVariants, getProductPriceSummary } from "@/lib/product-view";
+import { selectUrlVariant } from "@/lib/product-variant-url";
 import { getSizeGuideForProduct } from "@/lib/size-guides";
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ variant?: string | string[] }>;
 };
 
 export const dynamic = "force-dynamic";
@@ -47,7 +49,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   return productMetadata(product);
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export default async function ProductPage({ params, searchParams }: ProductPageProps) {
   const { slug } = await params;
   const product = await getPublicProductBySlug(slug);
   if (!product) notFound();
@@ -59,8 +61,19 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const sizeGuide = getSizeGuideForProduct(product);
   const price = getProductPriceSummary(product);
   const firstActiveVariant = getActiveProductVariants(product)[0];
-  const priceLabel = firstActiveVariant
-    ? formatPrice(firstActiveVariant.retailPrice, firstActiveVariant.currency)
+  const selectedVariant = selectUrlVariant(product, (await searchParams)?.variant);
+  const initialVariant = selectedVariant || firstActiveVariant;
+  const selectedImage = selectedVariant?.image;
+  let initialImageSrc: string | undefined;
+  if (selectedImage) {
+    try {
+      const url = new URL(selectedImage);
+      if (url.protocol === "http:" || url.protocol === "https:") initialImageSrc = selectedImage;
+    } catch { /* A variant without a valid image still selects its price and options. */ }
+  }
+  const variantKey = `${product.id}:${selectedVariant?.syncVariantId ?? "default"}`;
+  const priceLabel = initialVariant
+    ? formatPrice(initialVariant.retailPrice, initialVariant.currency)
     : price
       ? `${price.isRange ? "From " : ""}${formatPrice(price.min, price.currency)}`
       : "Unavailable";
@@ -78,9 +91,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
       </nav>
 
       <section className="ncc-pdp-hero">
-        <ProductGallery images={gallery} productName={product.name} />
+        <ProductGallery key={variantKey} images={gallery} productName={product.name} initialImageSrc={initialImageSrc} />
         <ProductPurchasePanel
+          key={variantKey}
           product={product}
+          initialVariantId={selectedVariant?.syncVariantId}
           allowedCountries={getAllowedShippingCountries()}
           defaultCountry={defaultCountry}
           sizeGuide={sizeGuide}

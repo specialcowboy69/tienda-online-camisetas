@@ -39,6 +39,11 @@ describe("analytics page boundary", () => {
     expect(getCatalogProduct).toHaveBeenCalledTimes(1);
     expect(listCatalogProducts).toHaveBeenCalledTimes(1);
   });
+  it.each(["22", "invalid", ["22", "11"]])("keeps the analytics descriptor clean for variant query %j", async variant => {
+    vi.mocked(getCatalogProduct).mockResolvedValue(product);
+    const page = await ProductPage({ params: Promise.resolve({ slug: "falling-apart-cat-graphic-tee" }), searchParams: Promise.resolve({ variant }) });
+    expect(nodes(page, AnalyticsPageRegistration).map(n => n.props)).toEqual([{ path: "/products/falling-apart-cat-graphic-tee", title: "Product" }]);
+  });
   it.each([null, { ...product, isIgnored: true }])("does not render missing or ignored products", async (value) => {
     vi.mocked(getCatalogProduct).mockResolvedValue(value);
     await expect(ProductPage({ params: Promise.resolve({ slug: "falling-apart-cat-graphic-tee" }) })).rejects.toThrow("NOT_FOUND");
