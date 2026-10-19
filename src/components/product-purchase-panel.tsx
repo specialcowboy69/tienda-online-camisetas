@@ -373,10 +373,10 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
               ))}
             </select>
           </label>
+          <p className="ncc-form-wide">We use your contact and delivery details to calculate shipping and process your order. See our <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy (opens in a new tab)</a>.</p>
           <button className="ncc-secondary-button ncc-form-wide" type="submit" disabled={cart.length === 0 || loading}>
             Calculate shipping
           </button>
-          <p className="ncc-form-wide">We use your contact and delivery details to calculate shipping and process your order. See our <a href="/privacy">Privacy policy</a>.</p>
         </form>
       ) : null}
 

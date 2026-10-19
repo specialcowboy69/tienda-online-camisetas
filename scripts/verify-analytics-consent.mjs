@@ -165,7 +165,9 @@ try {
     for (const storage of ["broken", JSON.stringify({ version: 1, choice: "granted", decidedAt: Date.now() + 86400000 }), JSON.stringify({ version: 1, choice: "granted", decidedAt: Date.now() - 15552000001 }), JSON.stringify({ version: 1, choice: "denied", decidedAt: Date.now() })]) {
       await test(`invalid/denied preference ${results.length}`, async () => {
         const { page, context, traffic } = await fixture(viewport, { storage }); await visit(page);
-        assert.equal(traffic.scripts, 0); assert.equal(traffic.hits.length, 0); await context.close();
+        assert.equal(traffic.scripts, 0); assert.equal(traffic.hits.length, 0);
+        assert.equal(await page.evaluate(key => localStorage.getItem(key), key), storage.includes('"denied"') ? storage : null);
+        await context.close();
       });
     }
     await test("blocked storage uses memory and visible warning", async () => {

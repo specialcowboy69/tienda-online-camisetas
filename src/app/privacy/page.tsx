@@ -30,7 +30,7 @@ export default function PrivacyPage() {
 
       <section>
         <h2>Who receives information</h2>
-        <p>We use Vercel to host the store, Google Firebase to keep order records, Stripe to process payments, Resend to send service emails, Cloudflare to serve images, and production and delivery partners to quote and fulfil orders. Recipient and item details are shared with a delivery quotation provider when you request shipping, even if you do not buy. Providers may process data outside the European Economic Area. Depending on the provider and destination, transfers are covered by an applicable adequacy decision or contractual safeguards such as EU standard contractual clauses. Email us for details of the safeguards relevant to your information.</p>
+        <p>We use Vercel to host the store, Google Firebase to keep order records, Stripe to process payments, Resend to send service emails, Cloudflare to serve images, and production and delivery partners to quote and fulfil orders. Recipient and item details are shared with a delivery quotation provider when you request shipping, even if you do not buy. Providers may process data outside the European Economic Area. Transfer safeguards vary by provider and destination and may include adequacy decisions or EU standard contractual clauses. Email us to ask about a particular transfer and the applicable safeguards.</p>
       </section>
 
       <section>

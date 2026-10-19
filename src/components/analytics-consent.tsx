@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { CONSENT_STORAGE_KEY, CONSENT_TTL_MS, createConsent, parseConsent, resolveAnalyticsConfig, resolveAnalyticsPage, type AnalyticsChoice, type AnalyticsConfig, type AnalyticsConsent, type AnalyticsPage } from "@/lib/analytics-consent";
+import { CONSENT_STORAGE_KEY, CONSENT_TTL_MS, createConsent, parseConsent, readStoredConsent, resolveAnalyticsConfig, resolveAnalyticsPage, type AnalyticsChoice, type AnalyticsConfig, type AnalyticsConsent, type AnalyticsPage } from "@/lib/analytics-consent";
 import { createGoogleAnalytics, type AnalyticsRuntime } from "@/lib/google-analytics";
 
 type Register = (page: AnalyticsPage) => () => void;
@@ -57,7 +57,7 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
     const nextConfig = resolveAnalyticsConfig({ enabled, measurementId, deployment, origin: window.location.origin });
     setConfig(nextConfig);
     runtime.current = nextConfig ? createGoogleAnalytics({ config: nextConfig, window, document, now: Date.now }) : null;
-    try { apply(parseConsent(window.localStorage.getItem(CONSENT_STORAGE_KEY), Date.now())); }
+    try { apply(readStoredConsent(window.localStorage, Date.now())); }
     catch { setStorageWarning(true); apply(null); }
     setReady(true);
     return () => { runtime.current?.stop({ clearCookies: false }); };
@@ -69,7 +69,7 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
     let timer: ReturnType<typeof setTimeout>;
     function refresh() {
       let value: AnalyticsConsent | null = null;
-      try { value = parseConsent(memoryOnly.current ? JSON.stringify(choice.current) : window.localStorage.getItem(CONSENT_STORAGE_KEY), Date.now()); }
+      try { value = memoryOnly.current ? parseConsent(JSON.stringify(choice.current), Date.now()) : readStoredConsent(window.localStorage, Date.now()); }
       catch { setStorageWarning(true); }
       apply(value);
       schedule();
@@ -146,7 +146,7 @@ function ConsentDialog({ available, granted, warning, onClose, onSave }: {
     <p>We store your choice for 180 days. Necessary store features work whether you accept or reject analytics.</p>
     {available ? <label className="ncc-consent-toggle"><input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)} />Allow Google Analytics</label> : <p>Analytics is currently off on this site.</p>}
     <p>Advertising tracking is off. We do not enable Google Ads tracking through these settings.</p>
-    <p>Read our <a href="/privacy">Privacy policy</a> and <a href="/cookies">Cookie policy</a>.</p>
+    <p>Read our <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy (opens in a new tab)</a> and <a href="/cookies" target="_blank" rel="noopener noreferrer">Cookie policy (opens in a new tab)</a>.</p>
     {warning && <p role="status">Your choice could not be saved. It will apply until you leave this page.</p>}
     <div className="ncc-consent-actions">
       {available && <button type="button" onClick={() => { dialog.current?.close(); onSave(checked); }}>Save preferences</button>}
