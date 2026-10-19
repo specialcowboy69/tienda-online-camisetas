@@ -21,7 +21,7 @@ export default function CookiesPage() {
           <table>
             <thead><tr><th scope="col">Technology</th><th scope="col">Purpose and provider</th><th scope="col">Duration and choice</th></tr></thead>
             <tbody>
-              <tr><th scope="row">Browser preference (<code>ncc.analytics-consent.v1</code>)</th><td>Stores your accept or reject decision, its date and version in localStorage on this site. This does not identify you and does not itself activate measurement.</td><td>180 days from your choice; needed to remember it.</td></tr>
+              <tr><th scope="row">Browser preference (<code>ncc.analytics-consent.v1</code>)</th><td>Stores your accept or reject decision, its date and version in localStorage on this site. This does not identify you and does not itself activate measurement.</td><td>Choice valid for 180 days; an expired record is removed while the site is open or on your next visit.</td></tr>
               <tr><th scope="row">Google Analytics cookies (<code>ncc_ga</code> and <code>ncc_ga_*</code>)</th><td>Configured first-party cookies for recognising a browser and its sessions on our domain. Google Analytics receives visits to the home, catalog and product pages only after you accept analytics.</td><td>Configured to expire after 180 days without renewal on each visit. Optional: reject or withdraw at any time.</td></tr>
               <tr><th scope="row">Hosted checkout</th><td>Stripe runs payment on its own website and may use technologies needed for payment, security or fraud prevention under its own <a href="https://stripe.com/privacy" rel="noopener noreferrer">privacy notice</a>.</td><td>Stripe controls its own storage and provides its applicable details.</td></tr>
             </tbody>
