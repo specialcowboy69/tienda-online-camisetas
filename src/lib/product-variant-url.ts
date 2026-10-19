@@ -1,4 +1,4 @@
-import { getActiveProductVariants } from "./product-view";
+import { getActiveProductVariants, getVariantForSelection } from "./product-view";
 import { getProductSlug } from "./product-slugs";
 import { canonicalUrl } from "./seo";
 import type { CatalogProduct, CatalogVariant } from "./types";
@@ -12,6 +12,10 @@ export function selectUrlVariant(product: CatalogProduct, value: string | string
   if (matches.length !== 1) return undefined;
   const candidate = matches[0];
   if (active.filter(variant => variant.color === candidate.color && variant.size === candidate.size).length !== 1) return undefined;
+  const first = active[0];
+  const color = candidate.color || first.color || "";
+  const size = candidate.size || first.size || "";
+  if ((getVariantForSelection(product, { color, size }) || first) !== candidate) return undefined;
   return candidate;
 }
 

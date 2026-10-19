@@ -32,4 +32,23 @@ describe("product variant URLs", () => {
   it("rejects unsafe catalog IDs even when requested text is decimal", () => {
     expect(selectUrlVariant({ ...product, variants: [{ ...blue, syncVariantId: Number.MAX_SAFE_INTEGER + 1 }] }, String(Number.MAX_SAFE_INTEGER + 1))).toBeUndefined();
   });
+
+  it("rejects a missing size when the panel would choose a different variant", () => {
+    const noSize = { ...blue, color: "Black", size: undefined };
+    const mixed = { ...product, variants: [black, noSize] };
+    expect(selectUrlVariant(mixed, "22")).toBeUndefined();
+    expect(() => variantUrl(mixed, noSize)).toThrow("Variant is not uniquely selectable");
+  });
+
+  it("rejects a missing color when the panel would choose a different variant", () => {
+    const noColor = { ...blue, color: undefined, size: "M" };
+    const mixed = { ...product, variants: [black, noColor] };
+    expect(selectUrlVariant(mixed, "22")).toBeUndefined();
+    expect(() => variantUrl(mixed, noColor)).toThrow("Variant is not uniquely selectable");
+  });
+
+  it("can still select a uniquely resolvable first variant with one missing option", () => {
+    const first = { ...black, size: undefined };
+    expect(selectUrlVariant({ ...product, variants: [first, blue] }, "11")).toEqual(first);
+  });
 });

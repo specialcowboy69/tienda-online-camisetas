@@ -113,4 +113,16 @@ describe("public product page", () => {
     expect(html).toContain('<img src="https://example.com/blue.webp"');
     expect(html).toContain('src="https://example.com/tee.webp"');
   });
+  it("falls back consistently when the requested variant cannot be selected by the panel", async () => {
+    vi.mocked(getCatalogProduct).mockResolvedValue({ ...variantProduct, variants: [
+      variantProduct.variants[0], { ...variantProduct.variants[1], color: "Black", size: undefined }
+    ] });
+    vi.mocked(listCatalogProducts).mockResolvedValue([]);
+    const page = await ProductPage({ ...props, searchParams: Promise.resolve({ variant: "22" }) });
+    const panel = findElements(page, ProductPurchasePanel)[0];
+    expect(panel.props.initialVariantId).toBeUndefined();
+    expect(renderToStaticMarkup(panel)).toContain("$29.00");
+    expect(findElements(page, ProductFinalCallout)[0].props.priceLabel).toBe("$29.00");
+    expect(findElements(page, ProductGallery)[0].props.initialImageSrc).toBeUndefined();
+  });
 });
