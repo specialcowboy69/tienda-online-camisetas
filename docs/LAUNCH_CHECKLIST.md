@@ -5,10 +5,9 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 14 de octubre de 2026 (PR #34 integrado y PDP
-verificado en producción; borradores legales internos y GA4 desplegado apagado;
-estado operativo del 12 de octubre conservado: product_updated autentico y
-restauracion verificados; stock real pendiente; alertas sin activacion)
+**Ultima revision documental:** 19 de octubre de 2026 (paginas publicas de
+privacidad y cookies integradas en #38 y verificadas en Production; GA4 sigue
+apagado; no cambia el estado `NO-GO`).
 
 ## Resumen vigente y fuente de estado
 
@@ -20,9 +19,18 @@ restauracion verificados; stock real pendiente; alertas sin activacion)
   `dpl_GgYD23Vk8F5vd2mDA6RhvcjBAG5J` READY. Dominio público verificado en home,
   catálogo y PDP a 390/1440 px: ajustes indican Analytics off, sin etiqueta ni
   solicitudes a Google incluso con una aceptación previa en el navegador.
-- [ ] Publicar/revisar información legal y añadir enlaces reales en ajustes.
-- [ ] Verificar ajustes de GA4, SDK real, cookies y revocación; después autorizar
-  activación y acreditar recepción en Realtime/DebugView.
+- [x] Publicar privacidad y cookies con la identidad facilitada por el titular,
+  enlaces reales en footer, ajustes y checkout: PR #38, merge `4637a83`,
+  Vercel Production `dpl_GwBUEjaeDumw3oJpoPGgDxpr9TY4` READY.
+  Ambas rutas dan HTTP 200 en el dominio público.
+- [x] Montar prueba local de gtag.js real con colectores interceptados. La
+  prueba limitada observó consentimiento previo y retirada, pero la prueba
+  ampliada detectó un evento automático `scroll` adicional y falla de forma
+  intencionada hasta ajustar la propiedad. No se envió una visita a GA4.
+- [ ] Repetir la prueba ampliada sin eventos automáticos ni datos sensibles.
+- [ ] Desactivar o ajustar Medición mejorada en la propiedad GA4 y confirmar
+  cambios de historial y conservación; revisar con el titular los textos,
+  activar el flag en Vercel y comprobar recepción en Realtime/DebugView.
 
 [Evidencia local y límites](verification/2026-10-13-ga4-consent.md) y
 [procedimiento](analytics-and-consent.md). No cambia NO-GO ni activa Ads, Tax,
@@ -35,13 +43,13 @@ Estar desplegado en Vercel Production no significa tener autorizados pagos live.
 
 | Area | Estado documental; evidencias historicas fechadas |
 | --- | --- |
-| Integracion | Textos PDP e internos de #34 integrados y verificados en Production (`23c4940`); GA4 de #35 apagado. Registro de stock de #31, alertas desactivadas de #29 y control UE de #27 conservados |
+| Integracion | Paginas públicas de #38 en Production (`4637a83`); GA4 de #35 apagado. Registro de stock de #31, alertas desactivadas de #29 y control UE de #27 conservados |
 | Envios | Seis destinos previstos US/ES/FR/DE/IT/PT; CA/GB bloqueados por codigo; control preventivo UE integrado y comprobado en cotizaciones publicas |
 | Pagos y pedidos | E2E test posterior a #27; reembolso pending autentico seguido de full, parcial historico y dos borradores cancelados con permiso. No acredita ventas live ni fabricacion |
 | Webhook Printful | Registro de stock corregido: IDs de catalogo 162/317/586/1579. Dos eventos product_updated autenticos procesados el 12 de octubre; cambio interno y restauracion reflejados en Firestore. Sigue pendiente stock_updated y envio real |
 | Email | Confirmacion y recuperacion recibidas en Gmail, capturas del propietario del 12 de octubre. Correo de envio, rebotes y canal de soporte pendientes |
 | Operacion | Vigilancia manual definida; alertas de #29 desplegadas pero desactivadas; indices, pruebas remotas y activacion pendientes |
-| Legales | Borradores internos integrados de privacidad/cookies y texto PDP de reposicion o reembolso sin retorno para incidencias confirmadas; identidad y resto de pendientes en pausa, no completados; sin paginas legales publicadas |
+| Legales | Privacidad y cookies públicas con identidad y soporte facilitados por el titular; revisión jurídica externa, otras plantillas y pendientes de lanzamiento siguen abiertos. El texto PDP de incidencias de #34 permanece vigente |
 | Riesgo residual | Aceptacion productiva del 8 de octubre; audit repetido el 11 y avisos de desarrollo pendientes en SECURITY.md, sin ampliar la aceptacion |
 
 **Aplazado, no completado:** la compra real controlada y el trabajo fiscal
