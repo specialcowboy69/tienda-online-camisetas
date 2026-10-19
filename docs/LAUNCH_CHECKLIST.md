@@ -716,3 +716,12 @@ simultaneamente estos puntos:
   de habilitar Stripe Tax o pagos live.
 - [ ] Una compra real controlada ha completado todo el recorrido correctamente.
 - [ ] Existe un procedimiento de monitorizacion, devolucion y rollback.
+
+### SEO foundation A — implementación local del 19 de octubre de 2026
+
+Metadata/canonical, publicación de catálogo, noindex operativo, sitemap/robots
+ y schema de entidad/breadcrumb implementados en rama aislada, con gate GET
+local. [Evidencia y límites](verification/2026-10-19-seo-foundation.md).
+Pendiente de integración del padre, revisión del gate y despliegue; no acredita
+producción ni indexación. B (variantes y ProductGroup/Offer) sigue pendiente.
+**NO-GO conservado**, sin activación de servicios ni pagos reales.

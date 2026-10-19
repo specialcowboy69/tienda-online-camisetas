@@ -303,3 +303,11 @@ Antes de incorporar un asset, confirmar:
   y devoluciones.
 - Mantener todo copy visible y los emails en inglés, con tono de marca, sin
   comprometer claridad en compra, soporte o incidencias.
+
+## SEO foundation A — estado local del 19 de octubre de 2026
+
+La rama aislada incorpora publicación pública coherente, canonical limpio,
+metadata inglesa, noindex operativo, sitemap/robots y schema Organization,
+WebSite y BreadcrumbList. [Verificación local y límites](verification/2026-10-19-seo-foundation.md).
+No acredita despliegue ni resultados de Google. La selección de variantes y
+ProductGroup/Offer (B) siguen pendientes; no se publican categorías hipotéticas.
