@@ -726,6 +726,7 @@ variantes, ProductGroup/Offers filtrados y un gate GET que compara precio e
 imagen inicial con dos Offers por ficha como máximo.
 [Evidencia y límites](verification/2026-10-19-seo-foundation.md). Las pruebas
 locales pasan; el HTTP local no pudo comprobar PDP ni variantes por falta de
-catálogo seguro y el sitemap respondió 503. Pendientes revisión final, PR/
-integración SEO y despliegue; no acredita producción ni indexación.
+catálogo seguro y el sitemap respondió 503. La revisión independiente terminó
+sin hallazgos abiertos; siguen pendientes PR, integración SEO y despliegue.
+Esto no acredita producción ni indexación.
 **NO-GO conservado**, sin activación de servicios ni pagos reales.

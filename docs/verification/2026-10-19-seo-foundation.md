@@ -12,10 +12,12 @@ Organization y BreadcrumbList) se implementó en los commits `a40ac21` a
 `6cbd361`. Tras el merge del trabajo legal/panel del PR #38 (`4637a839`) en
 `origin/main`, se incorporó ese main a esta rama mediante `68d0ab2`. La fase B
 añadió la URL de variante y selección inicial en `19b069d` y `9d7e7fb`, y
-ProductGroup/Offers seguros en `9f3f0e2` y `47f21fa`. Este documento y el
-smoke B pertenecen al commit de Task 7 (`git log -1 --format=%H --
-scripts/verify-seo.mjs`). Las revisiones independientes finales de B
-corresponden al coordinador y se registrarán por separado.
+ProductGroup/Offers seguros en `9f3f0e2` y `47f21fa`. El smoke B se añadió en
+`122486f`. La revisión global encontró que opciones de color o talla con
+espacios podían crear una URL y una Offer ambiguas; `0d812843` las excluye.
+**Código revisado: `0d812843de2942d650447d174f1ef183d1b19062`.** Las
+revisiones independientes de A, B y el arreglo final terminaron sin hallazgos
+abiertos.
 
 El schema usa solo productos publicables y variantes que el panel puede
 seleccionar. Omite ofertas con precio, moneda, imagen o ID no fiables; no
@@ -30,7 +32,7 @@ El canonical de una URL `?variant=<id>` sigue apuntando a la ficha limpia.
   y origen, máximo dos Offers muestreados por PDP, canonical limpio, precio
   e imagen principal inicial exactos, rechazo de URL insegura, y ausencia
   de catálogo con sitemap 503. El fixture usa HTML y fetch sintéticos.
-- `npm.cmd test`: 58 archivos, 856/856 pruebas. `npm.cmd run lint`,
+- `npm.cmd test`: 58 archivos, 860/860 pruebas. `npm.cmd run lint`,
   `npx.cmd tsc --noEmit --incremental false` y `npm.cmd run build`: exit 0
   en este worktree. Build Next 15.5.26 compiló y generó 9/9 páginas estáticas.
 - Un ejemplo sintético de ProductGroup se comprobó en Schema.org Validator:
@@ -80,9 +82,8 @@ publicadas. No acredita indexación, compra real ni resultados SEO.
 
 ## Pendiente
 
-- Revisión independiente final de Task 7 B y auditoría de integración antes
-  de declarar la rama lista o crear un PR. La integración local del PR #38
-  no integra esta rama SEO en main.
+- PR, integración SEO y despliegue aún pendientes. La integración local del
+  PR #38 no integra esta rama SEO en main.
 - HTTP con catálogo seguro poblado, comparación sitemap↔catálogo, al menos
   una ficha y dos variantes reales; pruebas Rich Results y despliegue.
 - Checklist legal, fiscal, seguridad, proveedores y aceptación GO siguen
