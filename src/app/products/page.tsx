@@ -1,7 +1,10 @@
+import { pageMetadata } from "@/lib/seo";
 import { filterPublicProducts } from "@/lib/storefront-publication";
 import { ProductCard } from "@/components/product-card";
 import { SiteHeader } from "@/components/site-header";
 import { getPublicCatalog } from "@/lib/public-catalog";
+
+export const metadata = pageMetadata({"path": "/products", "title": "Shop Graphic Tees, Crop Tops & Hoodies", "description": "Explore the No Context Club drop: cat and dog graphic tees, a crop top, and a cropped hoodie. Find your design and check the fit, sizes, and details."});
 
 export const dynamic = "force-dynamic";
 

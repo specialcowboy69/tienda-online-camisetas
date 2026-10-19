@@ -1,3 +1,4 @@
+import { productMetadata } from "@/lib/seo";
 import { filterPublicProducts, getPublicProductBySlug } from "@/lib/storefront-publication";
 import type { Metadata } from "next";
 import { AnalyticsPageRegistration } from "@/components/analytics-page";
@@ -41,10 +42,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const { slug } = await params;
   const product = await getPublicProductBySlug(slug);
   if (!product) notFound();
-  return {
-    title: `${product.name} | No Context Club`,
-    description: productContentById[product.id].summary
-  };
+  return productMetadata(product);
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {

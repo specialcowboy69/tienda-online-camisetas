@@ -39,7 +39,7 @@ describe("public product page", () => {
       product, { ...product, id: "999999999", name: "Hidden" },
       ...["468513582", "468520575", "468502976", "468471370"].map(id => ({ ...product, id }))
     ]);
-    await expect(generateMetadata(props)).resolves.toHaveProperty("title", "Falling apart | No Context Club");
+    await expect(generateMetadata(props)).resolves.toHaveProperty("title", "Falling Apart Cat Graphic Tee | No Context Club");
     const page = await ProductPage(props);
     function cards(node: React.ReactNode): CatalogProduct[] {
       if (!React.isValidElement<{ children?: React.ReactNode; product?: CatalogProduct }>(node)) return [];

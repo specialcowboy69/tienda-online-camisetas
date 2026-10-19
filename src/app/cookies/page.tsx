@@ -1,8 +1,10 @@
+import { canonicalUrl } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
+  alternates: { canonical: canonicalUrl("/cookies") },
   title: "Cookie policy | No Context Club",
   description: "Optional analytics, browser storage and cookie choices at No Context Club."
 };
