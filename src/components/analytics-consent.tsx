@@ -143,7 +143,7 @@ function ConsentDialog({ available, granted, warning, onClose, onSave }: {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }}>
     <div className="ncc-consent-heading"><h2 id="ncc-consent-title">Cookie settings</h2><button type="button" onClick={close} aria-label="Close cookie settings">Close</button></div>
-    <p>We store your choice for 180 days. Necessary store features work whether you accept or reject analytics.</p>
+    <p>Your choice remains valid for 180 days. An expired browser record is removed while this site is open or when you next visit. Necessary store features work whether you accept or reject analytics.</p>
     {available ? <label className="ncc-consent-toggle"><input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)} />Allow Google Analytics</label> : <p>Analytics is currently off on this site.</p>}
     <p>Advertising tracking is off. We do not enable Google Ads tracking through these settings.</p>
     <p>Read our <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy (opens in a new tab)</a> and <a href="/cookies" target="_blank" rel="noopener noreferrer">Cookie policy (opens in a new tab)</a>.</p>
