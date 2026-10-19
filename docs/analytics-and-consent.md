@@ -6,7 +6,12 @@ Integrado y desplegado el 13 de octubre de 2026 mediante PR #35, merge `2bd0f7a`
 **apagado**. Vercel Production `dpl_GgYD23Vk8F5vd2mDA6RhvcjBAG5J` READY;
 verificación del dominio público en móvil/escritorio sin carga de Analytics.
 Esto no equivale a activación ni recepción en GA4.
-Consultar la [evidencia](verification/2026-10-13-ga4-consent.md) y la
+El 19 de octubre se publicaron `/privacy` y `/cookies` en #38 y se ejecutó una
+[prueba aislada con gtag.js real](verification/2026-10-19-legal-pages-and-ga4-sdk.md)
+con colectores interceptados. La prueba ampliada detectó un `scroll` automático
+adicional y bloquea la activación. La propiedad GA4 y Realtime aún no están
+verificados; el flag productivo sigue apagado. Consultar también la
+[evidencia inicial](verification/2026-10-13-ga4-consent.md) y la
 [checklist](LAUNCH_CHECKLIST.md) antes de activar. NO-GO no cambia.
 
 El identificador público es `G-4JDZCBK8SY`. No es un secreto. El código no
