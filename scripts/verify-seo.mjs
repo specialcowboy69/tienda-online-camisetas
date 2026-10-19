@@ -8,13 +8,22 @@ const OPERATIONAL = ['/admin', '/success', '/cancel'];
 const MISSING = '/products/seo-smoke-nonexistent';
 const decode = value => value.replace(/&(?:amp|quot|apos|lt|gt);/g, x => ({ '&amp;': '&', '&quot;': '"', '&apos;': "'", '&lt;': '<', '&gt;': '>' })[x]);
 const attrs = tag => Object.fromEntries([...tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)].map(m => [m[1].toLowerCase(), decode(m[2] ?? m[3] ?? m[4])]));
+const productPath = path => /^\/products\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(path);
+const variantQuery = search => /^\?variant=[1-9]\d*$/.test(search) && Number.isSafeInteger(Number(search.slice(9)));
 export function allowedAuditUrl(value) {
   try {
     const u = new URL(value);
     if (u.username || u.password || u.hash) return false;
     if (!(u.origin === ORIGIN || (['localhost', '127.0.0.1', '[::1]'].includes(u.hostname) && ['http:', 'https:'].includes(u.protocol)))) return false;
-    if (![...STATIC, ...OPERATIONAL, '/robots.txt', '/sitemap.xml'].includes(u.pathname) && !/^\/products\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(u.pathname)) return false;
-    return [...u.searchParams].every(([k, v]) => k === 'utm_source' && v === 'seo-smoke');
+    if (![...STATIC, ...OPERATIONAL, '/robots.txt', '/sitemap.xml'].includes(u.pathname) && !productPath(u.pathname)) return false;
+    return !u.search || u.search === '?utm_source=seo-smoke' || (productPath(u.pathname) && variantQuery(u.search));
+  } catch { return false; }
+}
+export function allowedVariantAuditUrl(value, path) {
+  try {
+    const u = new URL(value);
+    return productPath(path) && u.origin === ORIGIN && !u.username && !u.password &&
+      !u.hash && u.pathname === path && variantQuery(u.search);
   } catch { return false; }
 }
 function stripComments(html) {
@@ -45,6 +54,42 @@ export function checkPage(html, path, noindex = false) {
   if ((renderedMarkup(html).match(/<h1\b/gi) ?? []).length !== 1 && (path === '/' || path.startsWith('/products'))) errors.push('Expected one commercial H1');
   return errors;
 }
+function variantOffers(jsonLd, path) {
+  const groups = jsonLd.filter(item => item && item['@type'] === 'ProductGroup');
+  const offers = [];
+  for (const group of groups) {
+    if (!Array.isArray(group.hasVariant)) throw new Error('Malformed ProductGroup variants');
+    for (const variant of group.hasVariant) {
+      const offer = variant?.offers;
+      if (variant?.['@type'] !== 'Product' || offer?.['@type'] !== 'Offer' ||
+        !allowedVariantAuditUrl(offer.url, path) || variant.url !== offer.url ||
+        variant.sku !== new URL(offer.url).searchParams.get('variant') ||
+        typeof variant.image !== 'string' || !variant.image ||
+        offer.priceCurrency !== 'USD' || typeof offer.price !== 'string' ||
+        !/^(?:0|[1-9]\d*)\.\d{2}$/.test(offer.price) || Number(offer.price) <= 0) {
+        throw new Error('Unsafe variant Offer');
+      }
+      offers.push({ path: path + new URL(offer.url).search, image: variant.image, price: offer.price });
+    }
+  }
+  return offers;
+}
+function renderedElementBody(markup, name, className) {
+  const tags = [...markup.matchAll(new RegExp('<' + name + '\\b([^>]*)>([\\s\\S]*?)<\\/' + name + '\\s*>', 'gi'))];
+  return tags.find(match => attrs(match[1]).class?.split(/\s+/).includes(className))?.[2] ?? '';
+}
+function checkVariantSelection(html, offer) {
+  const markup = renderedMarkup(html);
+  const buybox = renderedElementBody(markup, 'aside', 'ncc-buybox');
+  const visiblePrice = decode(renderedElementBody(buybox, 'p', 'ncc-price').replace(/<[^>]*>/g, '')).trim();
+  const expectedPrice = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(offer.price));
+  const gallery = renderedElementBody(markup, 'div', 'ncc-gallery__main');
+  const visibleImage = attrs(gallery.match(/<img\b[^>]*>/i)?.[0] ?? '').src;
+  return [
+    ...(visiblePrice === expectedPrice ? [] : ['initial price differs from Offer']),
+    ...(visibleImage === offer.image ? [] : ['initial main gallery image differs from Product variant'])
+  ];
+}
 export async function safeGet(value, { method = 'GET', fetcher = fetch } = {}) {
   if (method !== 'GET') throw new Error('Only GET allowed');
   if (!allowedAuditUrl(value)) throw new Error('Unsafe audit URL');
@@ -65,7 +110,7 @@ export function validateOutput(value) {
 export async function runAudit(base, fetcher = fetch) {
   const u = new URL(base);
   if (!allowedAuditUrl(base) || u.pathname !== '/' || u.search) throw new Error('Base URL must be an allowed origin');
-  const report = { ok: false, scope: 'A only', base: u.origin, checks: [], failures: [], limitations: ['B variant selection and ProductGroup/Offer checks pending'], products: [] };
+  const report = { ok: false, scope: 'A+B', base: u.origin, checks: [], failures: [], limitations: [], products: [], variantSamples: [] };
   const pages = new Map();
   async function get(path) {
     try {
@@ -84,14 +129,28 @@ export async function runAudit(base, fetcher = fetch) {
       for (const error of checkPage(r.body, clean, noindex)) report.failures.push(`${path}: ${error}`);
       if (!noindex && !path.includes('?')) pages.set(clean, inspectHtml(r.body));
     } catch (error) { report.failures.push(`${path}: ${error.message}`); }
+    return r;
   }
   for (const path of STATIC) await page(path);
   for (const path of OPERATIONAL) await page(path, true);
   const products = pages.get('/products')?.productPaths ?? [];
   report.products = products.slice(0, 20);
-  if (!products.length) report.limitations.push('HTTP PDP coverage blocked: no safe catalog product links; use mocked page tests');
+  if (!products.length) report.limitations.push('HTTP PDP and variant coverage blocked: no safe catalog product links; use mocked page tests');
   if (products.length > 20) report.limitations.push('HTTP PDP checks capped at 20; sitemap comparison includes all catalog links');
-  for (const path of report.products) await page(path);
+  for (const path of report.products) {
+    const response = await page(path);
+    if (!response || response.status !== 200) continue;
+    let offers;
+    try { offers = variantOffers(inspectHtml(response.body).jsonLd, path); }
+    catch (error) { report.failures.push(path + ': ' + error.message); continue; }
+    if (!offers.length) report.limitations.push(path + ': no eligible ProductGroup Offers to verify over HTTP');
+    if (offers.length > 2) report.limitations.push(path + ': variant HTTP samples capped at two of ' + offers.length + ' Offers');
+    for (const offer of offers.slice(0, 2)) {
+      report.variantSamples.push(offer.path);
+      const selected = await page(offer.path);
+      if (selected?.status === 200) for (const error of checkVariantSelection(selected.body, offer)) report.failures.push(offer.path + ': ' + error);
+    }
+  }
   await page(MISSING, true, 404);
   for (const path of ['/', '/products', ...report.products]) await page(path + '?utm_source=seo-smoke');
   const titles = new Set();

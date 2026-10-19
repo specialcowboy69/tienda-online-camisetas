@@ -717,11 +717,15 @@ simultaneamente estos puntos:
 - [ ] Una compra real controlada ha completado todo el recorrido correctamente.
 - [ ] Existe un procedimiento de monitorizacion, devolucion y rollback.
 
-### SEO foundation A — implementación local del 19 de octubre de 2026
+### SEO foundation A+B — implementación local del 19 de octubre de 2026
 
 Metadata/canonical, publicación de catálogo, noindex operativo, sitemap/robots
- y schema de entidad/breadcrumb implementados en rama aislada, con gate GET
-local. [Evidencia y límites](verification/2026-10-19-seo-foundation.md).
-Pendiente de integración del padre, revisión del gate y despliegue; no acredita
-producción ni indexación. B (variantes y ProductGroup/Offer) sigue pendiente.
+y schema de entidad/breadcrumb implementados en rama aislada. Tras el merge
+del PR #38 en main, la rama SEO también añadió URLs y selección inicial de
+variantes, ProductGroup/Offers filtrados y un gate GET que compara precio e
+imagen inicial con dos Offers por ficha como máximo.
+[Evidencia y límites](verification/2026-10-19-seo-foundation.md). Las pruebas
+locales pasan; el HTTP local no pudo comprobar PDP ni variantes por falta de
+catálogo seguro y el sitemap respondió 503. Pendientes revisión final, PR/
+integración SEO y despliegue; no acredita producción ni indexación.
 **NO-GO conservado**, sin activación de servicios ni pagos reales.
