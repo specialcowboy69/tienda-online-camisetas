@@ -1,3 +1,5 @@
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
 import { productMetadata } from "@/lib/seo";
 import { filterPublicProducts, getPublicProductBySlug } from "@/lib/storefront-publication";
 import type { Metadata } from "next";
@@ -66,12 +68,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   return (
     <main className="ncc-page">
+      <JsonLd data={breadcrumbJsonLd(product)} />
       <AnalyticsPageRegistration path={`/products/${getProductSlug(product)}`} title="Product" />
       <SiteHeader />
       <nav className="ncc-breadcrumb" aria-label="Breadcrumb">
         <Link href="/products">Shop all</Link>
         <span>/</span>
-        <span>{product.name}</span>
+        <span aria-current="page">{product.name}</span>
       </nav>
 
       <section className="ncc-pdp-hero">

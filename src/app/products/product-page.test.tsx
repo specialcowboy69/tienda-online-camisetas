@@ -1,3 +1,4 @@
+import { JsonLd } from "@/components/json-ld";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -46,5 +47,25 @@ describe("public product page", () => {
       return [...(node.type === ProductCard && node.props.product ? [node.props.product] : []), ...React.Children.toArray(node.props.children).flatMap(cards)];
     }
     expect(cards(page).map(p => p.id)).toEqual(["468513582", "468520575", "468502976"]);
+  });
+  it("matches schema breadcrumb to the visible navigation without Product or Offer", async () => {
+    vi.mocked(getCatalogProduct).mockResolvedValue(product);
+    vi.mocked(listCatalogProducts).mockResolvedValue([]);
+    const page = await ProductPage(props);
+    function elements(node: React.ReactNode): React.ReactElement<{ children?: React.ReactNode; data?: Record<string, unknown>; "aria-label"?: string }>[] {
+      if (!React.isValidElement<{ children?: React.ReactNode; data?: Record<string, unknown>; "aria-label"?: string }>(node)) return [];
+      return [node, ...React.Children.toArray(node.props.children).flatMap(elements)];
+    }
+    const nodes = elements(page);
+    const schema = nodes.filter(node => node.type === JsonLd);
+    expect(schema).toHaveLength(1);
+    const data = schema[0].props.data!;
+    expect(data["@type"]).toBe("BreadcrumbList");
+    const nav = nodes.find(node => node.type === "nav" && node.props["aria-label"] === "Breadcrumb");
+    const html = renderToStaticMarkup(nav);
+    expect(html).toContain('href="/products">Shop all</a>');
+    expect(html).toContain('<span aria-current="page">Falling apart</span>');
+    expect((data.itemListElement as { name: string }[]).map(item => item.name)).toEqual(["Shop all", "Falling apart"]);
+    expect(JSON.stringify(data)).not.toMatch(/"@type":"(?:Product|Offer)"/);
   });
 });

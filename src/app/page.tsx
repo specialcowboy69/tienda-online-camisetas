@@ -1,3 +1,5 @@
+import { JsonLd } from "@/components/json-ld";
+import { organizationJsonLd } from "@/lib/structured-data";
 import { pageMetadata } from "@/lib/seo";
 import { HomePageContent } from "@/components/home-page-content";
 import { AnalyticsPageRegistration } from "@/components/analytics-page";
@@ -8,5 +10,5 @@ export const metadata = pageMetadata({"path": "/", "title": "Funny Graphic Tees 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  return <><AnalyticsPageRegistration path="/" title="Home" /><HomePageContent catalog={await getPublicCatalog()} /></>;
+  return <><JsonLd data={organizationJsonLd()} /><AnalyticsPageRegistration path="/" title="Home" /><HomePageContent catalog={await getPublicCatalog()} /></>;
 }
