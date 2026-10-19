@@ -28,6 +28,13 @@ export function parseConsent(raw: string | null, now: number): AnalyticsConsent 
   }
 }
 
+export function readStoredConsent(storage: Pick<Storage, "getItem" | "removeItem">, now: number): AnalyticsConsent | null {
+  const raw = storage.getItem(CONSENT_STORAGE_KEY);
+  const value = parseConsent(raw, now);
+  if (raw !== null && value === null) storage.removeItem(CONSENT_STORAGE_KEY);
+  return value;
+}
+
 export function resolveAnalyticsConfig(input: { enabled?: string; measurementId?: string; deployment?: string; origin: string }): AnalyticsConfig | null {
   if (input.enabled !== "true" || input.deployment !== "production" || input.origin !== ORIGIN || !/^G-[A-Z0-9]+$/.test(input.measurementId ?? "")) return null;
   return { measurementId: input.measurementId!, origin: ORIGIN };

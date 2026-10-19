@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { createConsent, parseConsent, resolveAnalyticsConfig, resolveAnalyticsPage, sanitizeAnalyticsReferrer } from "./analytics-consent";
+import { describe, expect, it, vi } from "vitest";
+import { createConsent, parseConsent, readStoredConsent, resolveAnalyticsConfig, resolveAnalyticsPage, sanitizeAnalyticsReferrer } from "./analytics-consent";
 
 const now = 1791849600000;
 const config = { enabled: "true", measurementId: "G-4JDZCBK8SY", deployment: "production", origin: "https://www.funnyteesforall.com" };
@@ -15,6 +15,11 @@ describe("analytics permission policy", () => {
     expect(parseConsent(raw, now)).toBeNull();
   });
   it("rejects a nonfinite clock", () => expect(parseConsent(JSON.stringify(createConsent("granted", now)), NaN)).toBeNull());
+  it("removes an expired browser preference instead of leaving the record stored indefinitely", () => {
+    const storage = { getItem: () => JSON.stringify(createConsent("granted", now)), removeItem: vi.fn() };
+    expect(readStoredConsent(storage, now + 15552000000)).toBeNull();
+    expect(storage.removeItem).toHaveBeenCalledWith("ncc.analytics-consent.v1");
+  });
   it("enables only the explicit production canonical configuration", () => {
     expect(resolveAnalyticsConfig(config)).toEqual({ measurementId: "G-4JDZCBK8SY", origin: "https://www.funnyteesforall.com" });
   });

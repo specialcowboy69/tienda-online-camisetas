@@ -72,4 +72,18 @@ describe("customer-facing language", () => {
     expect(productsHtml).toContain("Nothing here yet. Check back after the next questionable decision.");
     expect(`${homeHtml}\n${productsHtml}`).not.toMatch(spanishCustomerCopy);
   });
+
+  it("publishes legal pages that identify the seller and explain optional analytics", async () => {
+    const [{ default: PrivacyPage }, { default: CookiesPage }] = await Promise.all([
+      import("./privacy/page"), import("./cookies/page")
+    ]);
+    const privacy = renderToStaticMarkup(createElement(PrivacyPage));
+    const cookies = renderToStaticMarkup(createElement(CookiesPage));
+    expect(privacy).toContain("No Context Club S.L.");
+    expect(privacy).toContain("Calle San Pablo 71, 03012 Alicante, Spain");
+    expect(privacy).toContain("orders@funnyteesforall.com");
+    expect(cookies).toContain("Google Analytics");
+    expect(cookies).toContain("180 days");
+    expect(cookies).toContain('href="/privacy"');
+  });
 });

@@ -67,6 +67,14 @@ describe("ProductPurchasePanel recipient wiring through real rendered handlers",
     expect(html).not.toContain("Standard shipping included.");
   });
 
+  it("links the privacy information where the customer enters delivery details", () => {
+    const html = renderToStaticMarkup(renderPanel());
+    expect(html).toContain('href="/privacy"');
+    expect(html).toContain("Privacy policy");
+    expect(html).toContain('href="/privacy" target="_blank" rel="noopener noreferrer"');
+    expect(html.indexOf("Privacy policy")).toBeLessThan(html.indexOf("Calculate shipping"));
+  });
+
   it.each(["EU_CUSTOMS_RISK", "SHIPPING_CHECK_UNAVAILABLE", "SHIPPING_OPTIONS_CHANGED"])("clears payable rates after %s from either endpoint and preserves address", async code => {
     labelInput("Address 2").props.onChange!({ target: { value: "Apt 7" } });
     await quote();
