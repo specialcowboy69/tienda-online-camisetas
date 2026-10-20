@@ -184,3 +184,47 @@ público directo y los validadores externos sí pudieron leer el preview.
 Permanecen pendientes la integración del PR, la verificación en producción
 tras cualquier merge, el envío a GSC y los demás gates comerciales de la
 checklist. **NO-GO se conserva.**
+
+## Seguimiento del 20 de octubre — integración y Production
+
+El [PR #40](https://github.com/specialcowboy69/tienda-online-camisetas/pull/40)
+quedó `MERGED` a `main` a las 12:43:26 UTC en el commit
+`ee20c19951909c6d7d0a05c3bbca0296ecb34eed`, confirmado como ancestro de
+`origin/main`. El árbol de ese merge es idéntico al head revisado `8fdb7ef`.
+Antes del merge, sobre ese head: `npm.cmd test` pasó 862/862, `npm.cmd run
+lint`, `npx.cmd tsc --noEmit --incremental false` y `npm.cmd run build`
+terminaron con exit 0. Vercel y Preview Comments estaban en verde, el PR
+apuntaba a `main` y GitHub lo indicó mergeable sin conflictos.
+
+El [registro de deployment de GitHub](https://github.com/specialcowboy69/tienda-online-camisetas/deployments)
+asocia el SHA del merge al deployment `7200009224`, entorno `Production`,
+estado `success` a las 12:44:43 UTC y URL única
+`https://tienda-online-camisetas-xiwp7163e-specialcowboy69s-projects.vercel.app`.
+El check Vercel del mismo SHA terminó en `success` y enlaza al
+[deployment en Vercel](https://vercel.com/specialcowboy69s-projects/tienda-online-camisetas/BWxA4qtjFMB97o1KVnqwGs1paTjT).
+El conector Vercel devolvió 403 de scope al listar deployments y la CLI no
+estaba instalada; el registro de GitHub y la respuesta pública son la evidencia
+disponible. No se leyó el panel ni los logs internos de Vercel.
+
+El CLI `node scripts/verify-seo.mjs --base-url
+https://www.funnyteesforall.com --output
+.superpowers/sdd/2026-10-19-camisetas-seo-foundation/seo-http-production-2026-10-20.json`
+terminó con **exit 0, 32 GET, cero fallos** sobre el dominio público. Cubrió
+cuatro páginas estáticas, tres rutas operativas con noindex, cinco PDP reales,
+dos variantes por PDP, una ficha inexistente 404 con noindex, parámetros de
+tracking, robots y sitemap. Comprobó canonical, títulos/H1, coincidencia de
+URLs del sitemap con el catálogo y precio e imagen inicial de las diez
+variantes muestreadas frente a Product/Offer. El JSON de salida queda ignorado
+en `.superpowers/` y no se incluye en el commit. El gate limita HTTP a dos
+variantes por ficha: diez muestras de 130 Offers presentes en las cinco
+fichas. No probó compra, interacción completa de selectores, todas las
+variantes ni indexación.
+
+Un GET separado a la [ficha muestreada](https://www.funnyteesforall.com/products/falling-apart-cat-graphic-tee)
+devolvió HTTP 200, `Content-Type: text/html` y ninguna cabecera
+`X-Robots-Tag: noindex`. Esto no demuestra la cabecera de todas las URLs ni
+su inclusión en el índice. La prueba oficial Rich Results anterior validó una
+URL de preview con datos reales; no se repitió en producción. Enviar sitemap a
+Search Console, comprobar indexación y decidir si se restaura la protección
+de previews siguen pendientes. Se conserva **NO-GO** y no se activaron pagos,
+fabricación ni otros servicios por esta integración.

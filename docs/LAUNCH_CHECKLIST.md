@@ -663,9 +663,9 @@ por esta actualizacion; requiere permiso nuevo al retomarla y sigue sin verifica
 
 ## 8. SEO, medicion y operaciones
 
-- [ ] Crear `robots.txt` y el sitemap publico.
-- [ ] Anadir `metadataBase`, canonical, Open Graph y Twitter metadata.
-- [ ] Confirmar metadatos unicos para cada producto.
+- [x] Crear `robots.txt` y el sitemap publico (PR #40, comprobados en Production).
+- [x] Anadir `metadataBase`, canonical, Open Graph y Twitter metadata (PR #40).
+- [x] Confirmar metadatos unicos para cada producto publicado (PR #40, gate HTTP).
 - [ ] Configurar Search Console y enviar el sitemap.
 - [x] Elegir GA4 e implementar consentimiento previo y retirada en #35,
   desplegado apagado; evidencia y límites en la sección de analítica opcional.
@@ -725,25 +725,20 @@ simultaneamente estos puntos:
 - [ ] Una compra real controlada ha completado todo el recorrido correctamente.
 - [ ] Existe un procedimiento de monitorizacion, devolucion y rollback.
 
-### SEO foundation A+B — PR #40 en revisión, 20 de octubre de 2026
+### SEO foundation A+B — Production, 20 de octubre de 2026
 
-Metadata/canonical, publicación de catálogo, noindex operativo, sitemap/robots
-y schema de entidad/breadcrumb implementados en rama aislada. Tras el merge
-del PR #38 en main, la rama SEO también añadió URLs y selección inicial de
-variantes, ProductGroup/Offers filtrados y un gate GET que compara precio e
-imagen inicial con dos Offers por ficha como máximo.
-[Evidencia y límites](verification/2026-10-19-seo-foundation.md). El PR #40 está
-abierto como borrador; sus dos hallazgos de revisión se corrigieron en `5661316`.
-Las pruebas locales pasan (862/862, lint, TypeScript, build y gate Node 16/16).
-El HTTP local sigue limitado por la falta de catálogo seguro y sitemap 503.
-Tras quedar público el preview del SHA `10898c7`, el mismo gate sobre ese
-deployment pasó 32 GET sin fallos: cinco fichas, dos variantes por ficha,
-canonical, precio/imagen inicial, sitemap y robots. Google Rich Results por
-URL real detectó un Product snippet, 35 Merchant listings y un breadcrumb
-válidos, con avisos opcionales; Schema.org Validator dio 0 errores y 0 avisos.
-La preview conserva `X-Robots-Tag: noindex`, así que esto no acredita
-indexación. El plugin Vercel aún devuelve 403 al consultar aliases, aunque
-el HTTP público funciona. Siguen pendientes integración SEO y comprobación
-en producción. La configuración actual deja públicas las previews cubiertas
-por el proyecto; revisar esa exposición al acabar las pruebas.
-**NO-GO conservado**, sin activación de servicios ni pagos reales.
+PR [#40](https://github.com/specialcowboy69/tienda-online-camisetas/pull/40)
+integrado en `main` con merge `ee20c19951909c6d7d0a05c3bbca0296ecb34eed`.
+GitHub registró el deployment `7200009224` en `Production`, estado `success`,
+para ese SHA. En `https://www.funnyteesforall.com` el gate GET pasó 32 rutas
+sin fallos: cinco fichas reales, dos variantes por ficha, canonical, precio e
+imagen inicial, noindex de rutas operativas, robots y sitemap. Las 10 variantes
+son una muestra de 130 Offers; no se comprobaron todas por HTTP. La ficha
+muestreada devolvió 200 sin cabecera `X-Robots-Tag: noindex`.
+[Evidencia y límites](verification/2026-10-19-seo-foundation.md). La prueba
+Rich Results corresponde al preview y no acredita indexación ni elegibilidad
+actual de todas las fichas en producción. Search Console y el envío del sitemap
+siguen pendientes. El plugin de Vercel devuelve 403 para este equipo; el
+deployment se confirmó con el registro de GitHub y el HTTP público. Revisar
+la exposición de previews ahora que terminó la prueba.
+**NO-GO conservado**, sin activación de pagos ni fabricación.
