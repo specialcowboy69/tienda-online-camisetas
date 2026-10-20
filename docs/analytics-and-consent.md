@@ -35,7 +35,9 @@ deployment Production `7213001459` como `success`; las páginas públicas
 Tras aceptarlo en una sesión de prueba, se solicitó `gtag.js` y se observó una
 petición POST a `/g/collect`. El informe Realtime de la propiedad devolvió
 `first_visit=1`, `page_view=1` y `session_start=1`. Esto acredita recepción de
-la medición básica, no de eventos automáticos adicionales. Medición mejorada
+la medición básica, no de eventos automáticos adicionales. Al retirar después
+el permiso v2 y navegar a `/products`, no se observó ninguna nueva petición a
+Google Analytics en esa sesión. Medición mejorada
 se activó brevemente para inspeccionar sus opciones: búsqueda interna e
 interacciones con formularios aparecieron marcadas por defecto. No se guardó
 ningún cambio en esas opciones y el interruptor principal se volvió a apagar.
