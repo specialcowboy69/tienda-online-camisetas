@@ -49,12 +49,14 @@ Consent Mode básico: antes de aceptar no se solicita gtag.js ni se envían ping
 denegados. Se usa un único adaptador y cola propia `nccAnalyticsLayer`, sin
 reemplazar etiquetas de terceros. No se acumulan visitas anteriores al permiso.
 
-Solo se registra `page_view` propio en `/`, `/products` y PDP existentes,
-registrados tras validar el catálogo. Títulos fijos Home/Products/Product,
-URL canónica sin query/hash/UTM y referente externo reducido al origen. Rutas
-internas sensibles, datos de formulario, pedidos y pagos no se envían. No hay
-medición de `/admin`, `/success`, `/cancel`, APIs ni páginas desconocidas.
-Navegación A/B/A cuenta tres visitas; renders/query/hash no añaden otra.
+No se envía un evento `page_view` manual. Tras el consentimiento, la
+configuración de GA4 registra automáticamente la primera visita en `/`,
+`/products` y PDP existentes, registrados tras validar el catálogo. Los
+títulos son fijos (Home/Products/Product); se proporciona URL canónica sin
+query/hash/UTM y referente externo reducido al origen. `/admin`, `/success`,
+`/cancel`, APIs y páginas desconocidas quedan excluidas. Las visitas en
+navegación interna dependen de que GA4 tenga activada la medición de cambios
+de historial; con Medición mejorada apagada, no se contabilizan automáticamente.
 
 Cookies configuradas: prefijo `ncc`, 180 días, host-only, `/`, Secure,
 SameSite=Lax, sin renovación por visita. La retirada elimina exclusivamente
@@ -62,8 +64,9 @@ SameSite=Lax, sin renovación por visita. La retirada elimina exclusivamente
 el inventario de cookies del SDK real aún debe verificarse. El navegador de
 pruebas usa cookies simuladas, no acredita comportamiento de Google.
 
-El adaptador pausa antes de cambiar de pathname, usa `ga-disable-<ID>` y
-descarta su cola. Quitar un script no descarga JavaScript ya ejecutado. Una
+El adaptador mantiene GA4 activo entre páginas públicas y lo pausa antes de
+entrar en una ruta excluida; usa `ga-disable-<ID>` y descarta su cola. Quitar
+un script no descarga JavaScript ya ejecutado. Una
 petición iniciada previamente no puede recuperarse. GA4 puede generar eventos
 técnicos propios: no afirmar que todo el tráfico será únicamente page_view.
 
@@ -72,8 +75,10 @@ técnicos propios: no afirmar que todo el tráfico será únicamente page_view.
 1. Publicar información legal revisada y añadir enlaces reales en ajustes;
    no usar borradores incompletos ni inventar datos del responsable.
 2. Comprobar flujo, destinos de etiqueta, privacidad y retención de la propiedad.
-   Apagar Enhanced Measurement **incluidos cambios de historial**, formularios,
-   scroll, búsqueda, descargas, vídeo y clics. `send_page_view:false` no basta.
+   Antes de encender Medición mejorada, actualizar el aviso y las políticas
+   públicos para cubrir sus eventos y verificar con el SDK real que los cambios
+   de historial no duplican vistas ni revelan parámetros sensibles. El
+   `page_view` inicial ya lo genera GA4; no añadir otro manual.
 3. Con autorización separada, probar gtag.js real con colectores interceptados:
    retirada, rutas excluidas, parámetros sensibles, cookies reales y restauración
    desde suspensión/BFCache. Cualquier

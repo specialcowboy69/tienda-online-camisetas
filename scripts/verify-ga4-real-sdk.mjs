@@ -70,7 +70,7 @@ try {
   assert.equal(traffic.scripts, 1, "One real gtag script loads after acceptance");
   assert(traffic.hits.some(hit => hit.params.en === "page_view"), "The real SDK sends an intercepted page_view");
   const acceptedCount = traffic.hits.length;
-  assert.equal(acceptedCount, 1, "Only the explicitly requested page_view is sent");
+  assert.equal(acceptedCount, 1, "The GA4 config sends one automatic initial page_view");
   assert.equal(traffic.hits[0].params.tid, id, "Collector targets the expected property");
   await page.evaluate(() => history.pushState({}, "", "/?order_id=synthetic"));
   await settle(page);
@@ -78,7 +78,7 @@ try {
     const automatic = traffic.hits.slice(acceptedCount);
     console.error(JSON.stringify({ unexpectedAutomaticEvents: automatic.map(hit => hit.params.en ?? "other"), sensitiveQueryPresent: /order_id|synthetic/.test(JSON.stringify(automatic)) }));
   }
-  assert.equal(traffic.hits.length, acceptedCount, "No automatic events beyond our explicit page_view");
+  assert.equal(traffic.hits.length, acceptedCount, "Enhanced Measurement is currently off; query-only history adds no view");
   await page.evaluate(() => history.pushState({}, "", "/success?order_id=synthetic"));
   await settle(page);
   assert.equal(traffic.hits.length, acceptedCount, "No events on an excluded route");

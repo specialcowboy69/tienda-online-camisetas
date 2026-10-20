@@ -1,4 +1,4 @@
-import { parseConsent, resolveAnalyticsPage, sanitizeAnalyticsReferrer, type AnalyticsConfig, type AnalyticsConsent, type AnalyticsPage } from "./analytics-consent";
+import { parseConsent, resolveAnalyticsDestination, resolveAnalyticsPage, sanitizeAnalyticsReferrer, type AnalyticsConfig, type AnalyticsConsent, type AnalyticsPage } from "./analytics-consent";
 
 export type AnalyticsRuntime = {
   sync(input: { consent: AnalyticsConsent | null; page: AnalyticsPage | null }): void;
@@ -29,7 +29,6 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
   let configured = false;
   let generation = 0;
   let failedChoice: number | null = null;
-  let lastPath: string | null = null;
   let enabled = false;
   win[disableKey] = true;
 
@@ -37,6 +36,10 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
     const consent = parseConsent(input.consent ? JSON.stringify(input.consent) : null, now());
     if (consent?.choice !== "granted" || browser.location.origin !== config.origin) return null;
     return resolveAnalyticsPage(browser.location.pathname, input.page);
+  }
+
+  function hasConsent() {
+    return parseConsent(input.consent ? JSON.stringify(input.consent) : null, now())?.choice === "granted" && browser.location.origin === config.origin;
   }
 
   function clearOwnedCookies() {
@@ -53,7 +56,6 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
     win[disableKey] = true;
     generation++;
     input = { consent: null, page: null };
-    lastPath = null;
     layer.length = 0;
     if (!loaded && script) {
       script.remove();
@@ -72,27 +74,32 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
     // not inherit arbitrary document titles, queries, or sensitive referrers.
     command("set", safe);
     win[disableKey] = false;
-    if (!enabled) command("consent", "update", { ...denied, analytics_storage: "granted" });
+    const wasEnabled = enabled;
+    if (!wasEnabled) command("consent", "update", { ...denied, analytics_storage: "granted" });
     enabled = true;
     if (!configured) {
       command("js", new Date(now()));
+    }
+    if (!configured || !wasEnabled) {
       command("config", config.measurementId, {
-        ...safe, send_page_view: false, allow_google_signals: false,
+        ...safe, send_page_view: true, allow_google_signals: false,
         allow_ad_personalization_signals: false, cookie_prefix: "ncc",
         cookie_expires: 15552000, cookie_update: false, cookie_domain: "none",
         cookie_path: "/", cookie_flags: "SameSite=Lax;Secure"
       });
       configured = true;
     }
-    if (lastPath !== page.path) {
-      command("event", "page_view", { send_to: config.measurementId, ...safe });
-      lastPath = page.path;
-    }
   }
 
   function sync(next: typeof input) {
     input = next;
-    if (!allowedPage()) { stop({ clearCookies: next.consent?.choice !== "granted" }); return; }
+    if (!allowedPage()) {
+      // During a public route transition, wait for its page registration without
+      // interrupting GA4's own history-based page view.
+      if (enabled && hasConsent() && resolveAnalyticsDestination(browser.location.pathname)) return;
+      stop({ clearCookies: next.consent?.choice !== "granted" });
+      return;
+    }
     if (loaded) { emit(); return; }
     if (script || failedChoice === next.consent!.decidedAt) return;
     const attempt = ++generation;
@@ -116,21 +123,27 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
     document.head.appendChild(script);
   }
 
-  // Block before the URL changes. Resume only from a freshly registered page.
+  // Keep GA4 active on public history changes; block sensitive destinations
+  // before its enhanced-measurement listener can observe the new URL.
   for (const method of ["pushState", "replaceState"] as const) {
     const original = browser.history[method];
     browser.history[method] = function (...args: Parameters<History[typeof method]>) {
       const target = args[2];
       if (target != null) {
         try {
-          if (new URL(target, browser.location.href).pathname !== browser.location.pathname) stop({ clearCookies: false });
+          const url = new URL(target, browser.location.href);
+          const page = url.origin === config.origin ? resolveAnalyticsDestination(url.pathname) : null;
+          if (!page) stop({ clearCookies: false });
+          else if (enabled) command("set", { page_location: config.origin + page.path, page_title: page.title, page_referrer: sanitizeAnalyticsReferrer(browser.location.href) });
         } catch { stop({ clearCookies: false }); }
       }
       return original.apply(this, args);
     };
   }
   browser.addEventListener("popstate", () => {
-    if (!allowedPage()) stop({ clearCookies: false });
+    const page = resolveAnalyticsDestination(browser.location.pathname);
+    if (!page) stop({ clearCookies: false });
+    else if (enabled) command("set", { page_location: config.origin + page.path, page_title: page.title, page_referrer: sanitizeAnalyticsReferrer(document.referrer) });
   });
   const runtime = { sync, stop };
   const byId = instances.get(document) ?? new Map<string, AnalyticsRuntime>();
