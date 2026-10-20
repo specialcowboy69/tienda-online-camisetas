@@ -20,7 +20,7 @@ function nodes(node: React.ReactNode, type: unknown): ReactElement<Record<string
   if (!React.isValidElement<Record<string, unknown>>(node)) return [];
   return [...(node.type === type ? [node] : []), ...React.Children.toArray(node.props.children as React.ReactNode).flatMap(child => nodes(child, type))];
 }
-const product: CatalogProduct = { id: "468682936", syncProductId: 468682936, name: "Private arbitrary title", variants: [], updatedAt: "2026-10-13" };
+const product: CatalogProduct = { id: "468682936", syncProductId: 468682936, name: "Private arbitrary title", storefrontImage: "https://example.com/tee.webp", variants: [], updatedAt: "2026-10-13" };
 
 describe("analytics page boundary", () => {
   it("mounts one provider without catalog reads", () => {
@@ -38,6 +38,11 @@ describe("analytics page boundary", () => {
     expect(nodes(page, AnalyticsPageRegistration).map(n => n.props)).toEqual([{ path: "/products/falling-apart-cat-graphic-tee", title: "Product" }]);
     expect(getCatalogProduct).toHaveBeenCalledTimes(1);
     expect(listCatalogProducts).toHaveBeenCalledTimes(1);
+  });
+  it.each(["22", "invalid", ["22", "11"]])("keeps the analytics descriptor clean for variant query %j", async variant => {
+    vi.mocked(getCatalogProduct).mockResolvedValue(product);
+    const page = await ProductPage({ params: Promise.resolve({ slug: "falling-apart-cat-graphic-tee" }), searchParams: Promise.resolve({ variant }) });
+    expect(nodes(page, AnalyticsPageRegistration).map(n => n.props)).toEqual([{ path: "/products/falling-apart-cat-graphic-tee", title: "Product" }]);
   });
   it.each([null, { ...product, isIgnored: true }])("does not render missing or ignored products", async (value) => {
     vi.mocked(getCatalogProduct).mockResolvedValue(value);

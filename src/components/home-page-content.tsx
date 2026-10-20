@@ -1,3 +1,4 @@
+import { filterPublicProducts } from "@/lib/storefront-publication";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { SiteHeader } from "@/components/site-header";
@@ -17,7 +18,7 @@ function selectGalleryImage(product: CatalogProduct | undefined, preferredIndexe
 }
 
 export function HomePageContent({ catalog }: { catalog: PublicCatalogResult }) {
-  const publicProducts = catalog.products.filter((product) => Boolean(getProductSlug(product)));
+  const publicProducts = filterPublicProducts(catalog.products);
   const featuredProducts = publicProducts.slice(0, 3);
   const selectProduct = (slug: string, fallbackIndex: number) => (
     publicProducts.find((product) => getProductSlug(product) === slug)
@@ -45,10 +46,10 @@ export function HomePageContent({ catalog }: { catalog: PublicCatalogResult }) {
 
   const contextProduct = selectProduct("falling-apart-cat-graphic-tee", 0);
   const contextImage = selectGalleryImage(contextProduct, [1, 2, 3, 0]);
-  const dropDescription = catalog.status === "available" && catalog.products.length > 0
-    ? catalog.products.length === 1
+  const dropDescription = catalog.status === "available" && publicProducts.length > 0
+    ? publicProducts.length === 1
       ? "One design. Zero need to explain it."
-      : `${catalog.products.length === 5 ? "Five" : catalog.products.length} designs. Zero need to explain them.`
+      : `${publicProducts.length === 5 ? "Five" : publicProducts.length} designs. Zero need to explain them.`
     : undefined;
 
   return (

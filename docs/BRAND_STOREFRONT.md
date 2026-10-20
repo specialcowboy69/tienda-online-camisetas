@@ -303,3 +303,14 @@ Antes de incorporar un asset, confirmar:
   y devoluciones.
 - Mantener todo copy visible y los emails en inglés, con tono de marca, sin
   comprometer claridad en compra, soporte o incidencias.
+
+## SEO foundation A+B — estado local del 19 de octubre de 2026
+
+La rama aislada incorpora publicación pública coherente, canonical limpio,
+metadata inglesa, noindex operativo, sitemap/robots y schema Organization y
+BreadcrumbList. Tras integrar el PR #38 en main, la rama SEO añadió selección
+por URL y ProductGroup con Offers solo para variantes seleccionables y con
+precio e imagen inicial coherentes. [Verificación local y límites](verification/2026-10-19-seo-foundation.md).
+El gate B está probado con datos sintéticos; sin catálogo local seguro, no hay
+prueba HTTP de PDP/variantes. No acredita despliegue ni resultados de Google y
+no se publican categorías hipotéticas.

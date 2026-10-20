@@ -1,11 +1,12 @@
 "use client";
 
 import { ShoppingBag, Truck } from "lucide-react";
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ShippingEligibilityError } from "@/lib/shipping-eligibility";
 import { toCartItemInputs } from "@/lib/cart";
 import { productContentById } from "@/lib/product-content";
 import { getActiveProductVariants, getProductOptions, getProductPriceSummary, getSizesForColor, getVariantForSelection } from "@/lib/product-view";
+import { selectUrlVariant } from "@/lib/product-variant-url";
 import { SizeGuide } from "@/lib/size-guides";
 import { CatalogProduct, CartItemInput, Recipient, ShippingRate } from "@/lib/types";
 import { SizeGuideModal } from "./size-guide-modal";
@@ -15,6 +16,7 @@ type ProductPurchasePanelProps = {
   allowedCountries: string[];
   defaultCountry: string;
   sizeGuide?: SizeGuide;
+  initialVariantId?: number;
 };
 
 type CartLine = CartItemInput & {
@@ -86,13 +88,14 @@ function getDisplayMood(content?: (typeof productContentById)[string]) {
   return `${sentence}.`;
 }
 
-export function ProductPurchasePanel({ product, allowedCountries, defaultCountry, sizeGuide }: ProductPurchasePanelProps) {
+export function ProductPurchasePanel({ product, allowedCountries, defaultCountry, sizeGuide, initialVariantId }: ProductPurchasePanelProps) {
   const content = productContentById[product.id];
   const activeVariants = useMemo(() => getActiveProductVariants(product), [product]);
   const options = useMemo(() => getProductOptions(product), [product]);
   const firstVariant = activeVariants[0];
-  const [selectedColor, setSelectedColor] = useState(firstVariant?.color || "");
-  const [selectedSize, setSelectedSize] = useState(firstVariant?.size || "");
+  const initialVariant = initialVariantId === undefined ? undefined : selectUrlVariant(product, String(initialVariantId));
+  const [selectedColor, setSelectedColor] = useState(initialVariant?.color || firstVariant?.color || "");
+  const [selectedSize, setSelectedSize] = useState(initialVariant?.size || firstVariant?.size || "");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [recipient, setRecipient] = useState<Recipient>({
     name: "",
@@ -115,6 +118,12 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
   const pendingQuote = useRef<AbortController | null>(null);
   const checkoutLock = useRef(false);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+
+  useEffect(() => () => {
+    revision.current += 1;
+    pendingQuote.current?.abort();
+    pendingQuote.current = null;
+  }, []);
 
   const selectedVariant = getVariantForSelection(product, { color: selectedColor, size: selectedSize }) || firstVariant;
   const availableSizes = getSizesForColor(product, selectedColor);

@@ -1,8 +1,10 @@
+import { canonicalUrl } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
+  alternates: { canonical: canonicalUrl("/privacy") },
   title: "Privacy policy | No Context Club",
   description: "How No Context Club handles information about visitors and customers."
 };

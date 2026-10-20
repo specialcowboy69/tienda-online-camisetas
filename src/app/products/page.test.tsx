@@ -37,12 +37,12 @@ describe("ProductsPage", () => {
 
     expect(html).toContain("The First Drop");
     expect(html).toContain(product.name);
-    expect(html).toContain(unmapped.name);
+    expect(html).not.toContain(unmapped.name);
     expect(html).toContain("$39.99");
     expect(html).toContain('href="/products/falling-apart-cat-graphic-tee"');
     expect(html).not.toContain("/products/999999999");
     expect(html).toContain('href="/#about"');
-    expect((html.match(/class="ncc-product-card"/g) ?? [])).toHaveLength(2);
+    expect((html.match(/class="ncc-product-card"/g) ?? [])).toHaveLength(1);
   });
 
   it("renders the approved empty state", async () => {

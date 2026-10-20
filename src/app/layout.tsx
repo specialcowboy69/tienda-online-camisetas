@@ -1,9 +1,11 @@
+import { SITE_ORIGIN } from "@/lib/seo";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AnalyticsConsentProvider } from "@/components/analytics-consent";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_ORIGIN),
   title: "No Context Club",
   description: "Funny graphic tees for whatever that was."
 };

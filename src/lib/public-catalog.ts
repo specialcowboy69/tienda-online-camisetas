@@ -1,3 +1,4 @@
+import { filterPublicProducts } from "./storefront-publication";
 import { listCatalogProducts } from "./firestore";
 import type { CatalogProduct } from "./types";
 
@@ -8,7 +9,7 @@ export type PublicCatalogResult = {
 
 export async function getPublicCatalog(): Promise<PublicCatalogResult> {
   try {
-    return { products: await listCatalogProducts(), status: "available" };
+    return { products: filterPublicProducts(await listCatalogProducts()), status: "available" };
   } catch {
     return { products: [], status: "unavailable" };
   }

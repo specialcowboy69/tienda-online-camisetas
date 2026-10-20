@@ -27,7 +27,7 @@ describe("getPublicCatalog", () => {
   beforeEach(() => vi.resetAllMocks());
 
   it("returns public products when the catalog is available", async () => {
-    vi.mocked(listCatalogProducts).mockResolvedValue([product]);
+    vi.mocked(listCatalogProducts).mockResolvedValue([product, { ...product, id: "999999999" }, { ...product, isIgnored: true }]);
 
     await expect(getPublicCatalog()).resolves.toEqual({ products: [product], status: "available" });
   });

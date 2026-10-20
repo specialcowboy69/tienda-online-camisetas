@@ -22,3 +22,4 @@ describe("product slugs", () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 });
+it("uses URL-safe slug syntax", () => { for (const entry of productSlugEntries) expect(entry.slug).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/); });

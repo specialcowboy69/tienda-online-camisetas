@@ -724,3 +724,26 @@ simultaneamente estos puntos:
   de habilitar Stripe Tax o pagos live.
 - [ ] Una compra real controlada ha completado todo el recorrido correctamente.
 - [ ] Existe un procedimiento de monitorizacion, devolucion y rollback.
+
+### SEO foundation A+B — PR #40 en revisión, 20 de octubre de 2026
+
+Metadata/canonical, publicación de catálogo, noindex operativo, sitemap/robots
+y schema de entidad/breadcrumb implementados en rama aislada. Tras el merge
+del PR #38 en main, la rama SEO también añadió URLs y selección inicial de
+variantes, ProductGroup/Offers filtrados y un gate GET que compara precio e
+imagen inicial con dos Offers por ficha como máximo.
+[Evidencia y límites](verification/2026-10-19-seo-foundation.md). El PR #40 está
+abierto como borrador; sus dos hallazgos de revisión se corrigieron en `5661316`.
+Las pruebas locales pasan (862/862, lint, TypeScript, build y gate Node 16/16).
+El HTTP local sigue limitado por la falta de catálogo seguro y sitemap 503.
+Tras quedar público el preview del SHA `10898c7`, el mismo gate sobre ese
+deployment pasó 32 GET sin fallos: cinco fichas, dos variantes por ficha,
+canonical, precio/imagen inicial, sitemap y robots. Google Rich Results por
+URL real detectó un Product snippet, 35 Merchant listings y un breadcrumb
+válidos, con avisos opcionales; Schema.org Validator dio 0 errores y 0 avisos.
+La preview conserva `X-Robots-Tag: noindex`, así que esto no acredita
+indexación. El plugin Vercel aún devuelve 403 al consultar aliases, aunque
+el HTTP público funciona. Siguen pendientes integración SEO y comprobación
+en producción. La configuración actual deja públicas las previews cubiertas
+por el proyecto; revisar esa exposición al acabar las pruebas.
+**NO-GO conservado**, sin activación de servicios ni pagos reales.
