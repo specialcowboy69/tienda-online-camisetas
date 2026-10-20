@@ -31,9 +31,13 @@ todavía recepción en Realtime ni activa por sí mismo Medición mejorada.
 El identificador público es `G-4JDZCBK8SY`. No es un secreto. El código no
 añade Google Ads, conversiones, User-ID, Signals ni conversiones mejoradas.
 Medición mejorada de GA4 puede incorporar eventos automáticos de interacción
-solo después de consentimiento y activación en la propiedad; no se envían
-contenidos de formularios desde la aplicación. No modifica checkout, pedidos,
-catálogo ni impuestos.
+solo después de consentimiento y activación en la propiedad. Antes de activarla,
+deshabilitar las opciones de interacciones con formularios y búsqueda interna:
+las páginas de producto contienen un formulario con datos de entrega y la
+redacción automática de parámetros de Google no sustituye a una prueba de
+privacidad. Esta barrera se mantiene aunque el nuevo aviso de consentimiento
+esté desplegado. La aplicación no envía contenidos de formularios a GA4.
+No modifica checkout, pedidos, catálogo ni impuestos.
 
 ## Configuración
 
