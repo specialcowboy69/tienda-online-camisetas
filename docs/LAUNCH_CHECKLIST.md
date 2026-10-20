@@ -735,12 +735,15 @@ imagen inicial con dos Offers por ficha como máximo.
 [Evidencia y límites](verification/2026-10-19-seo-foundation.md). El PR #40 está
 abierto como borrador; sus dos hallazgos de revisión se corrigieron en `5661316`.
 Las pruebas locales pasan (862/862, lint, TypeScript, build y gate Node 16/16).
-El HTTP local sigue limitado por la falta de catálogo seguro y sitemap 503;
-el preview protegido del commit corregido mostró sitemap con cinco fichas y
-una ficha con dos variantes seleccionadas, cotejadas con el catálogo público.
-Google Rich Results por URL recibió el login de Vercel; solo el fixture en
-modo Código dio resultados válidos. El envío de una muestra de catálogo real
-al validador no se completó. Siguen pendientes la comparación HTTP
-completa de schema/canonical/imagen, integración SEO y producción. Esto no
-acredita indexación.
+El HTTP local sigue limitado por la falta de catálogo seguro y sitemap 503.
+Tras quedar público el preview del SHA `10898c7`, el mismo gate sobre ese
+deployment pasó 32 GET sin fallos: cinco fichas, dos variantes por ficha,
+canonical, precio/imagen inicial, sitemap y robots. Google Rich Results por
+URL real detectó un Product snippet, 35 Merchant listings y un breadcrumb
+válidos, con avisos opcionales; Schema.org Validator dio 0 errores y 0 avisos.
+La preview conserva `X-Robots-Tag: noindex`, así que esto no acredita
+indexación. El plugin Vercel aún devuelve 403 al consultar aliases, aunque
+el HTTP público funciona. Siguen pendientes integración SEO y comprobación
+en producción. La configuración actual deja públicas las previews cubiertas
+por el proyecto; revisar esa exposición al acabar las pruebas.
 **NO-GO conservado**, sin activación de servicios ni pagos reales.

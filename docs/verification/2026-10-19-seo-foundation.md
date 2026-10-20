@@ -87,7 +87,7 @@ Una ejecución futura sobre producción exige autorización y repetir la
 comparación de robots servido por CDN, sitemap poblado y PDP/variantes
 publicadas. No acredita indexación, compra real ni resultados SEO.
 
-## Pendiente
+## Pendiente al cierre del primer seguimiento
 
 - El PR SEO #40 está abierto en borrador; integración y despliegue de
   producción aún pendientes. La integración local del PR #38 no integra esta
@@ -134,8 +134,53 @@ un fixture sintético derivado del schema del PR produjo un Product snippet y
 dos Merchant listings válidos, con avisos opcionales; no valida el HTML
 servido ni datos de catálogo real. Se preparó una muestra generada por el PR
 con el catálogo público real, pero no se completó su envío al validador:
-**Google Rich Results con datos reales no verificado**. La
+**Google Rich Results con datos reales no verificado en este corte**. La
 [ficha de producción actual](https://search.google.com/test/rich-results/result?id=1aehkweV1m6gLolTcnD-vQ)
 dio cero resultados enriquecidos y sirve solo como línea base anterior al
 PR. La prueba Rich Results por URL del PR y la verificación en producción
 continúan pendientes. **NO-GO se conserva.**
+
+## Seguimiento del 20 de octubre — preview público del SHA `10898c7`
+
+El deployment `dpl_8Zesoeot7QbrwZztKyqVuEscPHM2` del último commit del
+[PR #40](https://github.com/specialcowboy69/tienda-online-camisetas/pull/40)
+quedó `READY`; el commit `10898c7` solo cambia documentación respecto al
+código corregido en `5661316`. Al reconsultar la configuración del proyecto,
+`ssoProtection.enabled=false` y `passwordProtection.enabled=false`. El
+[sitemap del preview](https://tienda-online-camisetas-fzlho3rz1-specialcowboy69s-projects.vercel.app/sitemap.xml)
+respondió 200 por GET público, sin sesión. Esta apertura afecta a los
+deployments cubiertos por la configuración del proyecto; no equivale a un
+despliegue de la rama en producción.
+
+Se ejecutó `runAudit` de `scripts/verify-seo.mjs` con un adaptador en memoria
+que mapea exclusivamente las URLs permitidas de `http://127.0.0.1` al origen
+fijo de ese preview, manteniendo GET, rechazo de redirecciones y el resto de
+las comprobaciones del gate. Resultado: **32 GET, exit 0, cero fallos**.
+Incluyó cuatro páginas estáticas, tres operativas con noindex, cinco PDP,
+dos variantes por PDP, 404, queries de tracking, robots y sitemap. Pasaron
+canonical limpio, titles/H1, comparación sitemap-catálogo y precio e imagen
+inicial de las diez variantes muestreadas frente al Offer y Product hijo.
+El gate registró su límite explícito: dos muestras HTTP por ficha entre 130
+Offers totales; la comprobación local separada había cotejado los 130 con
+el catálogo público de origen. El CLI normal no admite el host de Vercel;
+este adaptador no modifica el script ni consulta rutas fuera de su allowlist.
+
+La [prueba oficial de Google sobre la URL real del preview](https://search.google.com/test/rich-results/result?id=yB2UxBBM6EdXZ4e6uDalXQ)
+obtuvo la ficha: rastreo permitido y descarga correcta. Detectó **1
+fragmento de producto, 35 fichas de comerciante y 1 breadcrumb válidos**.
+Los avisos de Merchant listings por descripción de variante, disponibilidad,
+política de devolución y envío son opcionales; no se añadieron datos no
+acreditados para eliminarlos. La misma prueba indica que la URL no es
+indexable por `X-Robots-Tag: noindex` servido en el preview de Vercel.
+El [Schema.org Validator sobre esa URL](https://validator.schema.org/#url=https%3A%2F%2Ftienda-online-camisetas-fzlho3rz1-specialcowboy69s-projects.vercel.app%2Fproducts%2Ffalling-apart-cat-graphic-tee)
+leyó el HTML real y detectó ProductGroup y BreadcrumbList con **0 errores y
+0 advertencias**. Estos resultados validan una muestra del preview, no
+indexación ni rich results de producción.
+
+La herramienta `web_fetch_vercel_url` del plugin aún devolvió 403 en
+`GET /v2/deployments/{id}/aliases` para este deployment, incluso estando
+ahora público; es una limitación independiente de su conexión. El GET
+público directo y los validadores externos sí pudieron leer el preview.
+Permanecen pendientes la integración del PR, la verificación en producción
+tras cualquier merge, el envío a GSC y los demás gates comerciales de la
+checklist. **NO-GO se conserva.**
