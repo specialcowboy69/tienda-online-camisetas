@@ -23,8 +23,8 @@ export default function CookiesPage() {
           <table>
             <thead><tr><th scope="col">Technology</th><th scope="col">Purpose and provider</th><th scope="col">Duration and choice</th></tr></thead>
             <tbody>
-              <tr><th scope="row">Browser preference (<code>ncc.analytics-consent.v1</code>)</th><td>Stores your accept or reject decision, its date and version in localStorage on this site. This does not identify you and does not itself activate measurement.</td><td>Choice valid for 180 days; an expired record is removed while the site is open or on your next visit.</td></tr>
-              <tr><th scope="row">Google Analytics cookies (<code>ncc_ga</code> and <code>ncc_ga_*</code>)</th><td>Configured first-party cookies for recognising a browser and its sessions on our domain. Google Analytics receives visits to the home, catalog and product pages only after you accept analytics.</td><td>Configured to expire after 180 days without renewal on each visit. Optional: reject or withdraw at any time.</td></tr>
+              <tr><th scope="row">Browser preference (<code>ncc.analytics-consent.v2</code>)</th><td>Stores your accept or reject decision, its date and version in localStorage on this site. This does not identify you and does not itself activate measurement. Earlier analytics choices are not reused for this broader measurement.</td><td>Choice valid for 180 days; an expired record is removed while the site is open or on your next visit.</td></tr>
+              <tr><th scope="row">Google Analytics cookies (<code>ncc_ga</code> and <code>ncc_ga_*</code>)</th><td>Configured first-party cookies for recognising a browser and its sessions on our domain. After you accept, Google Analytics can receive page views and interactions on public shopping pages, including scrolling, outbound link clicks and, where present, form starts or submissions, video engagement and file downloads. It does not receive form contents from us.</td><td>Configured to expire after 180 days without renewal on each visit. Optional: reject or withdraw at any time.</td></tr>
               <tr><th scope="row">Hosted checkout</th><td>Stripe runs payment on its own website and may use technologies needed for payment, security or fraud prevention under its own <a href="https://stripe.com/privacy" rel="noopener noreferrer">privacy notice</a>.</td><td>Stripe controls its own storage and provides its applicable details.</td></tr>
             </tbody>
           </table>
@@ -33,7 +33,7 @@ export default function CookiesPage() {
 
       <section>
         <h2>How your choice works</h2>
-        <p>Google Analytics is optional. Before you accept, this store does not load its tag or send analytics requests. Rejecting keeps analytics off. Accepting allows the tag on eligible store pages; withdrawing stops further measurement and removes the analytics cookies this store controls. A request already sent cannot be recalled. Advertising storage and Google Ads tracking stay off.</p>
+        <p>Google Analytics is optional. Before you accept, this store does not load its tag or send analytics requests. Rejecting keeps analytics off. Accepting allows the tag on eligible store pages; withdrawing stops further measurement and removes the analytics cookies this store controls. A request already sent cannot be recalled. Analytics is not active on checkout, order confirmation or administration pages. Advertising storage and Google Ads tracking stay off.</p>
         <p>Open <strong>Cookie settings</strong> in the footer to accept, reject or withdraw. If Analytics is temporarily unavailable, the settings explain that state. Changing browser settings can also remove stored information, but browser controls do not replace the choice we offer here.</p>
       </section>
 
@@ -43,7 +43,7 @@ export default function CookiesPage() {
         <p>For personal data, recipients, retention and your rights, see our <Link href="/privacy">Privacy policy</Link>. You can ask us at <a href="mailto:orders@funnyteesforall.com">orders@funnyteesforall.com</a>.</p>
       </section>
 
-      <p className="ncc-legal-updated">Last updated: 19 October 2026.</p>
+      <p className="ncc-legal-updated">Last updated: 21 October 2026.</p>
     </article>
   </main>;
 }

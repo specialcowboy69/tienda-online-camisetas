@@ -22,9 +22,18 @@ etiqueta; aceptar cargó `gtag.js` (HTTP 200) y Google respondió HTTP 204 a
 [evidencia inicial](verification/2026-10-13-ga4-consent.md) y la
 [checklist](LAUNCH_CHECKLIST.md). El estado comercial `NO-GO` no cambia.
 
+El 20 de octubre se integraron #41 y #43. #43 deja que el SDK de GA4 genere
+la primera vista y prepara las vistas de navegación interna mediante historial.
+GitHub registra deployment Production correcto para el merge `ac61bef`; la
+comprobación directa del dominio público respondió HTTP 200. Esto no verifica
+todavía recepción en Realtime ni activa por sí mismo Medición mejorada.
+
 El identificador público es `G-4JDZCBK8SY`. No es un secreto. El código no
-añade Google Ads, conversiones, User-ID, Signals, medición de formularios ni
-conversiones mejoradas. No modifica checkout, pedidos, catálogo ni impuestos.
+añade Google Ads, conversiones, User-ID, Signals ni conversiones mejoradas.
+Medición mejorada de GA4 puede incorporar eventos automáticos de interacción
+solo después de consentimiento y activación en la propiedad; no se envían
+contenidos de formularios desde la aplicación. No modifica checkout, pedidos,
+catálogo ni impuestos.
 
 ## Configuración
 
@@ -43,11 +52,13 @@ puede abrirse siempre desde **Cookie settings**. Escape o Cancel no aceptan.
 El diálogo conserva/restaura el foco; cambiar la elección no recarga ni desmonta
 el formulario de compra. El banner reserva espacio para no tapar el footer.
 
-Se guarda `ncc.analytics-consent.v1` en localStorage: versión 1, `choice`
+Se guarda `ncc.analytics-consent.v2` en localStorage: versión 2, `choice`
 (`granted`/`denied`) y `decidedAt`, sin identificador de persona. Ambas elecciones
 caducan a los 180 días; visitar no renueva el plazo. Datos inválidos, futuros,
 caducados o lectura inaccesible deniegan por defecto. Si falla guardar, la
 elección dura en memoria hasta abandonar la página; ajustes muestra el aviso.
+La elección anterior `v1` se elimina y no se reutiliza: medir interacciones
+requiere que la persona acepte el aviso ampliado.
 Se revalida al recuperar foco, en cambios de otra pestaña, al medir y con timer
 en tramos de máximo 24 horas. Los eventos de otra pestaña provocan releer el
 registro vigente; no restauran la aceptación de un evento atrasado. Retirar
@@ -66,6 +77,9 @@ query/hash/UTM y referente externo reducido al origen. `/admin`, `/success`,
 `/cancel`, APIs y páginas desconocidas quedan excluidas. Las visitas en
 navegación interna dependen de que GA4 tenga activada la medición de cambios
 de historial; con Medición mejorada apagada, no se contabilizan automáticamente.
+El aviso y las políticas describen ahora las interacciones que GA4 puede medir
+cuando se active. La captura aportada por el propietario muestra conservación
+de eventos de 2 meses y datos de usuario de 14 meses en la propiedad.
 
 Cookies configuradas: prefijo `ncc`, 180 días, host-only, `/`, Secure,
 SameSite=Lax, sin renovación por visita. La retirada elimina exclusivamente
