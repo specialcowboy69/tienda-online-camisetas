@@ -5,13 +5,13 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 19 de octubre de 2026 (paginas publicas de
-privacidad y cookies integradas en #38 y verificadas en Production; GA4 sigue
-apagado; no cambia el estado `NO-GO`).
+**Ultima revision documental:** 20 de octubre de 2026 (GA4 activado en
+Production solo tras consentimiento; respuesta del colector, retirada y vista
+móvil de ajustes comprobadas; recepción en Realtime pendiente; no cambia `NO-GO`).
 
 ## Resumen vigente y fuente de estado
 
-### Analítica opcional — entrega del 13 de octubre
+### Analítica opcional — activación del 20 de octubre
 
 - [x] Preparar consentimiento previo de GA4 `G-4JDZCBK8SY`, rechazo/retirada,
   caducidad, exclusión de rutas sensibles y pruebas locales de navegador.
@@ -23,16 +23,24 @@ apagado; no cambia el estado `NO-GO`).
   enlaces reales en footer, ajustes y checkout: PR #38, merge `4637a83`,
   Vercel Production `dpl_GwBUEjaeDumw3oJpoPGgDxpr9TY4` READY.
   Ambas rutas dan HTTP 200 en el dominio público.
-- [x] Montar prueba local de gtag.js real con colectores interceptados. La
-  prueba limitada observó consentimiento previo y retirada, pero la prueba
-  ampliada detectó un evento automático `scroll` adicional y falla de forma
-  intencionada hasta ajustar la propiedad. No se envió una visita a GA4.
-- [ ] Repetir la prueba ampliada sin eventos automáticos ni datos sensibles.
-- [ ] Desactivar o ajustar Medición mejorada en la propiedad GA4 y confirmar
-  cambios de historial y conservación; revisar con el titular los textos,
-  activar el flag en Vercel y comprobar recepción en Realtime/DebugView.
+- [x] Montar y repetir la prueba local de gtag.js real con colectores
+  interceptados. La prueba del 19 detectó un `scroll` adicional; la repetición
+  del 20, tras desactivar Medición mejorada, pasó con un único `page_view`,
+  rutas excluidas sin eventos y cookies propias retiradas. No se envió a GA4
+  ningún hit de la prueba local.
+- [x] Confirmar mediante capturas del titular el flujo `G-4JDZCBK8SY`,
+  Medición mejorada desactivada y conservación de eventos 2 meses / datos de
+  usuario 14 meses.
+- [x] Activar el flag y el ID público solo en Vercel Production y redesplegar:
+  `dpl_AQzctqzSu7F8riAsu3VadujKHcFM` READY. Rechazo sin script; aceptación
+  con descarga de gtag.js (200) y solicitud `/g/collect` respondida (204).
+- [x] Verificar retirada tras aceptación: navegar a `/products` no produjo otro
+  `/g/collect`. Revisar a 390 × 844 px el diálogo de ajustes y el catálogo;
+  sin desbordamiento visible. No equivale a una matriz móvil completa.
+- [ ] Comprobar que la visita controlada aparece en Realtime/DebugView de GA4.
 
-[Evidencia local y límites](verification/2026-10-13-ga4-consent.md) y
+[Evidencia de activación y límites](verification/2026-10-20-ga4-activation.md),
+[evidencia local inicial](verification/2026-10-13-ga4-consent.md) y
 [procedimiento](analytics-and-consent.md). No cambia NO-GO ni activa Ads, Tax,
 conversiones o pagos. Los estados históricos de abajo conservan su fecha.
 
@@ -43,7 +51,7 @@ Estar desplegado en Vercel Production no significa tener autorizados pagos live.
 
 | Area | Estado documental; evidencias historicas fechadas |
 | --- | --- |
-| Integracion | Paginas públicas de #38 en Production (`4637a83`); GA4 de #35 apagado. Registro de stock de #31, alertas desactivadas de #29 y control UE de #27 conservados |
+| Integracion | Paginas públicas de #38 en Production (`4637a83`); GA4 de #35 habilitado tras consentimiento en deployment `dpl_AQzctqzSu7F8riAsu3VadujKHcFM`, pendiente recepción en informe. Registro de stock de #31, alertas desactivadas de #29 y control UE de #27 conservados |
 | Envios | Seis destinos previstos US/ES/FR/DE/IT/PT; CA/GB bloqueados por codigo; control preventivo UE integrado y comprobado en cotizaciones publicas |
 | Pagos y pedidos | E2E test posterior a #27; reembolso pending autentico seguido de full, parcial historico y dos borradores cancelados con permiso. No acredita ventas live ni fabricacion |
 | Webhook Printful | Registro de stock corregido: IDs de catalogo 162/317/586/1579. Dos eventos product_updated autenticos procesados el 12 de octubre; cambio interno y restauracion reflejados en Firestore. Sigue pendiente stock_updated y envio real |
@@ -667,10 +675,11 @@ por esta actualizacion; requiere permiso nuevo al retomarla y sigue sin verifica
 - [x] Anadir `metadataBase`, canonical, Open Graph y Twitter metadata (PR #40).
 - [x] Confirmar metadatos unicos para cada producto publicado (PR #40, gate HTTP).
 - [ ] Configurar Search Console y enviar el sitemap.
-- [x] Elegir GA4 e implementar consentimiento previo y retirada en #35,
-  desplegado apagado; evidencia y límites en la sección de analítica opcional.
-- [ ] Completar las puertas de activación de GA4 (legales, propiedad, SDK real
-  y recepción verificada); Google Ads queda fuera del alcance implementado.
+- [x] Elegir GA4 e implementar consentimiento previo y retirada en #35;
+  activado en Production el 20 de octubre solo tras aceptar. Evidencia y límites
+  en la sección de analítica opcional.
+- [ ] Comprobar recepción de GA4 en Realtime/DebugView; Google Ads queda fuera
+  del alcance implementado.
 - [ ] Configurar monitorizacion de errores y revisar logs de Vercel.
 - [x] ~~Definir una revision periodica manual para pedidos en `manual_review`,
   webhooks fallidos y solicitudes de clientes.~~
