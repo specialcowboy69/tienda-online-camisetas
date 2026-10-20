@@ -117,7 +117,7 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
     </footer>
     {showBanner && <div aria-hidden="true" style={{ height: bannerHeight }} />}
     {showBanner && <section ref={banner} className="ncc-consent-banner" aria-label="Analytics preferences">
-      <p>We use optional Google Analytics cookies to understand visits to our store. Analytics stays off unless you accept. You can change your choice at any time using Cookie settings. Advertising tracking is off.</p>
+      <p>With your permission, Google Analytics measures visits on our public shopping pages. Depending on the enabled settings, it may also measure interactions such as scrolling and outbound link clicks. Automatic form interaction tracking is currently off. You can change your choice in Cookie settings. Advertising tracking is off.</p>
       <div className="ncc-consent-actions">
         <button type="button" onClick={() => decide("granted")}>Accept analytics</button>
         <button type="button" onClick={() => decide("denied")}>Reject analytics</button>
@@ -143,7 +143,7 @@ function ConsentDialog({ available, granted, warning, onClose, onSave }: {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }}>
     <div className="ncc-consent-heading"><h2 id="ncc-consent-title">Cookie settings</h2><button type="button" onClick={close} aria-label="Close cookie settings">Close</button></div>
-    <p>Your choice remains valid for 180 days. An expired browser record is removed while this site is open or when you next visit. Necessary store features work whether you accept or reject analytics.</p>
+    <p>Optional analytics measures visits and, where enabled, interactions on public shopping pages. It does not run on Stripe-hosted payment, order confirmation or administration pages. Automatic form interaction tracking is currently off. Your choice remains valid for 180 days. An expired browser record is removed while this site is open or when you next visit. Necessary store features work whether you accept or reject analytics.</p>
     {available ? <label className="ncc-consent-toggle"><input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)} />Allow Google Analytics</label> : <p>Analytics is currently off on this site.</p>}
     <p>Advertising tracking is off. We do not enable Google Ads tracking through these settings.</p>
     <p>Read our <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy (opens in a new tab)</a> and <a href="/cookies" target="_blank" rel="noopener noreferrer">Cookie policy (opens in a new tab)</a>.</p>

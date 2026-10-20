@@ -27,7 +27,7 @@ export default function PrivacyPage() {
         <p>When you request shipping or place an order, we use your name, email, phone number if provided, delivery address, chosen items and shipping choice to calculate delivery, process payment, make and deliver your order, and help with problems. These steps are necessary to respond to your request and perform our contract. Without the required details, we cannot quote or deliver an order.</p>
         <p>Our checkout is hosted by Stripe. We receive transaction references, payment status, amounts and refunds; you enter card details on Stripe’s page, not in our own order form. We keep the records required to account for transactions and meet applicable legal obligations.</p>
         <p>If you contact us, we use your message and any photos you choose to send to answer and resolve your request. Please do not send complete card details or unnecessary identity documents. We also process limited technical and security data, including IP addresses, request details and diagnostic records, to protect the store, investigate errors and defend legal claims. These activities rely on our legitimate interests, balanced against your rights.</p>
-        <p>Transactional messages about an order are service emails, not marketing subscriptions. If you choose optional analytics in <Link href="/cookies">Cookie settings and policy</Link>, we use Google Analytics to measure visits to the home, catalog and product pages on the basis of your consent. We do not send order details, addresses or payment information to Analytics. Google Ads tracking is not enabled.</p>
+        <p>Transactional messages about an order are service emails, not marketing subscriptions. If you choose optional analytics in <Link href="/cookies">Cookie settings and policy</Link>, we use Google Analytics to measure visits on the home, catalog and product pages on the basis of your consent. Depending on the settings enabled in Google Analytics, this can also include scrolling, outbound link clicks, video engagement and file downloads. Automatic form interaction measurement is currently off. Analytics does not run on Stripe-hosted payment, order confirmation or administration pages. We do not intentionally send form contents, order details, addresses or payment information to Analytics. Google Ads tracking is not enabled.</p>
       </section>
 
       <section>
@@ -38,7 +38,7 @@ export default function PrivacyPage() {
       <section>
         <h2>How long we keep it</h2>
         <p>We keep identifiable order, transaction and related service records while the order is being fulfilled and for the periods needed for accounting, consumer rights and legal claims. Spanish commercial records are generally retained for six years from the last relevant book entry; an unresolved claim or another legal duty can require a longer period. Deletion and restriction of older order records are reviewed manually, rather than performed automatically on that date. Messages about a customer issue are kept while the issue is open and then assessed against the same legal and claims criteria. Technical logs follow the hosting provider’s retention settings.</p>
-        <p>Your analytics choice remains valid for 180 days from the decision; it does not renew merely because you visit again. An expired browser record is removed while the site is open or when you next visit, so it may remain stored longer if you do not return. Optional analytics cookies are configured for 180 days from when they are first set. Google Analytics has a separate retention setting for event-level data; for standard properties this can be 2 or 14 months, while aggregated reports can remain available longer. You can withdraw analytics consent at any time using Cookie settings in the footer.</p>
+        <p>Your analytics choice remains valid for 180 days from the decision; it does not renew merely because you visit again. An expired browser record is removed while the site is open or when you next visit, so it may remain stored longer if you do not return. Optional analytics cookies are configured for 180 days from when they are first set. The current Google Analytics property settings retain event data for 2 months and user data for 14 months; aggregated reports may remain available longer. You can withdraw analytics consent at any time using Cookie settings in the footer.</p>
       </section>
 
       <section>
@@ -47,7 +47,7 @@ export default function PrivacyPage() {
         <p>Payment and shipping checks can prevent an order from proceeding. Contact us if this happens and you need a person to review the issue. We do not use automated decisions that produce legal or similarly significant effects without human review.</p>
       </section>
 
-      <p className="ncc-legal-updated">Last updated: 19 October 2026. See our <Link href="/cookies">Cookie policy</Link>.</p>
+      <p className="ncc-legal-updated">Last updated: 21 October 2026. See our <Link href="/cookies">Cookie policy</Link>.</p>
     </article>
   </main>;
 }
