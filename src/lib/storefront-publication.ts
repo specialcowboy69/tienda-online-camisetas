@@ -1,12 +1,13 @@
 import { getCatalogProductImage } from "./catalog-images";
 import { getCatalogProduct } from "./firestore";
 import { productContentById } from "./product-content";
+import { productSeoContentById } from "./product-seo-content";
 import { getProductIdBySlug, getProductSlug } from "./product-slugs";
 import type { CatalogProduct } from "./types";
 
 export function isPublicProduct(product: CatalogProduct): boolean {
   const slug = getProductSlug(product);
-  if (product.isIgnored || !slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || productContentById[product.id]?.status !== "verified") return false;
+  if (product.isIgnored || !slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || productContentById[product.id]?.status !== "verified" || !productSeoContentById[product.id]) return false;
   const image = getCatalogProductImage(product);
   if (!image) return false;
   try {

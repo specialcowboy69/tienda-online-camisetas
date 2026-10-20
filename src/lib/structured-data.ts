@@ -26,7 +26,7 @@ export function breadcrumbJsonLd(product: CatalogProduct): JsonLdObject {
 }
 
 function exactUsdPrice(value: string): string | null {
-  if (!/^(?:0|[1-9]\d{0,13})(?:\.\d{1,2})?$/.test(value)) return null;
+  if (typeof value !== "string" || !/^(?:0|[1-9]\d{0,13})(?:\.\d{1,2})?$/.test(value)) return null;
   const [whole, fraction = ""] = value.split(".");
   const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
   if (cents <= 0n || cents > BigInt(Number.MAX_SAFE_INTEGER)) return null;

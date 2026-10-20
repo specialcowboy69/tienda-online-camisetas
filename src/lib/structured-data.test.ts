@@ -50,6 +50,11 @@ describe("structured data", () => {
     }
     expect(productGroupJsonLd({ ...variantProduct, variants: [{ ...black, retailPrice: "" }] })).toBeNull();
   });
+  it("omits a runtime numeric price instead of crashing the product page", () => {
+    const malformed = { ...black, retailPrice: 29 as unknown as string };
+    const graph = productGroupJsonLd({ ...variantProduct, variants: [malformed, blue] });
+    expect((graph?.hasVariant as Array<{ sku: string }>).map(variant => variant.sku)).toEqual(["22"]);
+  });
   it("omits prices whose displayed USD cents differ from the Offer", () => {
     for (const retailPrice of ["90071992547409.91", "70368744177664.01", "70368744177664.04"]) {
       const graph = productGroupJsonLd({ ...variantProduct, variants: [black, { ...blue, retailPrice }] });

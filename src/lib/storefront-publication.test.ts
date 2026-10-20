@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getCatalogProduct } from "./firestore";
 import { productContentById } from "./product-content";
+import { productSeoContentById } from "./product-seo-content";
 import { filterPublicProducts, getPublicProductBySlug, isPublicProduct } from "./storefront-publication";
 import type { CatalogProduct } from "./types";
 vi.mock("./firestore", () => ({ getCatalogProduct: vi.fn() }));
@@ -21,6 +22,11 @@ describe("storefront publication", () => {
     const content = productContentById[product.id];
     delete productContentById[product.id];
     try { expect(isPublicProduct(product)).toBe(false); } finally { productContentById[product.id] = content; }
+  });
+  it("does not publish a product without editorial SEO metadata", () => {
+    const metadata = productSeoContentById[product.id];
+    delete productSeoContentById[product.id];
+    try { expect(isPublicProduct(product)).toBe(false); } finally { productSeoContentById[product.id] = metadata; }
   });
   it("filters without changing order", () => expect(filterPublicProducts([product, { ...product, id: "999999999" }])).toEqual([product]));
   it("does not read Firestore for unknown slugs", async () => {
