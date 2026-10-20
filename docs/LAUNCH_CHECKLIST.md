@@ -725,16 +725,22 @@ simultaneamente estos puntos:
 - [ ] Una compra real controlada ha completado todo el recorrido correctamente.
 - [ ] Existe un procedimiento de monitorizacion, devolucion y rollback.
 
-### SEO foundation A+B — implementación local del 19 de octubre de 2026
+### SEO foundation A+B — PR #40 en revisión, 20 de octubre de 2026
 
 Metadata/canonical, publicación de catálogo, noindex operativo, sitemap/robots
 y schema de entidad/breadcrumb implementados en rama aislada. Tras el merge
 del PR #38 en main, la rama SEO también añadió URLs y selección inicial de
 variantes, ProductGroup/Offers filtrados y un gate GET que compara precio e
 imagen inicial con dos Offers por ficha como máximo.
-[Evidencia y límites](verification/2026-10-19-seo-foundation.md). Las pruebas
-locales pasan; el HTTP local no pudo comprobar PDP ni variantes por falta de
-catálogo seguro y el sitemap respondió 503. La revisión independiente terminó
-sin hallazgos abiertos; siguen pendientes PR, integración SEO y despliegue.
-Esto no acredita producción ni indexación.
+[Evidencia y límites](verification/2026-10-19-seo-foundation.md). El PR #40 está
+abierto como borrador; sus dos hallazgos de revisión se corrigieron en `5661316`.
+Las pruebas locales pasan (862/862, lint, TypeScript, build y gate Node 16/16).
+El HTTP local sigue limitado por la falta de catálogo seguro y sitemap 503;
+el preview protegido del commit corregido mostró sitemap con cinco fichas y
+una ficha con dos variantes seleccionadas, cotejadas con el catálogo público.
+Google Rich Results por URL recibió el login de Vercel; solo el fixture en
+modo Código dio resultados válidos. El envío de una muestra de catálogo real
+al validador no se completó. Siguen pendientes la comparación HTTP
+completa de schema/canonical/imagen, integración SEO y producción. Esto no
+acredita indexación.
 **NO-GO conservado**, sin activación de servicios ni pagos reales.

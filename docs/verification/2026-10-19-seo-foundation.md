@@ -1,8 +1,9 @@
 # SEO foundation A+B — verificación local, 19 de octubre de 2026
 
 Alcance: implementación en el worktree `codex/camisetas-seo-foundation`.
-**NO-GO sigue vigente.** No se ha hecho push de esta rama, PR, merge a main,
-despliegue, envío a GSC ni prueba Google Rich Results. No se han activado pagos,
+**NO-GO sigue vigente.** Este corte local del 19 de octubre era anterior al
+push y al PR; el seguimiento del 20 de octubre figura al final. No hubo merge
+a main, despliegue de producción ni envío a GSC. No se han activado pagos,
 fabricación, Stripe Tax, alertas ni analítica nueva.
 
 ## Código y revisión
@@ -88,9 +89,53 @@ publicadas. No acredita indexación, compra real ni resultados SEO.
 
 ## Pendiente
 
-- PR, integración SEO y despliegue aún pendientes. La integración local del
-  PR #38 no integra esta rama SEO en main.
-- HTTP con catálogo seguro poblado, comparación sitemap↔catálogo, al menos
-  una ficha y dos variantes reales; pruebas Rich Results y despliegue.
+- El PR SEO #40 está abierto en borrador; integración y despliegue de
+  producción aún pendientes. La integración local del PR #38 no integra esta
+  rama SEO en main.
+- CLI HTTP completo sobre catálogo seguro, con canonical y URL exacta de
+  imagen comparados con cada Offer; prueba Rich Results por URL y producción.
 - Checklist legal, fiscal, seguridad, proveedores y aceptación GO siguen
   pendientes según `docs/LAUNCH_CHECKLIST.md`.
+
+## Seguimiento del 20 de octubre — PR #40
+
+El [PR #40](https://github.com/specialcowboy69/tienda-online-camisetas/pull/40)
+está abierto como borrador contra `main`. La revisión independiente detectó
+dos fallos de robustez: publicación de un producto sin metadatos SEO y una
+excepción del schema si Firestore entrega un precio numérico. Se reprodujeron
+con pruebas rojas, se corrigieron en `5661316` y un segundo revisor comprobó
+ambas correcciones sin nuevos bloqueos de código. Tras el cambio pasaron
+`npm.cmd test` (862/862), lint, TypeScript, build y el gate Node (16/16).
+
+El endpoint público de catálogo devolvió cinco productos. Una comprobación
+local de la rama, alimentada por esos datos públicos sin credenciales,
+generó 130 Offers entre las cinco fichas y comparó cada precio, imagen, URL
+de variante y selección con el dato de origen. Pasó 2/2; la segunda prueba
+generó una muestra de HTML para validar en Google. El archivo temporal
+está ignorado en `.superpowers/`. Es evidencia sobre datos reales, pero no
+sustituye HTTP de la versión desplegada.
+
+El [preview protegido del SHA `5661316`](https://tienda-online-camisetas-q8qlzu8sl-specialcowboy69s-projects.vercel.app)
+quedó `READY` en Vercel. Un navegador autenticado leyó `/sitemap.xml` con
+cuatro URLs estáticas y cinco fichas; `/products` mostró las mismas cinco
+fichas. La ficha
+`falling-apart-cat-graphic-tee` mostró `$39.99`; `?variant=5489215132`
+seleccionó Black / S, `$39.99` y la quinta imagen; `?variant=5489218794`
+seleccionó True Navy / S, `$39.50` y la sexta imagen. Los valores coinciden
+con el catálogo público. La conexión Vercel del plugin devolvió 403 al
+intentar leer el HTML protegido, y el navegador no entregó el HTML fuente;
+por tanto no se ejecutó el CLI HTTP ni se compararon allí el canonical,
+el precio y la URL exacta de imagen con cada Offer.
+
+La [prueba oficial de Google por URL](https://search.google.com/test/rich-results/result?id=qdVj7K9RYTPiNS1q64u1hg)
+sobre el preview anterior recibió la página de login de Vercel con `noindex`,
+no la ficha. En [modo Código](https://search.google.com/test/rich-results/result?id=fcCrKPQiXJjGzo2j0_eTzw),
+un fixture sintético derivado del schema del PR produjo un Product snippet y
+dos Merchant listings válidos, con avisos opcionales; no valida el HTML
+servido ni datos de catálogo real. Se preparó una muestra generada por el PR
+con el catálogo público real, pero no se completó su envío al validador:
+**Google Rich Results con datos reales no verificado**. La
+[ficha de producción actual](https://search.google.com/test/rich-results/result?id=1aehkweV1m6gLolTcnD-vQ)
+dio cero resultados enriquecidos y sirve solo como línea base anterior al
+PR. La prueba Rich Results por URL del PR y la verificación en producción
+continúan pendientes. **NO-GO se conserva.**
