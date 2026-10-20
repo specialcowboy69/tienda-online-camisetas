@@ -43,7 +43,7 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
     page.current = { token, descriptor };
     sync();
     return () => {
-      if (page.current?.token === token) { page.current = null; runtime.current?.stop({ clearCookies: false }); }
+      if (page.current?.token === token) { page.current = null; sync(); }
     };
   }, [sync]);
   const apply = useCallback((value: AnalyticsConsent | null) => {

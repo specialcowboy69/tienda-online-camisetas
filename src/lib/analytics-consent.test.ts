@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createConsent, parseConsent, readStoredConsent, resolveAnalyticsConfig, resolveAnalyticsPage, sanitizeAnalyticsReferrer } from "./analytics-consent";
+import { createConsent, parseConsent, readStoredConsent, resolveAnalyticsConfig, resolveAnalyticsPage, resolveAnalyticsDestination, sanitizeAnalyticsReferrer } from "./analytics-consent";
 
 const now = 1791849600000;
 const config = { enabled: "true", measurementId: "G-4JDZCBK8SY", deployment: "production", origin: "https://www.funnyteesforall.com" };
@@ -29,9 +29,11 @@ describe("analytics permission policy", () => {
   it.each([["/", "Home"], ["/products", "Products"], ["/products/falling-apart-cat-graphic-tee", "Product"]] as const)("allows registered public page %s", (path, title) => {
     expect(resolveAnalyticsPage(path, { path, title })).toEqual({ path, title });
     expect(resolveAnalyticsPage(path, null)).toBeNull();
+    expect(resolveAnalyticsDestination(path)).toEqual({ path, title });
   });
   it.each(["/admin", "/success", "/cancel", "/api/products", "/products/person@example.com", "/products/%66alling-apart-cat-graphic-tee", "/products/", "/?email=x", "/#x"])("denies unapproved path %s even when registered", (path) => {
     expect(resolveAnalyticsPage(path, { path, title: "Product" })).toBeNull();
+    expect(resolveAnalyticsDestination(path)).toBeNull();
   });
   it("denies stale registration and wrong title", () => {
     expect(resolveAnalyticsPage("/products", { path: "/", title: "Home" })).toBeNull();

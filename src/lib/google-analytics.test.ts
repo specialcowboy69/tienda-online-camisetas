@@ -52,23 +52,38 @@ describe("consent-gated analytics runtime", () => {
     expect(b.commands()).toEqual([["consent", "default", { analytics_storage: "denied", ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied" }]]);
     expect(b.views()).toHaveLength(0);
     b.load();
-    expect(b.views()).toEqual([["event", "page_view", { send_to: id, page_location: origin + "/", page_title: "Home", page_referrer: "https://example.com" }]]);
-    expect(b.commands().find(c => c[0] === "config")?.[2]).toMatchObject({ send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false, cookie_prefix: "ncc", cookie_expires: 15552000, cookie_update: false, cookie_domain: "none", cookie_path: "/", cookie_flags: "SameSite=Lax;Secure" });
+    expect(b.views()).toHaveLength(0);
+    expect(b.commands().find(c => c[0] === "config")?.[2]).toMatchObject({ page_location: origin + "/", page_title: "Home", page_referrer: "https://example.com", send_page_view: true, allow_google_signals: false, allow_ad_personalization_signals: false, cookie_prefix: "ncc", cookie_expires: 15552000, cookie_update: false, cookie_domain: "none", cookie_path: "/", cookie_flags: "SameSite=Lax;Secure" });
     expect(b.win.dataLayer).toEqual([]);
     expect(b.win.gtag).not.toHaveBeenCalled();
   });
-  it("deduplicates renders and query changes but measures A/B/A", () => {
+  it("leaves eligible history changes enabled for GA4 without sending manual views", () => {
     const b = browser(); const consent = b.accept();
     b.runtime.sync({ consent, page: home }); b.load();
     b.win.history.pushState({}, "", "/?email=private#secret");
     b.runtime.sync({ consent, page: home });
-    expect(b.views()).toHaveLength(1);
+    expect(b.views()).toHaveLength(0);
     b.win.history.pushState({}, "", "/products?email=private");
+    expect((b.win as unknown as Record<string, unknown>)[`ga-disable-${id}`]).toBe(false);
+    b.runtime.sync({ consent, page: null });
+    expect((b.win as unknown as Record<string, unknown>)[`ga-disable-${id}`]).toBe(false);
     b.runtime.sync({ consent, page: products });
+    expect(b.commands().filter(c => c[0] === "set").at(-1)?.[1]).toMatchObject({ page_location: origin + "/products", page_title: "Products" });
     b.win.history.pushState({}, "", "/");
     b.runtime.sync({ consent, page: home });
-    expect(b.views().map(c => (c[2] as { page_location: string }).page_location)).toEqual([origin + "/", origin + "/products", origin + "/"]);
+    expect(b.views()).toHaveLength(0);
     expect(b.commands().filter(c => c[0] === "config")).toHaveLength(1);
+  });
+  it("re-enables automatic GA4 views after returning from a sensitive route", () => {
+    const b = browser(); const consent = b.accept();
+    b.runtime.sync({ consent, page: home }); b.load();
+    b.win.history.pushState({}, "", "/success?order_id=private");
+    expect((b.win as unknown as Record<string, unknown>)[`ga-disable-${id}`]).toBe(true);
+    b.win.history.pushState({}, "", "/products?email=private");
+    b.runtime.sync({ consent, page: products });
+    expect(b.commands().filter(c => c[0] === "config")).toHaveLength(2);
+    expect(b.commands().filter(c => c[0] === "config").at(-1)?.[2]).toMatchObject({ page_location: origin + "/products", send_page_view: true });
+    expect(b.views()).toHaveLength(0);
   });
   it("withdraws before load without letting an old callback configure or emit", () => {
     const b = browser(); b.runtime.sync({ consent: b.accept(), page: home });
@@ -85,9 +100,10 @@ describe("consent-gated analytics runtime", () => {
     b.runtime.stop({ clearCookies: true });
     expect((b.win as unknown as Record<string, unknown>)[`ga-disable-${id}`]).toBe(true);
     b.runtime.sync({ consent: b.accept(), page: home });
-    expect(b.views()).toHaveLength(2);
+    expect(b.views()).toHaveLength(0);
     expect(b.scripts).toHaveLength(1);
     expect((b.win as unknown as Record<string, unknown>)[`ga-disable-${id}`]).toBe(false);
+    expect(b.commands().filter(c => c[0] === "config")).toHaveLength(2);
   });
   it("does not retry loader errors until a new explicit acceptance", () => {
     const b = browser(); const consent = b.accept();
@@ -109,7 +125,7 @@ describe("consent-gated analytics runtime", () => {
     expect(b.win.history.pushState({ x: 1 }, "", "/success?order_id=private")).toBe("unchanged");
     expect((b.win as unknown as Record<string, unknown>)[`ga-disable-${id}`]).toBe(true);
     b.runtime.sync({ consent, page: home });
-    expect(b.views()).toHaveLength(1);
+    expect(b.views()).toHaveLength(0);
   });
   it("discards stale pages during loading and measures only the newly registered route", () => {
     const b = browser(); const consent = b.accept();
@@ -117,7 +133,8 @@ describe("consent-gated analytics runtime", () => {
     b.win.history.replaceState({}, "", "/products");
     b.runtime.sync({ consent, page: products });
     late.call(b.scripts[0], new Event("load")); b.load();
-    expect(b.views().map(c => (c[2] as {page_title:string}).page_title)).toEqual(["Products"]);
+    expect(b.views()).toHaveLength(0);
+    expect(b.commands().find(c => c[0] === "config")?.[2]).toMatchObject({ page_title: "Products", send_page_view: true });
   });
   it("pauses on browser history popstate", () => {
     const b = browser(); b.runtime.sync({ consent: b.accept(), page: home }); b.load();
@@ -130,6 +147,6 @@ describe("consent-gated analytics runtime", () => {
     b.win.location.search = "?email=private";
     b.events.get("popstate")?.();
     expect((b.win as unknown as Record<string, unknown>)[`ga-disable-${id}`]).toBe(false);
-    expect(b.views()).toHaveLength(1);
+    expect(b.views()).toHaveLength(0);
   });
 });

@@ -28,7 +28,9 @@ const fakeTag = `(() => {
   window.__analyticsCommands = window.__analyticsCommands || [];
   function consume(args) {
     const c = Array.from(args); window.__analyticsCommands.push(c);
-    if (c[0] === 'event' && !window['ga-disable-${id}']) {
+    // The double models the initial automatic view from GA4 config, not
+    // enhanced-measurement history events (those require the real SDK).
+    if (c[0] === 'config' && c[2]?.send_page_view && !window['ga-disable-${id}']) {
       document.cookie='ncc_ga=simulated; Path=/; Secure; SameSite=Lax';
       document.cookie='ncc_ga_4JDZCBK8SY=simulated; Path=/; Secure; SameSite=Lax';
       fetch('https://www.google-analytics.com/g/collect', {method:'POST', body:JSON.stringify(c)});
@@ -136,13 +138,15 @@ try {
       assert.equal(traffic.scripts, 0); assert.equal(traffic.hits.length, 0);
       await save(page, true); await countHits(page, traffic, 1);
       await page.evaluate(() => history.pushState({}, "", "/?order_id=private#secret")); await settle(page); assert.equal(traffic.hits.length, 1);
-      await page.locator('a[href="/products"]').first().click(); await page.waitForURL("**/products"); await countHits(page, traffic, 2);
-      await page.locator('a[href="/"]').first().click(); await page.waitForURL(canonical + "/"); await countHits(page, traffic, 3);
-      await save(page, false); assert.equal(traffic.hits.length, 3);
+      await page.locator('a[href="/products"]').first().click(); await page.waitForURL("**/products"); await settle(page);
+      await page.locator('a[href="/"]').first().click(); await page.waitForURL(canonical + "/"); await settle(page);
+      assert.equal(traffic.hits.length, 1, "The double does not model GA4 history events");
+      assert.equal(await page.evaluate(() => window.__analyticsCommands.filter(command => command[0] === "event" && command[1] === "page_view").length), 0);
+      await save(page, false); assert.equal(traffic.hits.length, 1);
       assert.equal((await context.cookies()).some(c => c.name.startsWith("ncc_ga")), false);
-      await save(page, true); await countHits(page, traffic, 4); assert.equal(traffic.scripts, 1);
+      await save(page, true); await countHits(page, traffic, 2); assert.equal(traffic.scripts, 1);
       await page.evaluate(() => history.pushState({}, "", "/success?order_id=private")); await settle(page);
-      assert.equal(await page.evaluate(id => window[`ga-disable-${id}`], id), true); assert.equal(traffic.hits.length, 4);
+      assert.equal(await page.evaluate(id => window[`ga-disable-${id}`], id), true); assert.equal(traffic.hits.length, 2);
       assert(!JSON.stringify(traffic.hits).match(/synthetic|private|order_id|email=|secret/));
       await context.close();
     });
@@ -173,7 +177,7 @@ try {
     await test("blocked storage uses memory and visible warning", async () => {
       const { page, context, traffic } = await fixture(viewport, { blockedStorage: true }); await visit(page);
       assert.equal(traffic.scripts, 0); await page.getByRole("button", { name: "Accept analytics" }).click(); await countHits(page, traffic, 1);
-      await settings(page); assert.equal(await page.getByRole("status").isVisible(), true);
+      await settings(page); assert.equal(await page.getByRole("dialog").getByRole("status").isVisible(), true);
       await page.keyboard.press("Escape"); await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await settle(page);
       assert.equal(traffic.hits.length, 1); await save(page, false); assert.equal(traffic.hits.length, 1); await context.close();
     });

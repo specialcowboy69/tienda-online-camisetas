@@ -45,6 +45,11 @@ export function resolveAnalyticsPage(pathname: string, registered: AnalyticsPage
   return { path: pathname, title: registered.title };
 }
 
+export function resolveAnalyticsDestination(pathname: string): AnalyticsPage | null {
+  const title = pages.get(pathname);
+  return title ? { path: pathname, title } : null;
+}
+
 export function sanitizeAnalyticsReferrer(raw: string): string {
   try {
     const url = new URL(raw);
