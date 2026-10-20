@@ -2,17 +2,25 @@
 
 ## Estado y alcance
 
-Integrado y desplegado el 13 de octubre de 2026 mediante PR #35, merge `2bd0f7a`,
-**apagado**. Vercel Production `dpl_GgYD23Vk8F5vd2mDA6RhvcjBAG5J` READY;
-verificación del dominio público en móvil/escritorio sin carga de Analytics.
-Esto no equivale a activación ni recepción en GA4.
+Integrado y desplegado inicialmente **apagado** el 13 de octubre de 2026 mediante
+PR #35, merge `2bd0f7a`; Vercel Production
+`dpl_GgYD23Vk8F5vd2mDA6RhvcjBAG5J` READY. La verificación de entonces en
+móvil/escritorio no observó carga de Analytics.
 El 19 de octubre se publicaron `/privacy` y `/cookies` en #38 y se ejecutó una
 [prueba aislada con gtag.js real](verification/2026-10-19-legal-pages-and-ga4-sdk.md)
-con colectores interceptados. La prueba ampliada detectó un `scroll` automático
-adicional y bloquea la activación. La propiedad GA4 y Realtime aún no están
-verificados; el flag productivo sigue apagado. Consultar también la
+con colectores interceptados. Aquella prueba detectó un `scroll` automático
+adicional y bloqueó la activación hasta ajustar la propiedad.
+
+**Estado desde el 20 de octubre:** GA4 está habilitado solo en Vercel Production
+para visitas con consentimiento, tras desactivar Medición mejorada y repetir la
+prueba del SDK. Deployment `dpl_AQzctqzSu7F8riAsu3VadujKHcFM` READY,
+asociado a `www.funnyteesforall.com`. En la web pública, rechazar no cargó la
+etiqueta; aceptar cargó `gtag.js` (HTTP 200) y Google respondió HTTP 204 a
+`/g/collect`. La recepción en el informe Realtime/DebugView de GA4 sigue
+**sin verificar**: una respuesta del colector no la acredita. Véase la
+[verificación fechada](verification/2026-10-20-ga4-activation.md), la
 [evidencia inicial](verification/2026-10-13-ga4-consent.md) y la
-[checklist](LAUNCH_CHECKLIST.md) antes de activar. NO-GO no cambia.
+[checklist](LAUNCH_CHECKLIST.md). El estado comercial `NO-GO` no cambia.
 
 El identificador público es `G-4JDZCBK8SY`. No es un secreto. El código no
 añade Google Ads, conversiones, User-ID, Signals, medición de formularios ni
@@ -20,7 +28,8 @@ conversiones mejoradas. No modifica checkout, pedidos, catálogo ni impuestos.
 
 ## Configuración
 
-- `NEXT_PUBLIC_ANALYTICS_ENABLED=false`: valor de entrega. Solo `true` habilita.
+- `NEXT_PUBLIC_ANALYTICS_ENABLED=true` en Production desde el 20 de octubre;
+  antes estuvo `false`. Solo `true` habilita.
 - `NEXT_PUBLIC_GA4_ID=G-4JDZCBK8SY`.
 - Además se exige `VERCEL_ENV=production` y origen exacto
   `https://www.funnyteesforall.com` en el navegador.
@@ -67,7 +76,7 @@ descarta su cola. Quitar un script no descarga JavaScript ya ejecutado. Una
 petición iniciada previamente no puede recuperarse. GA4 puede generar eventos
 técnicos propios: no afirmar que todo el tráfico será únicamente page_view.
 
-## Puertas obligatorias antes de activar
+## Puertas de activación y verificación restante
 
 1. Publicar información legal revisada y añadir enlaces reales en ajustes;
    no usar borradores incompletos ni inventar datos del responsable.
@@ -78,10 +87,12 @@ técnicos propios: no afirmar que todo el tráfico será únicamente page_view.
    retirada, rutas excluidas, parámetros sensibles, cookies reales y restauración
    desde suspensión/BFCache. Cualquier
    ping no permitido mantiene la activación bloqueada.
-4. Con permiso específico, enviar una visita controlada y comprobar recepción
-   en Realtime/DebugView. Script cargado o respuesta 204 no acreditan recepción.
-5. Autorizar flag true y nuevo deployment; verificar la versión publicada en
-   móvil/escritorio, aceptación, rechazo y ajustes.
+4. Se envió una visita controlada al colector tras aceptar en Production;
+   **falta** comprobar recepción en Realtime/DebugView. Script cargado o
+   respuesta 204 no acreditan esa recepción.
+5. Flag true y deployment productivo verificados en escritorio. En móvil
+   390 × 844 px se inspeccionaron visualmente catálogo y ajustes; la retirada
+   pública no emitió otro hit al navegar. No es una matriz exhaustiva.
 
 ## Desactivación
 
