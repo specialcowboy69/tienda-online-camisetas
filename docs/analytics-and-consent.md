@@ -28,6 +28,23 @@ GitHub registra deployment Production correcto para el merge `ac61bef`; la
 comprobación directa del dominio público respondió HTTP 200. Esto no verifica
 todavía recepción en Realtime ni activa por sí mismo Medición mejorada.
 
+**Verificación del 21 de octubre:** #44 (merge `38ae7a7`) desplegó el aviso y
+las políticas ampliadas junto con el consentimiento v2. GitHub registró el
+deployment Production `7213001459` como `success`; las páginas públicas
+`/privacy` y `/cookies` respondieron HTTP 200 y la home mostró el nuevo aviso.
+Tras aceptarlo en una sesión de prueba, se solicitó `gtag.js` y se observó una
+petición POST a `/g/collect`. El informe Realtime de la propiedad devolvió
+`first_visit=1`, `page_view=1` y `session_start=1`. Esto acredita recepción de
+la medición básica, no de eventos automáticos adicionales. Al retirar después
+el permiso v2 y navegar a `/products`, no se observó ninguna nueva petición a
+Google Analytics en esa sesión. Medición mejorada
+se activó brevemente para inspeccionar sus opciones: búsqueda interna e
+interacciones con formularios aparecieron marcadas por defecto. No se guardó
+ningún cambio en esas opciones y el interruptor principal se volvió a apagar.
+No se probó un evento de formulario ni se afirma que ninguno haya podido
+producirse durante ese intervalo. La activación selectiva queda pendiente de
+decisión expresa; el estado comercial sigue `NO-GO`.
+
 El identificador público es `G-4JDZCBK8SY`. No es un secreto. El código no
 añade Google Ads, conversiones, User-ID, Signals ni conversiones mejoradas.
 Medición mejorada de GA4 puede incorporar eventos automáticos de interacción
@@ -110,9 +127,9 @@ técnicos propios: no afirmar que todo el tráfico será únicamente page_view.
    retirada, rutas excluidas, parámetros sensibles, cookies reales y restauración
    desde suspensión/BFCache. Cualquier
    ping no permitido mantiene la activación bloqueada.
-4. Se envió una visita controlada al colector tras aceptar en Production;
-   **falta** comprobar recepción en Realtime/DebugView. Script cargado o
-   respuesta 204 no acreditan esa recepción.
+4. La visita controlada posterior a #44 apareció en Realtime como `page_view`.
+   Quedan sin verificar los eventos adicionales de Medición mejorada, que está
+   apagada; recepción básica no equivale a recepción de cada interacción.
 5. Flag true y deployment productivo verificados en escritorio. En móvil
    390 × 844 px se inspeccionaron visualmente catálogo y ajustes; la retirada
    pública no emitió otro hit al navegar. No es una matriz exhaustiva.

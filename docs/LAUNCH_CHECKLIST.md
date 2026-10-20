@@ -5,9 +5,9 @@ Se actualiza cada vez que una tarea queda terminada y verificada.
 
 **Estado global:** `NO-GO — todavía no aceptar pagos reales`
 
-**Ultima revision documental:** 20 de octubre de 2026 (GA4 activado en
-Production solo tras consentimiento; respuesta del colector, retirada y vista
-móvil de ajustes comprobadas; recepción en Realtime pendiente; no cambia `NO-GO`).
+**Ultima revision documental:** 21 de octubre de 2026 (consentimiento GA4 v2
+desplegado en Production mediante #44; una visita con consentimiento apareció
+como `page_view` en Realtime. Medición mejorada sigue apagada; no cambia `NO-GO`).
 
 ## Resumen vigente y fuente de estado
 
@@ -37,7 +37,15 @@ móvil de ajustes comprobadas; recepción en Realtime pendiente; no cambia `NO-G
 - [x] Verificar retirada tras aceptación: navegar a `/products` no produjo otro
   `/g/collect`. Revisar a 390 × 844 px el diálogo de ajustes y el catálogo;
   sin desbordamiento visible. No equivale a una matriz móvil completa.
-- [ ] Comprobar que la visita controlada aparece en Realtime/DebugView de GA4.
+- [x] Comprobar recepción de una visita controlada en Realtime: tras aceptar el
+  aviso v2 en el dominio público se observó `/g/collect` y el informe Realtime
+  devolvió `first_visit=1`, `page_view=1`, `session_start=1`. Es evidencia de
+  medición básica, no de eventos de Medición mejorada.
+- [ ] Activar selectivamente Medición mejorada y verificar eventos reales, sin
+  capturar datos de formularios o búsquedas de URL. La propiedad se dejó apagada
+  tras una activación breve de inspección porque esas dos opciones estaban
+  marcadas por defecto y la desactivación selectiva requiere una decisión
+  expresa del titular.
 
 [Evidencia de activación y límites](verification/2026-10-20-ga4-activation.md),
 [evidencia local inicial](verification/2026-10-13-ga4-consent.md) y
@@ -678,8 +686,8 @@ por esta actualizacion; requiere permiso nuevo al retomarla y sigue sin verifica
 - [x] Elegir GA4 e implementar consentimiento previo y retirada en #35;
   activado en Production el 20 de octubre solo tras aceptar. Evidencia y límites
   en la sección de analítica opcional.
-- [ ] Comprobar recepción de GA4 en Realtime/DebugView; Google Ads queda fuera
-  del alcance implementado.
+- [x] Comprobar recepción básica de GA4 en Realtime el 21 de octubre de 2026;
+  Medición mejorada y Google Ads quedan fuera de esta prueba.
 - [ ] Configurar monitorizacion de errores y revisar logs de Vercel.
 - [x] ~~Definir una revision periodica manual para pedidos en `manual_review`,
   webhooks fallidos y solicitudes de clientes.~~
