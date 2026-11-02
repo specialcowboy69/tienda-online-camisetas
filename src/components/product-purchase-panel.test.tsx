@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductPurchasePanel } from "./product-purchase-panel";
 import type { CatalogProduct } from "@/lib/types";
 
+const analytics = vi.hoisted(() => ({ events: [] as Array<[string, Record<string, unknown>]> }));
+vi.mock("./analytics-consent", () => ({ useTrackAnalytics: () => (name: string, params: Record<string, unknown>) => { analytics.events.push([name, params]); }, useAnalyticsGranted: () => true }));
+
 const hooks = vi.hoisted(() => ({ values: [] as unknown[], index: 0, refs: [] as { current: unknown }[], refIndex: 0, cleanups: [] as Array<() => void> }));
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -47,11 +50,40 @@ function deferred() { let resolve!: (response: Response) => void; const promise 
 
 describe("ProductPurchasePanel recipient wiring through real rendered handlers", () => {
   beforeEach(() => {
+    analytics.events = [];
     vi.stubGlobal("React", React);
     hooks.values = []; hooks.index = 0; hooks.refs = []; hooks.refIndex = 0;
     hooks.cleanups = [];
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(JSON.stringify({ rates: [{ id: "STANDARD", name: "Standard", rate: "0", currency: "usd" }] }))));
     button("Add to bag").props.onClick!();
+  });
+  it("records cart, quote and shipping milestones without recipient details", async () => {
+    expect(analytics.events.some(([name]) => name === "add_to_cart")).toBe(true);
+    await quote();
+    expect(analytics.events.map(([name]) => name)).toContain("begin_checkout");
+    expect(analytics.events.map(([name]) => name)).toContain("shipping_quote_success");
+    expect(analytics.events.map(([name]) => name)).not.toContain("add_shipping_info");
+    expect(JSON.stringify(analytics.events)).not.toContain("Apt 42");
+  });
+  it("records one form start and a submission without any field contents", async () => {
+    labelInput("Name").props.onChange!({ target: { value: "Ada" } });
+    labelInput("Email").props.onChange!({ target: { value: "ada@example.com" } });
+    await quote();
+    expect(analytics.events.filter(([name]) => name === "form_start")).toHaveLength(1);
+    expect(analytics.events.filter(([name]) => name === "form_submit")).toHaveLength(1);
+    expect(JSON.stringify(analytics.events)).not.toContain("ada@example.com");
+  });
+  it("records Stripe handoff without adding analytics identifiers to checkout", async () => {
+    vi.stubGlobal("window", { location: { href: "original" } });
+    await quote();
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ checkoutUrl: "https://checkout.example/session" })));
+    await button("Pay with Stripe").props.onClick!();
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[1][1]!.body as string);
+    expect(body).not.toHaveProperty("analyticsClientId");
+    expect(body).not.toHaveProperty("analyticsSessionId");
+    expect(body).not.toHaveProperty("analyticsConsent");
+    expect(analytics.events.map(([name]) => name)).toContain("add_shipping_info");
+    expect(analytics.events.map(([name]) => name)).toContain("checkout_redirect");
   });
   afterEach(() => { vi.unstubAllGlobals(); });
   it("saves optional apartment edits and removes the old payable shipping quote", async () => {

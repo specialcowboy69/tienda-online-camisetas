@@ -1,5 +1,34 @@
 # Analítica opcional y consentimiento
 
+## Embudo de compra preparado localmente (2 de noviembre de 2026)
+
+La rama `codex/ga4-ecommerce-funnel` prepara eventos `view_item`, `add_to_cart`,
+`begin_checkout`, `form_start`, `form_submit`, `shipping_quote_success`, `shipping_quote_failed`,
+`add_shipping_info` y `checkout_redirect` desde la página de producto. Los
+eventos del navegador pasan por el adaptador actual: solo con consentimiento
+vigente, en páginas públicas registradas y en el origen de producción. Se
+eliminan parámetros ajenos al contrato, incluidos los datos libres del
+formulario y los errores de proveedor. Los intentos cancelados no registran un
+resultado de cotización. Al aceptar Analytics dentro de una página de producto
+se registra la vista de ese producto.
+
+No se envían identificadores de GA4 con el pedido ni eventos desde el servidor.
+`purchase` queda pendiente: un registro de consentimiento enviado por el
+navegador puede falsificarse y no representa una retirada posterior del permiso.
+El flujo medido termina antes de salir hacia Stripe. Hasta que se despliegue
+esta rama y se verifique en GA4, los nuevos eventos son **implementación local,
+no verificación productiva**.
+
+La medición automática de formularios de la propiedad GA4 sigue apagada. El
+inicio y envío del formulario de cotización y los demás hitos de compra se miden mediante eventos explícitos sin contenidos del
+formulario. Cualquier futura activación de esa opción requiere inspeccionar
+con el SDK real qué parámetros envía el formulario de dirección y revisar el
+texto público de privacidad antes de encenderla.
+
+El alcance ampliado requiere una nueva elección: el consentimiento pasa a
+`ncc.analytics-consent.v3`. La aplicación descarta los registros `v1` y `v2`
+y vuelve a mostrar el aviso para estos nuevos hitos del formulario y del carrito.
+
 ## Estado y alcance
 
 Integrado y desplegado inicialmente **apagado** el 13 de octubre de 2026 mediante
@@ -45,16 +74,17 @@ No se probó un evento de formulario ni se afirma que ninguno haya podido
 producirse durante ese intervalo. La activación selectiva queda pendiente de
 decisión expresa; el estado comercial sigue `NO-GO`.
 
-El identificador público es `G-4JDZCBK8SY`. No es un secreto. El código no
-añade Google Ads, conversiones, User-ID, Signals ni conversiones mejoradas.
+El identificador público es `G-4JDZCBK8SY`. No es un secreto. El cambio local
+no añade Google Ads, User-ID, Signals ni conversiones mejoradas. Tampoco
+registra compras completadas.
 Medición mejorada de GA4 puede incorporar eventos automáticos de interacción
 solo después de consentimiento y activación en la propiedad. Antes de activarla,
-deshabilitar las opciones de interacciones con formularios y búsqueda interna:
-las páginas de producto contienen un formulario con datos de entrega y la
-redacción automática de parámetros de Google no sustituye a una prueba de
-privacidad. Esta barrera se mantiene aunque el nuevo aviso de consentimiento
-esté desplegado. La aplicación no envía contenidos de formularios a GA4.
-No modifica checkout, pedidos, catálogo ni impuestos.
+verificar qué parámetros genera cada opción antes de activarla: las páginas de
+producto contienen un formulario con datos de entrega. La medición automática
+de formularios permanece apagada; la búsqueda interna puede evaluarse por
+separado. Esta barrera se mantiene aunque el nuevo aviso de consentimiento
+esté desplegado. La aplicación no envía contenidos de formularios a GA4 y no
+asocia identificadores de GA4 a checkout ni pedido. No cambia catálogo ni impuestos.
 
 ## Configuración
 
@@ -73,13 +103,13 @@ puede abrirse siempre desde **Cookie settings**. Escape o Cancel no aceptan.
 El diálogo conserva/restaura el foco; cambiar la elección no recarga ni desmonta
 el formulario de compra. El banner reserva espacio para no tapar el footer.
 
-Se guarda `ncc.analytics-consent.v2` en localStorage: versión 2, `choice`
+Se guarda `ncc.analytics-consent.v3` en localStorage: versión 3, `choice`
 (`granted`/`denied`) y `decidedAt`, sin identificador de persona. Ambas elecciones
 caducan a los 180 días; visitar no renueva el plazo. Datos inválidos, futuros,
 caducados o lectura inaccesible deniegan por defecto. Si falla guardar, la
 elección dura en memoria hasta abandonar la página; ajustes muestra el aviso.
-La elección anterior `v1` se elimina y no se reutiliza: medir interacciones
-requiere que la persona acepte el aviso ampliado.
+Las elecciones anteriores `v1` y `v2` se eliminan y no se reutilizan: medir
+estos hitos nuevos requiere que la persona acepte el aviso ampliado.
 Se revalida al recuperar foco, en cambios de otra pestaña, al medir y con timer
 en tramos de máximo 24 horas. Los eventos de otra pestaña provocan releer el
 registro vigente; no restauran la aceptación de un evento atrasado. Retirar

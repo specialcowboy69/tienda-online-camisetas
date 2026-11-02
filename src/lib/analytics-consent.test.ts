@@ -7,18 +7,18 @@ const config = { enabled: "true", measurementId: "G-4JDZCBK8SY", deployment: "pr
 describe("analytics permission policy", () => {
   it.each(["granted", "denied"] as const)("keeps %s for exactly 180 days without renewing it", (choice) => {
     const record = createConsent(choice, now);
-    expect(record).toEqual({ version: 2, choice, decidedAt: now });
+    expect(record).toEqual({ version: 3, choice, decidedAt: now });
     expect(parseConsent(JSON.stringify(record), now + 15551999999)).toEqual(record);
     expect(parseConsent(JSON.stringify(record), now + 15552000000)).toBeNull();
   });
-  it.each([null, "broken", "null", "[]", "{}", '{"version":1,"choice":"granted","decidedAt":1791849600000}', '{"version":2,"choice":"yes","decidedAt":1791849600000}', '{"version":2,"choice":"granted","decidedAt":1791849600001}', '{"version":2,"choice":"granted","decidedAt":null}', '{"version":2,"choice":"granted","decidedAt":-1}', '{"version":2,"choice":"granted","decidedAt":1791849600000,"email":"x"}'])("denies malformed or unsafe preference %s", (raw) => {
+  it.each([null, "broken", "null", "[]", "{}", '{"version":1,"choice":"granted","decidedAt":1791849600000}', '{"version":3,"choice":"yes","decidedAt":1791849600000}', '{"version":3,"choice":"granted","decidedAt":1791849600001}', '{"version":3,"choice":"granted","decidedAt":null}', '{"version":3,"choice":"granted","decidedAt":-1}', '{"version":3,"choice":"granted","decidedAt":1791849600000,"email":"x"}'])("denies malformed or unsafe preference %s", (raw) => {
     expect(parseConsent(raw, now)).toBeNull();
   });
   it("rejects a nonfinite clock", () => expect(parseConsent(JSON.stringify(createConsent("granted", now)), NaN)).toBeNull());
   it("removes an expired browser preference instead of leaving the record stored indefinitely", () => {
     const storage = { getItem: () => JSON.stringify(createConsent("granted", now)), removeItem: vi.fn() };
     expect(readStoredConsent(storage, now + 15552000000)).toBeNull();
-    expect(storage.removeItem).toHaveBeenCalledWith("ncc.analytics-consent.v2");
+    expect(storage.removeItem).toHaveBeenCalledWith("ncc.analytics-consent.v3");
   });
   it("removes the old visits-only choice and asks for fresh consent", () => {
     const storage = {
@@ -27,6 +27,14 @@ describe("analytics permission policy", () => {
     };
     expect(readStoredConsent(storage, now)).toBeNull();
     expect(storage.removeItem).toHaveBeenCalledWith("ncc.analytics-consent.v1");
+  });
+  it("does not reuse an earlier acceptance for expanded shopping events", () => {
+    const storage = {
+      getItem: vi.fn((key: string) => key === "ncc.analytics-consent.v2" ? JSON.stringify({ version: 2, choice: "granted", decidedAt: now }) : null),
+      removeItem: vi.fn()
+    };
+    expect(readStoredConsent(storage, now)).toBeNull();
+    expect(storage.removeItem).toHaveBeenCalledWith("ncc.analytics-consent.v2");
   });
   it("enables only the explicit production canonical configuration", () => {
     expect(resolveAnalyticsConfig(config)).toEqual({ measurementId: "G-4JDZCBK8SY", origin: "https://www.funnyteesforall.com" });
