@@ -14,7 +14,7 @@ assert(args["--module-root"], "Supply the bundled Playwright module directory");
 const require = createRequire(join(resolve(args["--module-root"]), "analytics-harness.cjs"));
 const { chromium } = require("playwright");
 const canonical = "https://www.funnyteesforall.com";
-const key = "ncc.analytics-consent.v2";
+const key = "ncc.analytics-consent.v3";
 const id = "G-4JDZCBK8SY";
 const results = [];
 const pending = [];
@@ -176,7 +176,7 @@ try {
       assert.equal(traffic.scripts, 1); assert.equal(traffic.hits.length, 0);
       await save(page, true); assert.equal(traffic.scripts, 2); await context.close();
     });
-    for (const storage of ["broken", JSON.stringify({ version: 2, choice: "granted", decidedAt: Date.now() + 86400000 }), JSON.stringify({ version: 2, choice: "granted", decidedAt: Date.now() - 15552000001 }), JSON.stringify({ version: 2, choice: "denied", decidedAt: Date.now() })]) {
+    for (const storage of ["broken", JSON.stringify({ version: 3, choice: "granted", decidedAt: Date.now() + 86400000 }), JSON.stringify({ version: 3, choice: "granted", decidedAt: Date.now() - 15552000001 }), JSON.stringify({ version: 3, choice: "denied", decidedAt: Date.now() })]) {
       await test(`invalid/denied preference ${results.length}`, async () => {
         const { page, context, traffic } = await fixture(viewport, { storage }); await visit(page);
         assert.equal(traffic.scripts, 0); assert.equal(traffic.hits.length, 0);
@@ -220,14 +220,14 @@ try {
     });
     await test("expired permission blocks an already open page", async () => {
       const now = Date.now();
-      const { page, context, traffic } = await fixture(viewport, { storage: JSON.stringify({ version: 2, choice: "granted", decidedAt: now - 15552000000 + 5000 }) });
+      const { page, context, traffic } = await fixture(viewport, { storage: JSON.stringify({ version: 3, choice: "granted", decidedAt: now - 15552000000 + 5000 }) });
       await page.clock.install({ time: new Date(now) }); await visit(page); await countHits(page, traffic, 1);
       await page.clock.fastForward(6000); await settle(page);
       assert.equal(await page.evaluate(id => window[`ga-disable-${id}`], id), true); assert.equal(traffic.hits.length, 1); await context.close();
     });
     for (const path of ["/success?order_id=synthetic", "/cancel", "/admin", "/products/does-not-exist"]) {
       await test(`excluded ${path.split("?")[0]}`, async () => {
-        const { page, context, traffic } = await fixture(viewport, { storage: JSON.stringify({ version: 2, choice: "granted", decidedAt: Date.now() }) }); await visit(page, path);
+        const { page, context, traffic } = await fixture(viewport, { storage: JSON.stringify({ version: 3, choice: "granted", decidedAt: Date.now() }) }); await visit(page, path);
         assert.equal(traffic.scripts, 0); assert.equal(traffic.hits.length, 0); await context.close();
       });
     }

@@ -10,6 +10,7 @@ import { selectUrlVariant } from "@/lib/product-variant-url";
 import { SizeGuide } from "@/lib/size-guides";
 import { CatalogProduct, CartItemInput, Recipient, ShippingRate } from "@/lib/types";
 import { SizeGuideModal } from "./size-guide-modal";
+import { useAnalyticsGranted, useTrackAnalytics } from "./analytics-consent";
 
 type ProductPurchasePanelProps = {
   product: CatalogProduct;
@@ -89,6 +90,8 @@ function getDisplayMood(content?: (typeof productContentById)[string]) {
 }
 
 export function ProductPurchasePanel({ product, allowedCountries, defaultCountry, sizeGuide, initialVariantId }: ProductPurchasePanelProps) {
+  const track = useTrackAnalytics();
+  const analyticsGranted = useAnalyticsGranted();
   const content = productContentById[product.id];
   const activeVariants = useMemo(() => getActiveProductVariants(product), [product]);
   const options = useMemo(() => getProductOptions(product), [product]);
@@ -117,6 +120,8 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
   const revision = useRef(0);
   const pendingQuote = useRef<AbortController | null>(null);
   const checkoutLock = useRef(false);
+  const checkoutStarted = useRef(false);
+  const formStarted = useRef(false);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
 
   useEffect(() => () => {
@@ -135,6 +140,13 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
       : "Unavailable";
   const displayTitle = getDisplayTitle(product.name, content);
   const displayMood = getDisplayMood(content);
+  const ecommerce = selectedVariant ? { currency: selectedVariant.currency.toUpperCase(), value: Number(selectedVariant.retailPrice), items: [{ item_id: product.id, item_name: product.name, item_variant: selectedVariant.name, price: Number(selectedVariant.retailPrice), quantity: 1 }] } : null;
+
+  useEffect(() => {
+    if (analyticsGranted && ecommerce) track("view_item", ecommerce);
+  // Product impressions are once per product page mount, not on recipient edits.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id, analyticsGranted]);
 
   function chooseColor(color: string) {
     if (checkoutLock.current) return;
@@ -164,6 +176,9 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
     if (!selectedVariant) {
       return;
     }
+    if (ecommerce) track("add_to_cart", ecommerce);
+    checkoutStarted.current = false;
+    formStarted.current = false;
 
     invalidateQuote();
     setCart([
@@ -184,6 +199,10 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
 
   function updateRecipient(field: keyof Recipient, value: string) {
     if (checkoutLock.current) return;
+    if (!formStarted.current) {
+      track("form_start", { form_id: "shipping_quote" });
+      formStarted.current = true;
+    }
     setRecipient((current) => ({ ...current, [field]: value }));
     invalidateQuote();
     setRates([]);
@@ -204,6 +223,11 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
   async function fetchRates(event: FormEvent) {
     event.preventDefault();
     if (checkoutLock.current) return;
+    track("form_submit", { form_id: "shipping_quote" });
+    if (!checkoutStarted.current && ecommerce) {
+      track("begin_checkout", ecommerce);
+      checkoutStarted.current = true;
+    }
     invalidateQuote();
     const token = revision.current;
     const controller = new AbortController();
@@ -226,6 +250,9 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
       }
       setRates(data.rates || []);
       setSelectedRateId(data.rates?.[0]?.id || "");
+      if (data.rates?.length) {
+        track("shipping_quote_success", { country_code: recipient.countryCode });
+      }
       setStatus(data.rates?.length ? "Shipping options ready." : "No shipping options found.");
     } catch (caught) {
       if (token !== revision.current) return;
@@ -233,6 +260,7 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
       setSelectedRateId("");
       setStatus("");
       setError(caught instanceof Error ? caught.message : "Shipping rates failed.");
+      track("shipping_quote_failed", { reason: caught instanceof ShippingEligibilityError ? caught.code : "OTHER" });
     } finally {
       if (token === revision.current) {
         pendingQuote.current = null;
@@ -264,6 +292,9 @@ export function ProductPurchasePanel({ product, allowedCountries, defaultCountry
         }
         throw new Error(data.error || "Checkout failed.");
       }
+      const selectedRate = rates.find((rate) => rate.id === selectedRateId);
+      if (ecommerce) track("add_shipping_info", { ...ecommerce, ...(selectedRate ? { shipping_tier: selectedRate.name } : {}) });
+      track("checkout_redirect", { currency: cart[0]?.currency.toUpperCase() || "USD" });
       window.location.href = data.checkoutUrl;
     } catch (caught) {
       if (token !== revision.current) return;

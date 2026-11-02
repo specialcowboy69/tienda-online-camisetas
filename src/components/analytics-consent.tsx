@@ -8,6 +8,11 @@ import { createGoogleAnalytics, type AnalyticsRuntime } from "@/lib/google-analy
 type Register = (page: AnalyticsPage) => () => void;
 const RegistrationContext = createContext<Register>(() => () => {});
 export function useAnalyticsPageRegistration() { return useContext(RegistrationContext); }
+type Track = (name: string, params: Record<string, unknown>) => void;
+const EventContext = createContext<Track>(() => {});
+export function useTrackAnalytics() { return useContext(EventContext); }
+const GrantedContext = createContext(false);
+export function useAnalyticsGranted() { return useContext(GrantedContext); }
 
 export function AnalyticsConsentProvider({ enabled, measurementId, deployment, children }: {
   enabled?: string; measurementId?: string; deployment?: string; children: ReactNode;
@@ -38,6 +43,7 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
   const sync = useCallback(() => {
     runtime.current?.sync({ consent: choice.current, page: resolveAnalyticsPage(window.location.pathname, page.current?.descriptor ?? null) });
   }, []);
+  const track = useCallback<Track>((name, params) => runtime.current?.track(name, params), []);
   const register = useCallback<Register>((descriptor) => {
     const token = Symbol("analytics page");
     page.current = { token, descriptor };
@@ -108,7 +114,7 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
     trigger.current?.focus();
   }
 
-  return <RegistrationContext.Provider value={register}>
+  return <RegistrationContext.Provider value={register}><EventContext.Provider value={track}><GrantedContext.Provider value={!!config && consent?.choice === "granted"}>
     {children}
     <footer className="ncc-consent-footer" aria-label="Legal information">
       <a href="/privacy">Privacy policy</a>
@@ -117,7 +123,7 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
     </footer>
     {showBanner && <div aria-hidden="true" style={{ height: bannerHeight }} />}
     {showBanner && <section ref={banner} className="ncc-consent-banner" aria-label="Analytics preferences">
-      <p>With your permission, Google Analytics measures visits on our public shopping pages. Depending on the enabled settings, it may also measure interactions such as scrolling and outbound link clicks. Automatic form interaction tracking is currently off. You can change your choice in Cookie settings. Advertising tracking is off.</p>
+      <p>With your permission, Google Analytics measures visits and shopping steps on public pages, including products viewed, bag additions, when the shipping form starts or is submitted, quote outcomes and checkout progress. We do not send your name, email, address or payment details to Analytics. You can change your choice in Cookie settings. Advertising tracking is off.</p>
       <div className="ncc-consent-actions">
         <button type="button" onClick={() => decide("granted")}>Accept analytics</button>
         <button type="button" onClick={() => decide("denied")}>Reject analytics</button>
@@ -125,7 +131,7 @@ export function AnalyticsConsentProvider({ enabled, measurementId, deployment, c
       </div>
     </section>}
     {settings && <ConsentDialog available={!!config} granted={consent?.choice === "granted"} warning={storageWarning} onClose={closeSettings} onSave={(granted) => { decide(granted ? "granted" : "denied"); closeSettings(); }} />}
-  </RegistrationContext.Provider>;
+  </GrantedContext.Provider></EventContext.Provider></RegistrationContext.Provider>;
 }
 
 function ConsentDialog({ available, granted, warning, onClose, onSave }: {
@@ -143,7 +149,7 @@ function ConsentDialog({ available, granted, warning, onClose, onSave }: {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }}>
     <div className="ncc-consent-heading"><h2 id="ncc-consent-title">Cookie settings</h2><button type="button" onClick={close} aria-label="Close cookie settings">Close</button></div>
-    <p>Optional analytics measures visits and, where enabled, interactions on public shopping pages. It does not run on Stripe-hosted payment, order confirmation or administration pages. Automatic form interaction tracking is currently off. Your choice remains valid for 180 days. An expired browser record is removed while this site is open or when you next visit. Necessary store features work whether you accept or reject analytics.</p>
+    <p>Optional analytics measures visits and shopping steps on public pages, including the start and submission of the shipping form without its contents. It does not run on Stripe-hosted payment, order confirmation or administration pages. Automatic form interaction tracking is currently off. Your choice remains valid for 180 days. An expired browser record is removed while this site is open or when you next visit. Necessary store features work whether you accept or reject analytics.</p>
     {available ? <label className="ncc-consent-toggle"><input type="checkbox" checked={checked} onChange={e => setChecked(e.target.checked)} />Allow Google Analytics</label> : <p>Analytics is currently off on this site.</p>}
     <p>Advertising tracking is off. We do not enable Google Ads tracking through these settings.</p>
     <p>Read our <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy (opens in a new tab)</a> and <a href="/cookies" target="_blank" rel="noopener noreferrer">Cookie policy (opens in a new tab)</a>.</p>

@@ -3,10 +3,38 @@ import { parseConsent, resolveAnalyticsDestination, resolveAnalyticsPage, saniti
 export type AnalyticsRuntime = {
   sync(input: { consent: AnalyticsConsent | null; page: AnalyticsPage | null }): void;
   stop(options: { clearCookies: boolean }): void;
+  track(name: string, params: Record<string, unknown>): void;
 };
 type AnalyticsWindow = Window & { nccAnalyticsLayer?: IArguments[]; [key: `ga-disable-${string}`]: boolean };
 const instances = new WeakMap<Document, Map<string, AnalyticsRuntime>>();
 const denied = { analytics_storage: "denied", ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied" };
+const ecommerceNames = new Set(["view_item", "add_to_cart", "begin_checkout", "add_shipping_info", "shipping_quote_success", "shipping_quote_failed", "checkout_redirect", "form_start", "form_submit"]);
+
+function safeEventParams(name: string, params: Record<string, unknown>): Record<string, unknown> | null {
+  if (!ecommerceNames.has(name)) return null;
+  const safe: Record<string, unknown> = {};
+  if (name === "form_start" || name === "form_submit") {
+    if (params.form_id !== "shipping_quote") return null;
+    safe.form_id = "shipping_quote";
+  }
+  if (typeof params.currency === "string" && /^[A-Z]{3}$/.test(params.currency)) safe.currency = params.currency;
+  if (typeof params.value === "number" && Number.isFinite(params.value) && params.value >= 0) safe.value = params.value;
+  if (typeof params.country_code === "string" && /^[A-Z]{2}$/.test(params.country_code)) safe.country_code = params.country_code;
+  if (typeof params.reason === "string" && ["EU_CUSTOMS_RISK", "SHIPPING_CHECK_UNAVAILABLE", "SHIPPING_OPTIONS_CHANGED", "OTHER"].includes(params.reason)) safe.reason = params.reason;
+  if (typeof params.shipping_tier === "string" && params.shipping_tier.length <= 50 && /^[\w -]+$/.test(params.shipping_tier)) safe.shipping_tier = params.shipping_tier;
+  if (Array.isArray(params.items)) safe.items = params.items.slice(0, 100).flatMap((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const item = raw as Record<string, unknown>;
+    if (typeof item.item_id !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(item.item_id)) return [];
+    const result: Record<string, unknown> = { item_id: item.item_id };
+    if (typeof item.item_name === "string") result.item_name = item.item_name.slice(0, 100);
+    if (typeof item.item_variant === "string") result.item_variant = item.item_variant.slice(0, 100);
+    if (typeof item.price === "number" && Number.isFinite(item.price) && item.price >= 0) result.price = item.price;
+    if (typeof item.quantity === "number" && Number.isInteger(item.quantity) && item.quantity > 0) result.quantity = item.quantity;
+    return [result];
+  });
+  return safe;
+}
 
 export function createGoogleAnalytics({ config, window: browser, document, now }: {
   config: AnalyticsConfig; window: Window; document: Document; now: () => number;
@@ -30,6 +58,7 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
   let generation = 0;
   let failedChoice: number | null = null;
   let enabled = false;
+  const pendingEvents: Array<{ name: string; params: Record<string, unknown> }> = [];
   win[disableKey] = true;
 
   function allowedPage() {
@@ -57,6 +86,7 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
     generation++;
     input = { consent: null, page: null };
     layer.length = 0;
+    pendingEvents.length = 0;
     if (!loaded && script) {
       script.remove();
       script = null;
@@ -89,6 +119,7 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
       });
       configured = true;
     }
+    for (const event of pendingEvents.splice(0)) command("event", event.name, event.params);
   }
 
   function sync(next: typeof input) {
@@ -123,6 +154,14 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
     document.head.appendChild(script);
   }
 
+  function track(name: string, params: Record<string, unknown>) {
+    const safe = safeEventParams(name, params);
+    if (!safe) return;
+    if (!allowedPage()) return;
+    if (!enabled || !loaded) { pendingEvents.push({ name, params: safe }); return; }
+    command("event", name, safe);
+  }
+
   // Keep GA4 active on public history changes; block sensitive destinations
   // before its enhanced-measurement listener can observe the new URL.
   for (const method of ["pushState", "replaceState"] as const) {
@@ -145,7 +184,7 @@ export function createGoogleAnalytics({ config, window: browser, document, now }
     if (!page) stop({ clearCookies: false });
     else if (enabled) command("set", { page_location: config.origin + page.path, page_title: page.title, page_referrer: sanitizeAnalyticsReferrer(document.referrer) });
   });
-  const runtime = { sync, stop };
+  const runtime = { sync, stop, track };
   const byId = instances.get(document) ?? new Map<string, AnalyticsRuntime>();
   byId.set(config.measurementId, runtime);
   instances.set(document, byId);

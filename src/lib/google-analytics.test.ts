@@ -40,6 +40,29 @@ function browser() {
 }
 
 describe("consent-gated analytics runtime", () => {
+  it("only sends ecommerce events after a current grant on a public shopping page", () => {
+    const b = browser();
+    b.runtime.track("add_to_cart", { currency: "USD", value: 32, items: [{ item_id: "123", item_name: "Tee", price: 32, quantity: 1 }] });
+    b.runtime.sync({ consent: b.accept(), page: home });
+    b.runtime.track("add_to_cart", { currency: "USD", value: 32, items: [{ item_id: "123", item_name: "Tee", price: 32, quantity: 1 }] });
+    b.load();
+    expect(b.commands().filter(c => c[0] === "event")).toHaveLength(1);
+    b.runtime.track("add_to_cart", { currency: "USD", value: 32, items: [{ item_id: "123", item_name: "Tee", price: 32, quantity: 1 }] });
+    expect(b.commands().filter(c => c[0] === "event")).toHaveLength(2);
+    b.runtime.stop({ clearCookies: true });
+    b.runtime.track("add_to_cart", { currency: "USD", value: 32, items: [] });
+    expect(b.commands().filter(c => c[0] === "event")).toHaveLength(2);
+  });
+  it("drops unknown event parameters instead of forwarding customer details", () => {
+    const b = browser(); b.runtime.sync({ consent: b.accept(), page: home }); b.load();
+    b.runtime.track("shipping_quote_success", { country_code: "US", email: "private@example.com", address: "Private street" });
+    expect(b.commands().filter(c => c[0] === "event")).toEqual([["event", "shipping_quote_success", { country_code: "US" }]]);
+  });
+  it("sends only a fixed form identifier for explicit form milestones", () => {
+    const b = browser(); b.runtime.sync({ consent: b.accept(), page: home }); b.load();
+    b.runtime.track("form_start", { form_id: "shipping_quote", email: "private@example.com" });
+    expect(b.commands().filter(c => c[0] === "event")).toEqual([["event", "form_start", { form_id: "shipping_quote" }]]);
+  });
   it("makes no request without permission, and loads once with only denied defaults queued", () => {
     const b = browser();
     for (const consent of [null, createConsent("denied", 1791849600000)]) b.runtime.sync({ consent, page: home });
